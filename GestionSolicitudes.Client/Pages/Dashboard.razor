@@ -2,111 +2,348 @@
 @page "/home"
 @inject HttpClient Http
 
-<PageTitle>HOME -DGM</PageTitle>
+<PageTitle>HOME - DGM</PageTitle>
 
-<div class="container mt-4">
-    <h2 class="mb-4">📊 Home </h2>
+<div class="container-fluid px-4 py-3" style="font-family: 'Poppins', sans-serif; background-color: #f8fafc; min-height: 100vh;">
 
-    <!-- Filtros por Fecha -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <div class="row align-items-end">
-                <div class="col-md-4">
-                    <label class="form-label">Desde:</label>
-                    <input type="date" class="form-control" @bind="fechaInicio" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Hasta:</label>
-                    <input type="date" class="form-control" @bind="fechaFin" />
-                </div>
-                <div class="col-md-4">
-                    <button class="btn btn-primary w-100" @onclick="CargarDatosDashboard">
-                        <i class="bi bi-filter"></i> Aplicar Filtro
+    <!-- ========================================================= -->
+    <!-- 1. ENCABEZADO CON SELECTOR DE RANGO Y FILTROS AVANZADOS   -->
+    <!-- ========================================================= -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <h4 class="fw-bold mb-1" style="color: #003876;">Panel de Control Institucional</h4>
+            <p class="text-secondary small mb-0">Resumen operativo y métricas de trámites migratorios</p>
+        </div>
+
+        <!-- Barra Compacta Derecha -->
+        <div class="d-flex align-items-center gap-2 bg-white p-2 rounded-3 shadow-sm border border-light-subtle position-relative">
+
+            <!-- Botón de Rango de Fechas Estilizado -->
+            <button class="btn btn-sm btn-light border border-secondary border-opacity-25 text-dark fw-medium px-3 d-flex align-items-center gap-2"
+                    @onclick="() => { mostrarSelectorFechas = !mostrarSelectorFechas; mostrarFiltrosAvanzados = false; }"
+                    style="background-color: #f8fafc; font-size: 0.82rem;">
+                <i class="bi bi-calendar3 text-primary"></i>
+                <span>@fechaInicio.ToString("dd MMM yyyy") - @fechaFin.ToString("dd MMM yyyy")</span>
+                <i class="bi bi-chevron-down text-muted small"></i>
+            </button>
+
+            <!-- Botón Filtros Avanzados -->
+            <button class="btn btn-sm btn-light border border-secondary border-opacity-25 text-secondary fw-semibold px-2 position-relative"
+                    @onclick="() => { mostrarFiltrosAvanzados = !mostrarFiltrosAvanzados; mostrarSelectorFechas = false; }"
+                    title="Filtros avanzados">
+                <i class="bi bi-sliders me-1"></i> Filtros
+                @if (!string.IsNullOrEmpty(filtroEstado) || !string.IsNullOrEmpty(filtroTipoTramite) || !string.IsNullOrEmpty(filtroTexto))
+                {
+                    <span class="position-absolute top-0 start-100 translate-middle p-1 bg-primary border border-light rounded-circle"></span>
+                }
+            </button>
+
+            <!-- Botón Principal Aplicar -->
+            <button class="btn btn-sm text-white fw-semibold px-3 shadow-sm"
+                    @onclick="CargarDatosDashboard"
+                    style="background-color: #003876; border-radius: 6px;">
+                <i class="bi bi-filter me-1"></i> Filtrar
+            </button>
+
+            <!-- ========================================================= -->
+            <!-- CALENDARIO INTERACTIVO PROPIO (SIN NATIVO DE CHROME)     -->
+            <!-- ========================================================= -->
+            @if (mostrarSelectorFechas)
+            {
+                <div class="card shadow-lg border-0 rounded-3 position-absolute end-0 p-3 bg-white"
+                     style="top: 115%; width: 330px; z-index: 1055; border: 1px solid #e2e8f0 !important;">
+
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                        <span class="fw-bold small text-dark"><i class="bi bi-calendar-range me-1 text-primary"></i> Periodo de Consulta</span>
+                        <button type="button" class="btn-close btn-sm" @onclick="() => mostrarSelectorFechas = false"></button>
+                    </div>
+
+                    <!-- Accesos Rápidos -->
+                    <div class="d-flex flex-wrap gap-1 mb-3">
+                        <button class="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill small" style="font-size: 0.72rem;" @onclick="() => SeleccionarPeriodo(1)">Hoy</button>
+                        <button class="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill small" style="font-size: 0.72rem;" @onclick="() => SeleccionarPeriodo(7)">Últimos 7 días</button>
+                        <button class="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill small" style="font-size: 0.72rem;" @onclick="() => SeleccionarPeriodo(30)">Últimos 30 días</button>
+                        <button class="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill small" style="font-size: 0.72rem;" @onclick="() => SeleccionarPeriodo(0)">Este Mes</button>
+                    </div>
+
+                    <!-- Navegación Mes / Año -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                        <button class="btn btn-sm btn-light border-0 p-1" @onclick="MesAnterior">
+                            <i class="bi bi-chevron-left text-secondary"></i>
+                        </button>
+                        <span class="fw-bold small text-dark text-capitalize">
+                            @mesVisualizado.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-ES"))
+                        </span>
+                        <button class="btn btn-sm btn-light border-0 p-1" @onclick="MesSiguiente">
+                            <i class="bi bi-chevron-right text-secondary"></i>
+                        </button>
+                    </div>
+
+                    <!-- Días Cabecera -->
+                    <div class="d-grid mb-1 text-center" style="grid-template-columns: repeat(7, 1fr); font-size: 0.72rem; color: #94a3b8; font-weight: 600;">
+                        <div>DO</div><div>LU</div><div>MA</div><div>MI</div><div>JU</div><div>VI</div><div>SA</div>
+                    </div>
+
+                    <!-- Cuadrícula de Días -->
+                    <div class="d-grid gap-1 mb-3 text-center" style="grid-template-columns: repeat(7, 1fr);">
+                        @for (int i = 0; i < (int)primerDiaDelMes.DayOfWeek; i++)
+                        {
+                            <div style="height: 30px;"></div>
+                        }
+
+                        @for (int dia = 1; dia <= diasEnMes; dia++)
+                        {
+                            var fechaActual = new DateTime(mesVisualizado.Year, mesVisualizado.Month, dia);
+                            bool esInicio = fechaActual.Date == fechaInicio.Date;
+                            bool esFin = fechaActual.Date == fechaFin.Date;
+                            bool enRango = fechaActual.Date > fechaInicio.Date && fechaActual.Date < fechaFin.Date;
+
+                            string estilo = "height: 30px; font-size: 0.78rem; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none;";
+
+                            if (esInicio || esFin)
+                            {
+                                estilo += " background-color: #003876; color: white; font-weight: bold;";
+                            }
+                            else if (enRango)
+                            {
+                                estilo += " background-color: rgba(0, 56, 118, 0.12); color: #003876; font-weight: 600;";
+                            }
+                            else
+                            {
+                                estilo += " color: #334155;";
+                            }
+
+                            <div style="@estilo" class="cal-dia" @onclick="() => SeleccionarDia(fechaActual)">
+                                @dia
+                            </div>
+                        }
+                    </div>
+
+                    <button class="btn btn-sm text-white w-100 fw-semibold"
+                            @onclick="async () => { mostrarSelectorFechas = false; await CargarDatosDashboard(); }"
+                            style="background-color: #003876; border-radius: 6px;">
+                        Aplicar Rango
                     </button>
                 </div>
+            }
+
+            <!-- DESPLEGABLE DE FILTROS AVANZADOS -->
+            @if (mostrarFiltrosAvanzados)
+            {
+                <div class="card shadow-lg border-0 rounded-3 position-absolute end-0 p-3 bg-white"
+                     style="top: 115%; width: 340px; z-index: 1050; border: 1px solid #e2e8f0 !important;">
+
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.9rem;">
+                            <i class="bi bi-funnel me-1 text-primary"></i> Filtros Avanzados
+                        </h6>
+                        <button type="button" class="btn-close btn-sm" @onclick="() => mostrarFiltrosAvanzados = false"></button>
+                    </div>
+
+                    <!-- Búsqueda por Texto -->
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-semibold mb-1">Buscar Solicitud:</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light border-secondary border-opacity-25 text-secondary">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" class="form-control bg-light border-secondary border-opacity-25"
+                                   placeholder="Expediente, Pasaporte..."
+                                   @bind="filtroTexto" />
+                        </div>
+                    </div>
+
+                    <!-- Estado del Trámite -->
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-semibold mb-1">Estado:</label>
+                        <select class="form-select form-select-sm bg-light border-secondary border-opacity-25" @bind="filtroEstado">
+                            <option value="">Todos los Estados</option>
+                            <option value="Pendiente">Pendientes</option>
+                            <option value="En Proceso">En Proceso</option>
+                            <option value="Aprobado">Aprobadas</option>
+                            <option value="Rechazada">Rechazadas</option>
+                            <option value="Cancelada">Canceladas</option>
+                        </select>
+                    </div>
+
+                    <!-- Tipo de Trámite -->
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-semibold mb-1">Tipo de Trámite:</label>
+                        <select class="form-select form-select-sm bg-light border-secondary border-opacity-25" @bind="filtroTipoTramite">
+                            <option value="">Todos los Trámites</option>
+                            <option value="Residencia Temporal">Residencia Temporal</option>
+                            <option value="Residencia Definitiva">Residencia Definitiva</option>
+                            <option value="Renovación">Renovación</option>
+                            <option value="Permiso de Reingreso">Permiso de Reingreso</option>
+                        </select>
+                    </div>
+
+                    <div class="d-flex justify-content-between pt-2 border-top">
+                        <button class="btn btn-sm btn-link text-decoration-none text-secondary p-0" @onclick="LimpiarFiltros">
+                            Limpiar todo
+                        </button>
+                        <button class="btn btn-sm text-white px-3 fw-semibold"
+                                @onclick="async () => { mostrarFiltrosAvanzados = false; await CargarDatosDashboard(); }"
+                                style="background-color: #003876;">
+                            Aplicar
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- 2. TARJETAS KPI HORIZONTALES                              -->
+    <!-- ========================================================= -->
+    <div class="row g-3 mb-4">
+        <!-- Total -->
+        <div class="col-12 col-sm-6 col-xl-2">
+            <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #003876 !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-secondary small fw-semibold d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Total</span>
+                        <h3 class="fw-bold mb-0 mt-1" style="color: #003876;">@totalSolicitudes</h3>
+                    </div>
+                    <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: rgba(0, 56, 118, 0.08); color: #003876;">
+                        <i class="bi bi-folder2 fs-5"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pendientes -->
+        <div class="col-12 col-sm-6 col-xl-2">
+            <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #f59e0b !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-secondary small fw-semibold d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Pendientes</span>
+                        <h3 class="fw-bold mb-0 mt-1" style="color: #b45309;">@totalPendientes</h3>
+                    </div>
+                    <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: #fef3c7; color: #d97706;">
+                        <i class="bi bi-clock-history fs-5"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- En Proceso -->
+        <div class="col-12 col-sm-6 col-xl-2">
+            <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #0284c7 !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-secondary small fw-semibold d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">En Proceso</span>
+                        <h3 class="fw-bold mb-0 mt-1" style="color: #0369a1;">@totalEnProceso</h3>
+                    </div>
+                    <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: #e0f2fe; color: #0284c7;">
+                        <i class="bi bi-hourglass-split fs-5"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aprobadas -->
+        <div class="col-12 col-sm-6 col-xl-2">
+            <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #10b981 !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-secondary small fw-semibold d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Aprobadas</span>
+                        <h3 class="fw-bold mb-0 mt-1" style="color: #047857;">@totalAprobadas</h3>
+                    </div>
+                    <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: #d1fae5; color: #059669;">
+                        <i class="bi bi-check2-circle fs-5"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rechazadas -->
+        <div class="col-12 col-sm-6 col-xl-2">
+            <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #EE2A24 !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-secondary small fw-semibold d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Rechazadas</span>
+                        <h3 class="fw-bold mb-0 mt-1" style="color: #b91c1c;">@totalRechazadas</h3>
+                    </div>
+                    <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: #fee2e2; color: #dc2626;">
+                        <i class="bi bi-x-circle fs-5"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canceladas -->
+        <div class="col-12 col-sm-6 col-xl-2">
+            <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #64748b !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-secondary small fw-semibold d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Canceladas</span>
+                        <h3 class="fw-bold mb-0 mt-1" style="color: #475569;">@totalCanceladas</h3>
+                    </div>
+                    <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: #f1f5f9; color: #64748b;">
+                        <i class="bi bi-slash-circle fs-5"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Tarjetas de Indicadores (Resumen por estado) -->
-    <!-- Tarjetas de Indicadores (6 tarjetas de col-md-2) -->
-    <div class="row mb-4">
-        <div class="col-md-2">
-            <div class="card bg-primary text-white shadow">
-                <div class="card-body text-center p-2">
-                    <h6 class="card-title">Total</h6>
-                    <h3 class="fw-bold mb-0">@totalSolicitudes</h3>
+    <!-- ========================================================= -->
+    <!-- 3. PANEL DE GRÁFICAS                                      -->
+    <!-- ========================================================= -->
+    <div class="row g-3">
+        <!-- Gráfica de Barras -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0 rounded-3 h-100 bg-white">
+                <div class="card-header bg-transparent border-0 pt-3 px-4 pb-0">
+                    <h6 class="fw-bold mb-0" style="color: #003876;">Volumen Operativo por Estado</h6>
+                    <small class="text-muted">Distribución cuantitativa de expedientes</small>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card bg-secondary text-white shadow">
-                <div class="card-body text-center p-2">
-                    <h6 class="card-title">Pendientes</h6>
-                    <h3 class="fw-bold mb-0">@totalPendientes</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card bg-info text-white shadow">
-                <div class="card-body text-center p-2">
-                    <h6 class="card-title">En Proceso</h6>
-                    <h3 class="fw-bold mb-0">@totalEnProceso</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card bg-success text-white shadow">
-                <div class="card-body text-center p-2">
-                    <h6 class="card-title">Aprobadas</h6>
-                    <h3 class="fw-bold mb-0">@totalAprobadas</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card bg-danger text-white shadow">
-                <div class="card-body text-center p-2">
-                    <h6 class="card-title">Rechazadas</h6>
-                    <h3 class="fw-bold mb-0">@totalRechazadas</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card bg-dark text-white shadow">
-                <div class="card-body text-center p-2">
-                    <h6 class="card-title">Canceladas</h6>
-                    <h3 class="fw-bold mb-0">@totalCanceladas</h3>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- Gráfico de Resumen por Estado -->
-    <div class="row">
-        <div class="col-md-8 mx-auto">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title text-center mb-4">Distribución de Solicitudes</h5>
-
-                    <ApexChart @ref="miGrafico" TItem="DatoGrafico" Title="Solicitudes por Estado">
+                <div class="card-body px-4 pb-3 pt-2">
+                    <ApexChart @ref="miGrafico" TItem="DatoGrafico" Options="opcionesGraficoBarras">
                         <ApexPointSeries TItem="DatoGrafico"
                                          Items="datosDelGrafico"
                                          Name="Cantidad"
                                          SeriesType="SeriesType.Bar"
                                          XValue="@(e => e.Estado)"
-                                         YValue="@(e => e.Cantidad)" />
+                                         YValue="@(e => e.Cantidad)"
+                                         PointColor="@(e => ObtenerColorSolido(e.Estado))" />
                     </ApexChart>
+                </div>
+            </div>
+        </div>
 
+        <!-- Gráfica Donut -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0 rounded-3 h-100 bg-white">
+                <div class="card-header bg-transparent border-0 pt-3 px-4 pb-0">
+                    <h6 class="fw-bold mb-0" style="color: #003876;">Distribución Porcentual</h6>
+                    <small class="text-muted">Proporción relativa de trámites</small>
+                </div>
+                <div class="card-body px-3 pb-3 pt-2 text-center">
+                    <ApexChart @ref="miGraficoCircular" TItem="DatoGrafico" Options="opcionesGraficoCircular">
+                        <ApexPointSeries TItem="DatoGrafico"
+                                         Items="datosDelGrafico"
+                                         Name="Solicitudes"
+                                         SeriesType="SeriesType.Donut"
+                                         XValue="@(e => e.Estado)"
+                                         YValue="@(e => e.Cantidad)"
+                                         PointColor="@(e => ObtenerColorSolido(e.Estado))" />
+                    </ApexChart>
                 </div>
             </div>
         </div>
     </div>
-</div> <!-- AQUÍ ESTÁ EL CIERRE QUE FALTABA -->
+
+</div>
+
+<style>
+    .cal-dia:hover {
+        background-color: #f1f5f9;
+    }
+</style>
+
 @code {
-    // ==========================================
-    // 1. CLASES (Modelos de datos)
-    // ==========================================
     public class DashboardDto
     {
         public int TotalSolicitudes { get; set; }
@@ -119,53 +356,143 @@
 
     public class DatoGrafico
     {
-        public string? Estado { get; set; } // Agregado el ? para evitar advertencias
+        public string? Estado { get; set; }
         public int Cantidad { get; set; }
     }
 
-    // ==========================================
-    // 2. VARIABLES DEL COMPONENTE
-    // ==========================================
-    private ApexChart<DatoGrafico>? miGrafico; // Agregado el ? para evitar advertencias
+    private ApexChart<DatoGrafico>? miGrafico;
+    private ApexChart<DatoGrafico>? miGraficoCircular;
+
+    private ApexChartOptions<DatoGrafico> opcionesGraficoBarras = new();
+    private ApexChartOptions<DatoGrafico> opcionesGraficoCircular = new();
+
     private List<DatoGrafico> datosDelGrafico = new();
     private DateTime fechaInicio = DateTime.Today.AddDays(-7);
-    private DateTime fechaFin = DateTime.Today; // AQUÍ ESTÁ LA VARIABLE QUE FALTABA
+    private DateTime fechaFin = DateTime.Today;
+
+    // Calendario interactivo en C#
+    private DateTime mesVisualizado = DateTime.Today;
+    private bool eligiendoFin = false;
+    private DateTime primerDiaDelMes => new DateTime(mesVisualizado.Year, mesVisualizado.Month, 1);
+    private int diasEnMes => DateTime.DaysInMonth(mesVisualizado.Year, mesVisualizado.Month);
+
+    // Variables de Filtros y Desplegables
+    private bool mostrarSelectorFechas = false;
+    private bool mostrarFiltrosAvanzados = false;
+    private string filtroTexto = string.Empty;
+    private string filtroEstado = string.Empty;
+    private string filtroTipoTramite = string.Empty;
 
     private int totalSolicitudes = 0;
     private int totalPendientes = 0;
-    private int totalEnProceso = 0;   
+    private int totalEnProceso = 0;
     private int totalAprobadas = 0;
     private int totalRechazadas = 0;
-    private int totalCanceladas = 0;  
+    private int totalCanceladas = 0;
 
-    // ==========================================
-    // 3. INICIALIZACIÓN
-    // ==========================================
     protected override async Task OnInitializedAsync()
     {
+        opcionesGraficoBarras.Chart = new Chart { Height = 290, Toolbar = new Toolbar { Show = false } };
+        opcionesGraficoBarras.PlotOptions = new PlotOptions
+        {
+            Bar = new PlotOptionsBar
+            {
+                BorderRadius = 6,
+                ColumnWidth = "42%"
+            }
+        };
+
+        opcionesGraficoCircular = new ApexChartOptions<DatoGrafico>
+        {
+            Chart = new Chart
+            {
+                Height = 350,
+                Toolbar = new Toolbar { Show = false }
+            },
+            Legend = new Legend
+            {
+                Position = LegendPosition.Bottom,
+                HorizontalAlign = Align.Center,
+                FontSize = "13px"
+            },
+            PlotOptions = new PlotOptions
+            {
+                Pie = new PlotOptionsPie
+                {
+                    CustomScale = 1.0,
+                    Donut = new PlotOptionsDonut
+                    {
+                        Size = "65%"
+                    }
+                }
+            }
+        };
+
         await CargarDatosDashboard();
     }
 
-    // ==========================================
-    // 4. MÉTODOS
-    // ==========================================
+    private void MesAnterior() => mesVisualizado = mesVisualizado.AddMonths(-1);
+    private void MesSiguiente() => mesVisualizado = mesVisualizado.AddMonths(1);
+
+    private void SeleccionarDia(DateTime fecha)
+    {
+        if (!eligiendoFin || fecha < fechaInicio)
+        {
+            fechaInicio = fecha;
+            fechaFin = fecha;
+            eligiendoFin = true;
+        }
+        else
+        {
+            fechaFin = fecha;
+            eligiendoFin = false;
+        }
+    }
+
+    private void SeleccionarPeriodo(int dias)
+    {
+        if (dias == 1) // Hoy
+        {
+            fechaInicio = DateTime.Today;
+            fechaFin = DateTime.Today;
+        }
+        else if (dias == 0) // Este Mes
+        {
+            fechaInicio = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+            fechaFin = DateTime.Today;
+        }
+        else // Últimos N días
+        {
+            fechaInicio = DateTime.Today.AddDays(-dias);
+            fechaFin = DateTime.Today;
+        }
+        mesVisualizado = fechaInicio;
+    }
+
     private async Task CargarDatosDashboard()
     {
         try
         {
             string url = $"api/solicitud/dashboard?fechaInicio={fechaInicio:yyyy-MM-dd}&fechaFin={fechaFin:yyyy-MM-dd}";
+
+            if (!string.IsNullOrWhiteSpace(filtroTexto))
+                url += $"&busqueda={Uri.EscapeDataString(filtroTexto)}";
+            if (!string.IsNullOrWhiteSpace(filtroEstado))
+                url += $"&estado={Uri.EscapeDataString(filtroEstado)}";
+            if (!string.IsNullOrWhiteSpace(filtroTipoTramite))
+                url += $"&tipoTramite={Uri.EscapeDataString(filtroTipoTramite)}";
+
             var resumen = await Http.GetFromJsonAsync<DashboardDto>(url);
 
             if (resumen != null)
             {
                 totalSolicitudes = resumen.TotalSolicitudes;
                 totalPendientes = resumen.Pendientes;
-                totalEnProceso = resumen.EnProceso;   
+                totalEnProceso = resumen.EnProceso;
                 totalAprobadas = resumen.Aprobadas;
                 totalRechazadas = resumen.Rechazadas;
-                totalCanceladas = resumen.Canceladas; 
+                totalCanceladas = resumen.Canceladas;
 
-                // Llenamos el gráfico con LOS 5 ESTADOS
                 datosDelGrafico = new List<DatoGrafico>
                 {
                     new DatoGrafico { Estado = "Pendientes", Cantidad = totalPendientes },
@@ -187,5 +514,37 @@
         {
             await miGrafico.RenderAsync();
         }
+
+        if (miGraficoCircular != null)
+        {
+            await miGraficoCircular.RenderAsync();
+        }
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        filtroTexto = string.Empty;
+        filtroEstado = string.Empty;
+        filtroTipoTramite = string.Empty;
+        fechaInicio = DateTime.Today.AddDays(-7);
+        fechaFin = DateTime.Today;
+        mesVisualizado = fechaInicio;
+        mostrarFiltrosAvanzados = false;
+        mostrarSelectorFechas = false;
+
+        await CargarDatosDashboard();
+    }
+
+    private string ObtenerColorSolido(string? estado)
+    {
+        return estado switch
+        {
+            "Pendientes" => "#f59e0b",
+            "En Proceso" => "#0284c7",
+            "Aprobadas" => "#10b981",
+            "Rechazadas" => "#EE2A24",
+            "Canceladas" => "#64748b",
+            _ => "#003876"
+        };
     }
 }

@@ -4,81 +4,77 @@
 @implements IDisposable
 @inject AuthenticationStateProvider AuthStateProvider
 
-<div class="d-flex min-vh-100 w-100" style="background-color: #F8F9FA;">
-    <!-- ========================================================= -->
-    <!-- 1. SIDEBAR LATERAL IZQUIERDO                              -->
-    <!-- ========================================================= -->
-    <aside style="width: 240px; min-width: 240px; background-color: #003876; min-height: 100vh; flex-shrink: 0;">
-        <NavMenu />
-    </aside>
+<div class="d-flex flex-column min-vh-100 w-100" style="background-color: #F8F9FA;">
 
-    <!-- ========================================================= -->
-    <!-- 2. ÁREA CENTRAL DE CONTENIDO                              -->
-    <!-- ========================================================= -->
-    <div class="d-flex flex-column flex-grow-1" style="min-width: 0;">
+    <!-- 1. TOPBAR SUPERIOR (100% ANCHO DE ESQUINA A ESQUINA) -->
+    <header class="bg-white border-bottom shadow-sm d-flex justify-content-between align-items-center px-4" style="height: 65px; width: 100%; z-index: 1020; flex-shrink: 0;">
+        <div class="d-flex align-items-center gap-3">
+            <img src="favicon.svg" alt="DGM" style="height: 32px; width: auto;" />
+            <div class="vr" style="height: 22px; opacity: 0.25;"></div>
+            <span class="fw-bold" style="color: #003876; font-size: 0.92rem; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">
+                DIRECCIÓN GENERAL DE MIGRACIÓN
+            </span>
+        </div>
 
-        <!-- TOPBAR SUPERIOR -->
-        <header class="bg-white border-bottom shadow-sm d-flex justify-content-between align-items-center px-4" style="height: 65px; width: 100%;">
-            <div class="d-flex align-items-center gap-3">
-                <img src="favicon.svg" alt="DGM" style="height: 32px; width: auto;" />
-                <div class="vr" style="height: 22px; opacity: 0.25;"></div>
-                <span class="fw-bold" style="color: #003876; font-size: 0.92rem; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">
-                    DIRECCIÓN GENERAL DE MIGRACIÓN
-                </span>
-            </div>
+        <!-- BOTÓN / MENÚ DESPLEGABLE DE PERFIL -->
+        <div class="position-relative">
+            <button class="btn d-flex align-items-center gap-2 p-1 pe-3 rounded-pill border bg-light shadow-sm"
+                    @onclick="ToggleMenuUsuario" style="cursor: pointer;">
+                <div class="avatar-circle-sm fw-bold text-white d-flex align-items-center justify-content-center"
+                     style="width: 35px; height: 35px; border-radius: 50%; background: #003876; font-size: 0.9rem;">
+                    @ObtenerInicial(usuarioActual)
+                </div>
+                <div class="text-start d-none d-md-block lh-1">
+                    <span class="d-block fw-bold text-dark small">@usuarioActual</span>
+                    <small class="text-muted" style="font-size: 0.72rem;">@rolUsuario</small>
+                </div>
+                <i class="bi bi-chevron-down text-muted small ms-1"></i>
+            </button>
 
-            <!-- BOTÓN / MENÚ DESPLEGABLE DE PERFIL -->
-            <div class="position-relative">
-                <button class="btn d-flex align-items-center gap-2 p-1 pe-3 rounded-pill border bg-light shadow-sm"
-                        @onclick="ToggleMenuUsuario" style="cursor: pointer;">
-                    <!-- Avatar con Inicial Dinámica -->
-                    <div class="avatar-circle-sm fw-bold text-white d-flex align-items-center justify-content-center"
-                         style="width: 35px; height: 35px; border-radius: 50%; background: #003876; font-size: 0.9rem;">
-                        @ObtenerInicial(usuarioActual)
-                    </div>
-                    <!-- Nombre y Rol del Usuario Conectado -->
-                    <div class="text-start d-none d-md-block lh-1">
-                        <span class="d-block fw-bold text-dark small">@usuarioActual</span>
-                        <small class="text-muted" style="font-size: 0.72rem;">@rolUsuario</small>
-                    </div>
-                    <i class="bi bi-chevron-down text-muted small ms-1"></i>
-                </button>
-
-                <!-- Menú flotante de acciones de sesión -->
-                @if (mostrarMenuUsuario)
-                {
-                    <div class="position-absolute end-0 mt-2 bg-white shadow-lg rounded-3 p-3 border" style="width: 260px; z-index: 1050;">
-                        <div class="d-flex align-items-center gap-2 pb-2 mb-2 border-bottom">
-                            <div class="avatar-circle-sm fw-bold text-white d-flex align-items-center justify-content-center"
-                                 style="width: 40px; height: 40px; border-radius: 50%; background: #003876;">
-                                @ObtenerInicial(usuarioActual)
-                            </div>
-                            <div class="overflow-hidden">
-                                <strong class="d-block text-truncate text-dark small">@usuarioActual</strong>
-                                <small class="text-muted d-block text-truncate" style="font-size: 0.75rem;">@correoUsuario</small>
-                            </div>
+            @if (mostrarMenuUsuario)
+            {
+                <div class="position-absolute end-0 mt-2 bg-white shadow-lg rounded-3 p-3 border" style="width: 260px; z-index: 1050;">
+                    <div class="d-flex align-items-center gap-2 pb-2 mb-2 border-bottom">
+                        <div class="avatar-circle-sm fw-bold text-white d-flex align-items-center justify-content-center"
+                             style="width: 40px; height: 40px; border-radius: 50%; background: #003876;">
+                            @ObtenerInicial(usuarioActual)
                         </div>
-                        <button class="btn btn-sm text-start w-100 py-2 d-flex align-items-center gap-2 text-dark" @onclick="CerrarSesion">
-                            <i class="bi bi-arrow-repeat text-secondary"></i> Cambiar de usuario
-                        </button>
-                        <hr class="my-1 opacity-25" />
-                        <button class="btn btn-sm text-start w-100 py-2 d-flex align-items-center gap-2 text-danger" @onclick="CerrarSesion">
-                            <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
-                        </button>
+                        <div class="overflow-hidden">
+                            <strong class="d-block text-truncate text-dark small">@usuarioActual</strong>
+                            <small class="text-muted d-block text-truncate" style="font-size: 0.75rem;">@correoUsuario</small>
+                        </div>
                     </div>
-                }
-            </div>
-        </header>
+                    <button class="btn btn-sm text-start w-100 py-2 d-flex align-items-center gap-2 text-dark" @onclick="CerrarSesion">
+                        <i class="bi bi-arrow-repeat text-secondary"></i> Cambiar de usuario
+                    </button>
+                    <hr class="my-1 opacity-25" />
+                    <button class="btn btn-sm text-start w-100 py-2 d-flex align-items-center gap-2 text-danger" @onclick="CerrarSesion">
+                        <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
+                    </button>
+                </div>
+            }
+        </div>
+    </header>
 
-        <!-- CUERPO PRINCIPAL DE LAS PÁGINAS (@Body) -->
-        <main class="flex-grow-1 p-4" style="background-color: #F8F9FA;">
+    <!-- 2. CUERPO INFERIOR (SIDEBAR + ÁREA DE CONTENIDO) -->
+    <div class="d-flex flex-grow-1" style="height: calc(100vh - 65px); overflow: hidden;">
+
+        <!-- SIDEBAR AZUL -->
+        <aside style="width: @(sidebarColapsado ? "75px" : "240px"); min-width: @(sidebarColapsado ? "75px" : "240px"); background-color: #003876; height: 100%; flex-shrink: 0; transition: all 0.25s ease;">
+            <NavMenu Colapsado="@sidebarColapsado" OnToggleSidebar="ToggleSidebar" />
+        </aside>
+
+        <!-- CONTENIDO PRINCIPAL -->
+        <main class="flex-grow-1 p-4" style="background-color: #F8F9FA; overflow-y: auto; height: 100%;">
             @Body
         </main>
     </div>
+
 </div>
 
 @code {
     private bool mostrarMenuUsuario = false;
+    private bool sidebarColapsado = false;
     private string usuarioActual = "Cargando...";
     private string correoUsuario = "";
     private string rolUsuario = "";
@@ -107,7 +103,6 @@
         }
         catch
         {
-            // Ignora errores si JSInterop se llama antes de estar listo en prerender
         }
     }
 
@@ -134,9 +129,8 @@
 
     private void ToggleMenuUsuario() => mostrarMenuUsuario = !mostrarMenuUsuario;
 
-    /// <summary>
-    /// Limpia la sesión actual y redirige a la vista de login
-    /// </summary>
+    private void ToggleSidebar() => sidebarColapsado = !sidebarColapsado;
+
     private async Task CerrarSesion()
     {
         mostrarMenuUsuario = false;

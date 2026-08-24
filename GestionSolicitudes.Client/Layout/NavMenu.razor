@@ -1,69 +1,135 @@
 ﻿@inject IJSRuntime JS
 
-<div class="d-flex flex-column h-100 p-3 text-white">
-    <!-- ========================================================= -->
-    <!-- 1. HEADER INSTITUCIONAL DGM (Logo / Escudo)               -->
-    <!-- ========================================================= -->
-    <div class="d-flex align-items-center gap-2 pb-3 mb-3 border-bottom border-white border-opacity-25">
-        <i class="bi bi-shield-lock-fill fs-4 text-warning"></i>
-        <span class="fs-5 fw-bold tracking-wide text-white">DGM</span>
+<div class="d-flex flex-column h-100 p-2 text-white @(Colapsado ? "sidebar-collapsed" : "")">
+
+    <!-- 1. HEADER INSTITUCIONAL DGM (Texto + Botón Alternar) -->
+    <div class="d-flex align-items-center @(Colapsado ? "justify-content-center" : "justify-content-between") p-2 mb-3 border-bottom border-white border-opacity-25 flex-shrink-0">
+        @if (!Colapsado)
+        {
+            <span class="fs-5 fw-bold tracking-wide text-white ps-1">DGM</span>
+        }
+
+        <!-- Botón que despliega / colapsa la barra azul -->
+        <button type="button"
+                class="btn text-white p-1 d-flex align-items-center justify-content-center border-0"
+                style="background: rgba(255, 255, 255, 0.15); border-radius: 6px; width: 32px; height: 32px;"
+                @onclick="AlternarSidebar"
+                title="@(Colapsado ? "Expandir menú" : "Colapsar menú")">
+            <i class="bi @(Colapsado ? "bi-chevron-right" : "bi-chevron-left") fs-6"></i>
+        </button>
     </div>
 
-    <!-- ========================================================= -->
-    <!-- 2. NAVEGACIÓN DINÁMICA CONDICIONADA POR ROL               -->
-    <!-- ========================================================= -->
-    <ul class="nav nav-pills flex-column gap-2 mb-auto">
+    <!-- 2. NAVEGACIÓN DINÁMICA CONDICIONADA POR ROL (ARRIBA) -->
+    <ul class="nav nav-pills flex-column gap-2 flex-grow-1">
         @if (rolUsuario == "Administrador")
         {
-            <!-- VISTAS PARA ADMINISTRADOR / OFICIAL DE MIGRACIÓN -->
+            <!-- Home -->
             <li class="nav-item">
-                <NavLink class="nav-link text-white d-flex align-items-center gap-3 py-2 px-3 rounded-3" href="dashboard" Match="NavLinkMatch.All">
-                    <i class="bi bi-grid-1x2-fill fs-5"></i>
-                    <span class="fw-medium">Panel General</span>
+                <NavLink class="nav-link text-white d-flex align-items-center py-2 px-3 rounded-3" href="dashboard" Match="NavLinkMatch.All" title="Home">
+                    <i class="bi bi-grid-1x2-fill fs-5 nav-icon"></i>
+                    @if (!Colapsado)
+                    {
+                        <span class="fw-medium ms-3">Home</span>
+                    }
                 </NavLink>
             </li>
+
+            <!-- Solicitudes -->
             <li class="nav-item">
-                <NavLink class="nav-link text-white d-flex align-items-center gap-3 py-2 px-3 rounded-3" href="solicitudes">
-                    <i class="bi bi-folder2-open fs-5"></i>
-                    <span class="fw-medium">Gestión Solicitudes</span>
+                <NavLink class="nav-link text-white d-flex align-items-center py-2 px-3 rounded-3" href="solicitudes" title="Gestión Solicitudes">
+                    <i class="bi bi-folder2-open fs-5 nav-icon"></i>
+                    @if (!Colapsado)
+                    {
+                        <span class="fw-medium ms-3">Gestión Solicitudes</span>
+                    }
+                </NavLink>
+            </li>
+
+            <!-- Revisión -->
+            <li class="nav-item">
+                <NavLink class="nav-link text-white d-flex align-items-center py-2 px-3 rounded-3" href="revision" title="Revisión">
+                    <i class="bi bi-check2-square fs-5 nav-icon"></i>
+                    @if (!Colapsado)
+                    {
+                        <span class="fw-medium ms-3">Revisión</span>
+                    }
+                </NavLink>
+            </li>
+
+            <!-- Reportes -->
+            <li class="nav-item">
+                <NavLink class="nav-link text-white d-flex align-items-center py-2 px-3 rounded-3" href="reportes" title="Reportes">
+                    <i class="bi bi-file-earmark-bar-graph-fill fs-5 nav-icon"></i>
+                    @if (!Colapsado)
+                    {
+                        <span class="fw-medium ms-3">Reportes</span>
+                    }
+                </NavLink>
+            </li>
+
+            <!-- Usuarios -->
+            <li class="nav-item">
+                <NavLink class="nav-link text-white d-flex align-items-center py-2 px-3 rounded-3" href="usuarios" title="Usuarios">
+                    <i class="bi bi-people-fill fs-5 nav-icon"></i>
+                    @if (!Colapsado)
+                    {
+                        <span class="fw-medium ms-3">Usuarios</span>
+                    }
+                </NavLink>
+            </li>
+
+            <!-- Configuración -->
+            <li class="nav-item">
+                <NavLink class="nav-link text-white d-flex align-items-center py-2 px-3 rounded-3" href="configuracion" title="Configuración">
+                    <i class="bi bi-gear-fill fs-5 nav-icon"></i>
+                    @if (!Colapsado)
+                    {
+                        <span class="fw-medium ms-3">Configuración</span>
+                    }
                 </NavLink>
             </li>
         }
         else if (rolUsuario == "Residente" || rolUsuario == "Solicitante")
         {
-            <!-- VISTAS PARA EL RESIDENTE / SOLICITANTE -->
             <li class="nav-item">
-                <NavLink class="nav-link text-white d-flex align-items-center gap-3 py-2 px-3 rounded-3" href="mis-solicitudes" Match="NavLinkMatch.All">
-                    <i class="bi bi-folder2-open fs-5"></i>
-                    <span class="fw-medium">Mis Solicitudes</span>
+                <NavLink class="nav-link text-white d-flex align-items-center py-2 px-3 rounded-3" href="mis-solicitudes" Match="NavLinkMatch.All" title="Mis Solicitudes">
+                    <i class="bi bi-folder2-open fs-5 nav-icon"></i>
+                    @if (!Colapsado)
+                    {
+                        <span class="fw-medium ms-3">Mis Solicitudes</span>
+                    }
                 </NavLink>
             </li>
         }
         else
         {
-            <!-- VISTA POR DEFECTO MIENTRAS CARGA EL ROL -->
             <li class="nav-item">
-                <NavLink class="nav-link text-white d-flex align-items-center gap-3 py-2 px-3 rounded-3" href="dashboard">
-                    <i class="bi bi-grid-1x2-fill fs-5"></i>
-                    <span class="fw-medium">Inicio</span>
+                <NavLink class="nav-link text-white d-flex align-items-center py-2 px-3 rounded-3" href="dashboard" title="Inicio">
+                    <i class="bi bi-grid-1x2-fill fs-5 nav-icon"></i>
+                    @if (!Colapsado)
+                    {
+                        <span class="fw-medium ms-3">Inicio</span>
+                    }
                 </NavLink>
             </li>
         }
     </ul>
 
-    <!-- ========================================================= -->
-    <!-- 3. FOOTER DEL SIDEBAR                                     -->
-    <!-- ========================================================= -->
-    <div class="pt-3 border-top border-white border-opacity-25">
-        <small class="text-white-50 d-block" style="font-size: 0.75rem;">Versión 1.0.0</small>
-        <small class="text-white-50" style="font-size: 0.7rem;">DGM © 2026</small>
-    </div>
+    <!-- 3. FOOTER DEL SIDEBAR (ABAJO FIJO) -->
+    @if (!Colapsado)
+    {
+        <div class="mt-auto pt-3 border-top border-white border-opacity-25 px-2 flex-shrink-0">
+            <small class="text-white-50 d-block" style="font-size: 0.75rem;">Versión 1.0.0</small>
+            <small class="text-white-50" style="font-size: 0.7rem;">DGM © 2026</small>
+        </div>
+    }
 </div>
 
 <style>
     .nav-link {
         color: #ffffff !important;
         transition: background-color 0.2s ease, transform 0.1s ease;
+        white-space: nowrap;
     }
 
         .nav-link:hover {
@@ -72,23 +138,47 @@
         }
 
         .nav-link.active {
-            background-color: #EE2A24 !important; /* Rojo institucional DGM */
+            background-color: rgba(255, 255, 255, 0.22) !important;
             color: #ffffff !important;
             font-weight: 600;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
         }
+
+    /* Centrado suave de iconos cuando la barra está colapsada */
+    .sidebar-collapsed .nav-link {
+        justify-content: center !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    .sidebar-collapsed .nav-icon {
+        margin: 0 !important;
+    }
 </style>
 
 @code {
-    // Almacena el rol recuperado de sessionStorage
+    [Parameter]
+    public bool Colapsado { get; set; } = false;
+
+    [Parameter]
+    public EventCallback OnToggleSidebar { get; set; }
+
     private string rolUsuario = string.Empty;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            // Lee el rol activo para renderizar los accesos correspondientes
             rolUsuario = await JS.InvokeAsync<string>("sessionStorage.getItem", "rolUsuario") ?? string.Empty;
             StateHasChanged();
+        }
+    }
+
+    private async Task AlternarSidebar()
+    {
+        if (OnToggleSidebar.HasDelegate)
+        {
+            await OnToggleSidebar.InvokeAsync();
         }
     }
 }

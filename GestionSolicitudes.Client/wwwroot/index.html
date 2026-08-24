@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -17,17 +16,13 @@
     <link href="manifest.webmanifest" rel="manifest" />
 
     <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
-    <!-- SweetAlert2 (CSS CDN Seguro) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
 
     <!-- Tipografía Institucional -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
-
 <body>
     <div id="app">
         <svg class="loading-progress">
@@ -43,20 +38,21 @@
         <a class="dismiss">🗙</a>
     </div>
 
-    <!-- 1. Librerías JS Externas (Se cargan ANTES del Framework Blazor) -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- 1. SweetAlert2 (Script oficial del paquete CurrieTechnologies) -->
+    <script src="_content/CurrieTechnologies.Razor.SweetAlert2/sweetAlert2.min.js"></script>
+
+    <!-- 2. ApexCharts (CDN oficial global + conector Blazor-ApexCharts) -->
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="_content/Blazor-ApexCharts/js/blazor-apex-charts.js"></script>
 
-    <!-- 2. Framework Blazor WebAssembly -->
+    <!-- 3. Framework Blazor WebAssembly (Única instancia) -->
     <script src="_framework/blazor.webassembly.js"></script>
 
-    <!-- 3. Service Worker PWA -->
+    <!-- 4. Service Worker PWA -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('service-worker.js');
         }
     </script>
 </body>
-
 </html>

@@ -17,7 +17,7 @@ builder.Services.AddScoped(sp => new HttpClient
 builder.Services.AddScoped<SolicitudClientService>();
 builder.Services.AddSweetAlert2();
 
-// 🔑 AGREGAR ESTAS LÍNEAS PARA LA AUTENTICACIÓN Y LAYOUTS:
+// Autenticación y Layouts
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
 builder.Services.AddScoped<CustomAuthenticationStateProvider>(provider =>
