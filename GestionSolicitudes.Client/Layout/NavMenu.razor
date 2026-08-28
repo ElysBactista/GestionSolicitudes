@@ -91,12 +91,24 @@
         }
         else if (rolUsuario == "Residente" || rolUsuario == "Solicitante")
         {
+            <!-- Mi Expediente / Seguimiento -->
             <li class="nav-item">
-                <NavLink class="nav-link text-white d-flex align-items-center py-2 px-3 rounded-3" href="mis-solicitudes" Match="NavLinkMatch.All" title="Mis Solicitudes">
+                <NavLink class="nav-link text-white d-flex align-items-center py-2 px-3 rounded-3" href="mis-solicitudes" Match="NavLinkMatch.All" title="Mi Expediente">
                     <i class="bi bi-folder2-open fs-5 nav-icon"></i>
                     @if (!Colapsado)
                     {
-                        <span class="fw-medium ms-3">Mis Solicitudes</span>
+                        <span class="fw-medium ms-3">Mi Expediente</span>
+                    }
+                </NavLink>
+            </li>
+
+            <!-- Mi Perfil -->
+            <li class="nav-item">
+                <NavLink class="nav-link text-white d-flex align-items-center py-2 px-3 rounded-3" href="perfil" title="Mi Perfil">
+                    <i class="bi bi-person-gear fs-5 nav-icon"></i>
+                    @if (!Colapsado)
+                    {
+                        <span class="fw-medium ms-3">Mi Perfil</span>
                     }
                 </NavLink>
             </li>

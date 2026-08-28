@@ -1,0 +1,203 @@
+﻿@page "/portal-residente"
+@layout EmptyLayout
+@using System.Net.Http.Json
+@using GestionSolicitudes.Client.DTOs
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject HttpClient Http
+
+<PageTitle>Portal de Servicios Migratorios | DGM</PageTitle>
+
+<div class="portal-externo-container">
+
+    <!-- Header Flotante Institucional -->
+    <header class="portal-header d-flex justify-content-between align-items-center px-4 py-3 bg-white shadow-sm">
+        <div class="d-flex align-items-center gap-3">
+            <div class="escudo-box">
+                <i class="bi bi-shield-shaded fs-3" style="color: #003876;"></i>
+            </div>
+            <div>
+                <h6 class="fw-bold mb-0 text-dark">DIRECCIÓN GENERAL DE MIGRACIÓN</h6>
+                <small class="text-muted">Ventanilla Única Digital de Trámites Migratorios</small>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-muted small d-none d-md-inline">Sesión activa: <strong>@nombreUsuario</strong></span>
+            <button class="btn btn-outline-danger btn-sm rounded-pill px-3" @onclick="CerrarSesion">
+                <i class="bi bi-box-arrow-right me-1"></i> Salir
+            </button>
+        </div>
+    </header>
+
+    <!-- Contenido Central Flotante -->
+    <main class="container py-5" style="max-width: 980px;">
+
+        @if (cargando)
+        {
+            <div class="text-center my-5 py-5">
+                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+                <p class="text-muted mt-3 fw-semibold">Consultando estatus del ciudadano...</p>
+            </div>
+        }
+        else
+        {
+            <!-- Hero Card Principal -->
+            <div class="card border-0 rounded-4 shadow-sm text-white hero-card mb-4 overflow-hidden">
+                <div class="card-body p-4 p-md-5">
+                    <span class="badge bg-white text-primary fw-bold px-3 py-2 rounded-pill mb-3">
+                        <i class="bi bi-person-check-fill me-1"></i> Ciudadano Registrado
+                    </span>
+                    <h2 class="fw-bold mb-2">Bienvenido, @nombreUsuario</h2>
+                    <p class="lead text-light opacity-90 fs-6 mb-4" style="max-width: 650px;">
+                        Has completado tu registro en el sistema. Para obtener tu estatus migratorio formal o renovar tu permanencia, debes radicar tu expediente oficial depositando los requisitos requeridos.
+                    </p>
+
+                    <div class="d-flex flex-wrap gap-3">
+                        <button class="btn btn-warning text-dark fw-bold px-4 py-3 rounded-pill shadow-sm btn-action"
+                                @onclick="IniciarTramite">
+                            <i class="bi bi-plus-circle-fill me-2 fs-5"></i> Crear Solicitud de Residencia
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ¿Cómo funciona el proceso? -->
+            <div class="mb-5">
+                <h5 class="fw-bold text-dark mb-3 text-center" style="color: #003876;">
+                    Pasos para completar tu solicitud
+                </h5>
+
+                <div class="row g-3">
+                    <div class="col-12 col-md-4">
+                        <div class="card h-100 border-0 shadow-sm rounded-4 p-4 text-center bg-white">
+                            <div class="icon-circle bg-primary-subtle text-primary mx-auto mb-3">
+                                <i class="bi bi-card-text fs-4"></i>
+                            </div>
+                            <h6 class="fw-bold text-dark mb-2">1. Completa tus Datos</h6>
+                            <p class="text-muted small mb-0">Ingresa tu número de pasaporte, nacionalidad, ocupación y dirección donde resides.</p>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <div class="card h-100 border-0 shadow-sm rounded-4 p-4 text-center bg-white">
+                            <div class="icon-circle bg-primary-subtle text-primary mx-auto mb-3">
+                                <i class="bi bi-upload fs-4"></i>
+                            </div>
+                            <h6 class="fw-bold text-dark mb-2">2. Carga de Documentos</h6>
+                            <p class="text-muted small mb-0">Sube copias legibles de tu pasaporte vigente, récord policial y certificado médico.</p>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <div class="card h-100 border-0 shadow-sm rounded-4 p-4 text-center bg-white">
+                            <div class="icon-circle bg-primary-subtle text-primary mx-auto mb-3">
+                                <i class="bi bi-speedometer2 fs-4"></i>
+                            </div>
+                            <h6 class="fw-bold text-dark mb-2">3. Acceso a tu Panel</h6>
+                            <p class="text-muted small mb-0">Al radicar, se activará tu panel oficial de seguimiento en tiempo real con tu número de expediente.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pregunta Central Destacada -->
+            <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5 bg-white text-center border-top-accent">
+                <i class="bi bi-folder-plus display-4 text-primary mb-3"></i>
+                <h4 class="fw-bold text-dark mb-2">¿Desea crear una solicitud para residencia ahora?</h4>
+                <p class="text-muted small mb-4 mx-auto" style="max-width: 520px;">
+                    El proceso toma pocos minutos. Una vez enviada, nuestros auditores evaluarán tu expediente y podrás dar seguimiento directo a través del portal.
+                </p>
+                <div>
+                    <button class="btn btn-primary px-5 py-3 rounded-pill fw-bold shadow"
+                            style="background-color: #003876;"
+                            @onclick="IniciarTramite">
+                        <i class="bi bi-file-earmark-arrow-up me-2"></i> Iniciar y Subir Documentación
+                    </button>
+                </div>
+            </div>
+        }
+    </main>
+</div>
+
+<style>
+    .portal-externo-container {
+        min-height: 100vh;
+        background-color: #f8fafc;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    .hero-card {
+        background: linear-gradient(135deg, #002855 0%, #003876 55%, #0056b3 100%);
+    }
+
+    .icon-circle {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .border-top-accent {
+        border-top: 5px solid #003876 !important;
+    }
+
+    .btn-action {
+        transition: transform 0.2s ease;
+    }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+        }
+</style>
+
+@code {
+    private bool cargando = true;
+    private string nombreUsuario = "Residente";
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargando = true;
+        try
+        {
+            var nombre = await JS.InvokeAsync<string>("sessionStorage.getItem", "nombreUsuario");
+            if (!string.IsNullOrWhiteSpace(nombre)) nombreUsuario = nombre;
+
+            var correo = await JS.InvokeAsync<string>("sessionStorage.getItem", "correoUsuario");
+
+            // Si el usuario ya tiene un expediente creado previamente, se le envía directo al panel con menú
+            string url = "api/solicitud/mi-expediente";
+            if (!string.IsNullOrWhiteSpace(correo))
+            {
+                url += $"?email={Uri.EscapeDataString(correo)}";
+            }
+
+            var exp = await Http.GetFromJsonAsync<ExpedienteResidenteResponseDto>(url);
+            if (exp != null && exp.Id > 0)
+            {
+                Navigation.NavigateTo("mis-solicitudes");
+                return;
+            }
+        }
+        catch
+        {
+            // No tiene expediente, permanece en este portal flotante intermedio
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void IniciarTramite()
+    {
+        Navigation.NavigateTo("nueva-solicitud");
+    }
+
+    private async Task CerrarSesion()
+    {
+        await JS.InvokeVoidAsync("sessionStorage.clear");
+        Navigation.NavigateTo("/login");
+    }
+}

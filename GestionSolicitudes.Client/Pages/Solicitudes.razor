@@ -21,8 +21,8 @@
             </p>
         </div>
         <div class="mt-3 mt-md-0">
-            <button class="btn btn-primary btn-institucional shadow-sm" @onclick="() => AbrirModalCrear()">
-                <i class="bi bi-plus-circle me-1"></i> Nueva Solicitud
+            <button class="btn btn-sm btn-light border text-dark fw-medium px-3 shadow-sm" @onclick="CargarSolicitudes">
+                <i class="bi bi-arrow-clockwise text-primary me-1"></i> Actualizar Bandeja
             </button>
         </div>
     </div>
@@ -80,12 +80,9 @@
             <div class="card-body">
                 <i class="bi bi-inbox text-muted display-3 mb-3"></i>
                 <h5 class="fw-bold text-secondary">No se encontraron solicitudes</h5>
-                <p class="text-muted small mb-3">
-                    @(string.IsNullOrEmpty(terminoBusqueda) ? "Aún no se han registrado expedientes en la plataforma." : $"No hay resultados para la búsqueda '{terminoBusqueda}'.")
+                <p class="text-muted small mb-0">
+                    @(string.IsNullOrEmpty(terminoBusqueda) ? "Aún no se han registrado expedientes por parte de los residentes." : $"No hay resultados para la búsqueda '{terminoBusqueda}'.")
                 </p>
-                <button class="btn btn-outline-primary btn-sm" @onclick="() => AbrirModalCrear()">
-                    <i class="bi bi-plus-lg me-1"></i> Crear la primera solicitud
-                </button>
             </div>
         </div>
     }
@@ -143,16 +140,31 @@
                                     </span>
                                 </td>
                                 <td class="text-center pe-4">
-                                    <button class="btn btn-action btn-edit me-1"
-                                            title="Editar / Cambiar Estado"
-                                            @onclick="() => AbrirModalEditar(item)">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
-                                    <button class="btn btn-action btn-delete"
-                                            title="Eliminar Expediente"
-                                            @onclick="() => ConfirmarEliminar(item.Id, item.Solicitante)">
-                                        <i class="bi bi-trash3"></i>
-                                    </button>
+                                    <div class="d-inline-flex align-items-center gap-1">
+                                        <!-- Botón Ver / Detalle -->
+                                        <button class="btn btn-action btn-edit"
+                                                title="Ver detalle del expediente"
+                                                @onclick="() => AbrirModalDetalle(item)">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+
+                                        <!-- Botón Mandar a Revisión (solo si está Pendiente) -->
+                                        @if (item.Estado == 1)
+                                        {
+                                            <button class="btn btn-action btn-revision"
+                                                    title="Mandar a Revisión"
+                                                    @onclick="() => MandarARevision(item)">
+                                                <i class="bi bi-arrow-repeat"></i>
+                                            </button>
+                                        }
+
+                                        <!-- Botón Eliminar -->
+                                        <button class="btn btn-action btn-delete"
+                                                title="Eliminar Expediente"
+                                                @onclick="() => ConfirmarEliminar(item.Id, item.Solicitante)">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -188,88 +200,152 @@
     }
 </div>
 
-<!-- Modal Crear / Editar -->
-@if (mostrarModal)
+<!-- Modal Detalle y Gestión de Estado -->
+@if (mostrarModal && solicitudSeleccionada != null)
 {
     <div class="modal fade show d-block modal-backdrop-custom" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg rounded-4">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
 
                 <!-- Modal Header -->
                 <div class="modal-header modal-header-dgm text-white rounded-top-4 py-3 px-4" style="background: #003876; color: #ffffff !important;">
                     <h5 class="modal-title fw-bold" style="color: #ffffff !important;">
-                        <i class="bi @(esNuevaSolicitud ? "bi-folder-plus" : "bi-pencil-square") me-2" style="color: #ffffff !important;"></i>
-                        @(esNuevaSolicitud ? "Registrar Nueva Solicitud" : "Editar Solicitud")
+                        <i class="bi bi-file-earmark-text me-2" style="color: #ffffff !important;"></i>
+                        Expediente #@solicitudSeleccionada.Id.ToString("D4")
                     </h5>
                     <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal"></button>
                 </div>
 
                 <!-- Modal Body -->
-                <div class="modal-body p-4">
-                    <EditForm Model="modeloFormulario" OnValidSubmit="GuardarSolicitud">
-                        <DataAnnotationsValidator />
+                <div class="modal-body p-4 bg-light">
+                    <!-- Resumen del Solicitante y Trámite -->
+                    <div class="bg-white p-3 rounded-3 border mb-3 shadow-xs">
+                        <div class="row g-3">
+                            <div class="col-sm-6">
+                                <label class="small text-muted fw-semibold d-block mb-1">SOLICITANTE</label>
+                                <span class="fw-bold text-dark">@solicitudSeleccionada.Solicitante</span>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="small text-muted fw-semibold d-block mb-1">TÍTULO / ASUNTO</label>
+                                <span class="fw-semibold text-dark">@solicitudSeleccionada.Titulo</span>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="small text-muted fw-semibold d-block mb-1">FECHA DE REGISTRO</label>
+                                <span class="text-dark">@solicitudSeleccionada.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</span>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="small text-muted fw-semibold d-block mb-1">ESTADO ACTUAL</label>
+                                <span class="badge-status @ObtenerClaseEstado(solicitudSeleccionada.Estado)">
+                                    @ObtenerNombreEstado(solicitudSeleccionada.Estado)
+                                </span>
+                            </div>
+                        </div>
+                    </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold small text-muted">TÍTULO DEL EXPEDIENTE *</label>
-                            <input type="text"
-                                   class="form-control form-control-dgm"
-                                   @bind="modeloFormulario.Titulo"
-                                   placeholder="Ej. Renovación Permiso de Residencia"
-                                   required />
+                    <!-- Descripción del expediente -->
+                    <div class="bg-white p-3 rounded-3 border mb-3 shadow-xs">
+                        <label class="small text-muted fw-semibold d-block mb-1">DESCRIPCIÓN / COMENTARIOS DEL RESIDENTE</label>
+                        <p class="text-dark small mb-0 lh-base" style="white-space: pre-line;">
+                            @(string.IsNullOrWhiteSpace(solicitudSeleccionada.Descripcion) ? "Sin descripción adicional proporcionada." : solicitudSeleccionada.Descripcion)
+                        </p>
+                    </div>
+
+                    <!-- Documentos y Requisitos Adjuntos -->
+                    <div class="bg-white p-3 rounded-3 border mb-3 shadow-xs">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="small text-muted fw-bold d-block mb-0">DOCUMENTOS Y REQUISITOS ADJUNTOS</label>
+                            <span class="badge bg-light text-dark border">@documentosExpediente.Count adjuntos</span>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold small text-muted">NOMBRE DEL SOLICITANTE *</label>
-                            <input type="text"
-                                   class="form-control form-control-dgm"
-                                   @bind="modeloFormulario.Solicitante"
-                                   placeholder="Nombre completo o Institución"
-                                   required />
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold small text-muted">DESCRIPCIÓN / DETALLES</label>
-                            <textarea class="form-control form-control-dgm"
-                                      rows="3"
-                                      @bind="modeloFormulario.Descripcion"
-                                      placeholder="Especificaciones o comentarios adicionales..."></textarea>
-                        </div>
-
-                        @if (!esNuevaSolicitud)
+                        @if (cargandoDocsModal)
                         {
-                            <div class="mb-3 p-3 bg-light rounded-3 border">
-                                <label class="form-label fw-bold text-primary small d-block mb-2">
-                                    <i class="bi bi-arrow-repeat me-1"></i> ACTUALIZAR ESTADO
-                                </label>
-                                <select class="form-select form-control-dgm" @bind="estadoEdicion">
-                                    <option value="1">🟡 Pendiente</option>
-                                    <option value="2">🔵 En Proceso</option>
-                                    <option value="3">🟢 Aprobada</option>
-                                    <option value="4">🔴 Rechazada</option>
-                                    <option value="5">⚫ Cancelada</option>
-                                </select>
+                            <div class="text-center py-3">
+                                <span class="spinner-border spinner-border-sm text-primary"></span>
+                                <small class="text-muted ms-2">Cargando anexos...</small>
                             </div>
                         }
+                        else if (!documentosExpediente.Any())
+                        {
+                            <p class="text-muted small mb-0 py-2 text-center fst-italic">El solicitante aún no ha subido anexos a este expediente.</p>
+                        }
+                        else
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var doc in documentosExpediente)
+                                {
+                                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-bottom">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="bi @doc.Icono fs-5"></i>
+                                            <div>
+                                                <span class="d-block fw-semibold text-dark small">@doc.Nombre</span>
+                                                <small class="text-muted" style="font-size: 0.70rem;">Subido el: @doc.FechaSubida.ToString("dd/MM/yyyy")</small>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge @ObtenerClaseBadgeDoc(doc.Estado)" style="font-size: 0.72rem;">@doc.Estado</span>
 
-                        <div class="d-flex justify-content-end gap-2 mt-4 pt-2 border-top">
-                            <button type="button" class="btn btn-outline-secondary px-4" @onclick="CerrarModal" disabled="@guardando">
-                                Cancelar
-                            </button>
-                            <button type="submit" class="btn btn-primary px-4 btn-institucional" disabled="@guardando">
-                                @if (guardando)
-                                {
-                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                    <span>Guardando...</span>
+                                            <a href="@doc.UrlDescarga" target="_blank" class="btn btn-sm btn-light border py-0 px-2" title="Abrir / Descargar">
+                                                <i class="bi bi-box-arrow-up-right"></i>
+                                            </a>
+
+                                            <!-- Botones de Auditoría -->
+                                            <button class="btn btn-sm btn-outline-success py-0 px-2" title="Aprobar requisito" @onclick='() => CambiarEstadoDocumento(doc, "Aprobado")'>
+                                                <i class="bi bi-check-lg"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger py-0 px-2" title="Rechazar requisito" @onclick='() => CambiarEstadoDocumento(doc, "Rechazado")'>
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 }
-                                else
-                                {
-                                    <i class="bi bi-check2-circle me-1"></i>
-                                    <span>Guardar Solicitud</span>
-                                }
-                            </button>
-                        </div>
-                    </EditForm>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Cambiar Estado Manualmente -->
+                    <div class="bg-white p-3 rounded-3 border shadow-xs">
+                        <label class="form-label fw-bold small text-primary d-block mb-2">
+                            <i class="bi bi-sliders me-1"></i> ACTUALIZAR ESTADO DEL EXPEDIENTE
+                        </label>
+                        <select class="form-select form-control-dgm" @bind="estadoEdicion">
+                            <option value="1">🟡 Pendiente</option>
+                            <option value="2">🔵 En Proceso / Revisión</option>
+                            <option value="3">🟢 Aprobada</option>
+                            <option value="4">🔴 Rechazada</option>
+                            <option value="5">⚫ Cancelada</option>
+                        </select>
+                    </div>
                 </div>
+
+                <!-- Modal Footer -->
+                <div class="modal-footer bg-white py-3 px-4 border-top d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary px-4" @onclick="CerrarModal" disabled="@guardando">
+                        Cerrar
+                    </button>
+
+                    <div class="d-flex gap-2">
+                        @if (solicitudSeleccionada.Estado == 1)
+                        {
+                            <button type="button" class="btn btn-info text-white px-3" @onclick="() => MandarARevision(solicitudSeleccionada)" disabled="@guardando">
+                                <i class="bi bi-arrow-repeat me-1"></i> Mandar a Revisión
+                            </button>
+                        }
+
+                        <button type="button" class="btn btn-primary px-4 btn-institucional" @onclick="ActualizarEstadoModal" disabled="@guardando">
+                            @if (guardando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                <span>Guardando...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check2-circle me-1"></i>
+                                <span>Guardar Cambios</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -389,6 +465,16 @@
             color: #ffffff;
         }
 
+    .btn-revision {
+        color: #0284c7;
+        background-color: #e0f2fe;
+    }
+
+        .btn-revision:hover {
+            background-color: #0284c7;
+            color: #ffffff;
+        }
+
     .btn-delete {
         color: #dc3545;
         background-color: #fee2e2;
@@ -436,10 +522,13 @@
     private int totalRegistros = 0;
 
     private bool mostrarModal = false;
-    private bool esNuevaSolicitud = true;
-    private ActualizarSolicitudDto modeloFormulario = new();
+    private SolicitudDto? solicitudSeleccionada;
     private int idEdicion = 0;
     private int estadoEdicion = 1;
+
+    // Control de documentos en el modal
+    private List<DocumentoDto> documentosExpediente = new();
+    private bool cargandoDocsModal = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -484,6 +573,139 @@
         await CargarSolicitudes();
     }
 
+    private async Task MandarARevision(SolicitudDto item)
+    {
+        try
+        {
+            var respuesta = await Http.PatchAsJsonAsync($"api/solicitud/{item.Id}/estado", new { NuevoEstado = 2 });
+            if (respuesta.IsSuccessStatusCode)
+            {
+                item.Estado = 2;
+                if (solicitudSeleccionada != null && solicitudSeleccionada.Id == item.Id)
+                {
+                    solicitudSeleccionada.Estado = 2;
+                    estadoEdicion = 2;
+                }
+
+                await Swal.FireAsync(new SweetAlertOptions
+                {
+                    Title = "En Revisión",
+                    Text = $"El expediente #{item.Id:D4} ha sido enviado a revisión operativa.",
+                    Icon = SweetAlertIcon.Success,
+                    Timer = 2000,
+                    ShowConfirmButton = false
+                });
+
+                await CargarSolicitudes();
+            }
+            else
+            {
+                await Swal.FireAsync("Error", "No se pudo cambiar el estado a revisión.", SweetAlertIcon.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            await Swal.FireAsync("Error", "Ocurrió un problema: " + ex.Message, SweetAlertIcon.Error);
+        }
+    }
+
+    private async Task AbrirModalDetalle(SolicitudDto solicitud)
+    {
+        solicitudSeleccionada = solicitud;
+        idEdicion = solicitud.Id;
+        estadoEdicion = solicitud.Estado;
+        mostrarModal = true;
+        await CargarDocumentosDelExpediente(solicitud.Id);
+    }
+
+    private async Task CargarDocumentosDelExpediente(int solicitudId)
+    {
+        cargandoDocsModal = true;
+        documentosExpediente.Clear();
+        try
+        {
+            var docs = await Http.GetFromJsonAsync<List<DocumentoDto>>($"api/solicitud/{solicitudId}/documentos");
+            if (docs != null)
+            {
+                documentosExpediente = docs;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al consultar documentos: {ex.Message}");
+        }
+        finally
+        {
+            cargandoDocsModal = false;
+        }
+    }
+
+    private async Task CambiarEstadoDocumento(DocumentoDto doc, string nuevoEstado)
+    {
+        try
+        {
+            var respuesta = await Http.PatchAsJsonAsync($"api/solicitud/documento/{doc.Id}/estado", new { NuevoEstado = nuevoEstado });
+            if (respuesta.IsSuccessStatusCode)
+            {
+                doc.Estado = nuevoEstado;
+                await Swal.FireAsync(new SweetAlertOptions
+                {
+                    Title = "Requisito Auditado",
+                    Text = $"El documento '{doc.Nombre}' fue marcado como: {nuevoEstado}.",
+                    Icon = nuevoEstado == "Aprobado" ? SweetAlertIcon.Success : SweetAlertIcon.Warning,
+                    Timer = 1500,
+                    ShowConfirmButton = false
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            await Swal.FireAsync("Error", "No se pudo cambiar el estado del documento: " + ex.Message, SweetAlertIcon.Error);
+        }
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        solicitudSeleccionada = null;
+        documentosExpediente.Clear();
+    }
+
+    private async Task ActualizarEstadoModal()
+    {
+        guardando = true;
+        try
+        {
+            var respuesta = await Http.PatchAsJsonAsync($"api/solicitud/{idEdicion}/estado", new { NuevoEstado = estadoEdicion });
+            if (respuesta.IsSuccessStatusCode)
+            {
+                await Swal.FireAsync(new SweetAlertOptions
+                {
+                    Title = "¡Actualizado!",
+                    Text = "El estado del expediente fue actualizado correctamente.",
+                    Icon = SweetAlertIcon.Success,
+                    Timer = 2000,
+                    ShowConfirmButton = false
+                });
+
+                await CargarSolicitudes();
+                CerrarModal();
+            }
+            else
+            {
+                await Swal.FireAsync("Error", "No se pudo actualizar el estado.", SweetAlertIcon.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            await Swal.FireAsync("Error", "Ocurrió un problema: " + ex.Message, SweetAlertIcon.Error);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
     private async Task ConfirmarEliminar(int id, string nombreSolicitante)
     {
         var result = await Swal.FireAsync(new SweetAlertOptions
@@ -520,6 +742,13 @@
         }
     }
 
+    private string ObtenerClaseBadgeDoc(string estado) => estado switch
+    {
+        "Aprobado" => "bg-success-subtle text-success border border-success-subtle",
+        "Rechazado" => "bg-danger-subtle text-danger border border-danger-subtle",
+        _ => "bg-warning-subtle text-warning border border-warning-subtle"
+    };
+
     private string ObtenerClaseEstado(int estado)
     {
         return estado switch
@@ -544,84 +773,5 @@
             5 => "Cancelada",
             _ => "Desconocido"
         };
-    }
-
-    private void AbrirModalCrear()
-    {
-        esNuevaSolicitud = true;
-        modeloFormulario = new ActualizarSolicitudDto();
-        mostrarModal = true;
-    }
-
-    private void AbrirModalEditar(SolicitudDto solicitud)
-    {
-        esNuevaSolicitud = false;
-        idEdicion = solicitud.Id;
-        estadoEdicion = solicitud.Estado;
-
-        modeloFormulario = new ActualizarSolicitudDto
-        {
-            Titulo = solicitud.Titulo,
-            Solicitante = solicitud.Solicitante,
-            Descripcion = solicitud.Descripcion
-        };
-        mostrarModal = true;
-    }
-
-    private void CerrarModal()
-    {
-        mostrarModal = false;
-    }
-
-    private async Task GuardarSolicitud()
-    {
-        guardando = true;
-        try
-        {
-            if (esNuevaSolicitud)
-            {
-                var nuevaSolicitud = new CrearSolicitudDto
-                {
-                    Titulo = modeloFormulario.Titulo,
-                    Solicitante = modeloFormulario.Solicitante,
-                    Descripcion = modeloFormulario.Descripcion ?? string.Empty
-                };
-
-                await SolicitudService.CrearAsync(nuevaSolicitud);
-                await Swal.FireAsync(new SweetAlertOptions
-                {
-                    Title = "¡Creada!",
-                    Text = "La solicitud fue radicada exitosamente.",
-                    Icon = SweetAlertIcon.Success,
-                    Timer = 2000,
-                    ShowConfirmButton = false
-                });
-            }
-            else
-            {
-                await SolicitudService.ActualizarAsync(idEdicion, modeloFormulario);
-                await Http.PatchAsJsonAsync($"api/solicitud/{idEdicion}/estado", new { NuevoEstado = estadoEdicion });
-
-                await Swal.FireAsync(new SweetAlertOptions
-                {
-                    Title = "¡Actualizada!",
-                    Text = "El expediente fue actualizado correctamente.",
-                    Icon = SweetAlertIcon.Success,
-                    Timer = 2000,
-                    ShowConfirmButton = false
-                });
-            }
-
-            await CargarSolicitudes();
-            CerrarModal();
-        }
-        catch (Exception ex)
-        {
-            await Swal.FireAsync("Error", "Ocurrió un problema: " + ex.Message, SweetAlertIcon.Error);
-        }
-        finally
-        {
-            guardando = false;
-        }
     }
 }

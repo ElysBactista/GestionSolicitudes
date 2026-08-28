@@ -17,4 +17,5 @@ public class Solicitud
     public DateTime? FechaActualizacion { get; set;}
     public bool Activo { get; set; } = true;
     public DateTime FechaRegistro { get; set; }
+    public List<DocumentoAdjunto> Documentos { get; set; } = [];
 }

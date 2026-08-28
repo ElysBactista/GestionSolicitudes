@@ -1,190 +1,204 @@
 ﻿@page "/dashboard"
 @page "/home"
+@using System.Text.Json
 @inject HttpClient Http
+@inject IJSRuntime JS
 
 <PageTitle>HOME - DGM</PageTitle>
 
 <div class="container-fluid px-4 py-3" style="font-family: 'Poppins', sans-serif; background-color: #f8fafc; min-height: 100vh;">
 
     <!-- ========================================================= -->
-    <!-- 1. ENCABEZADO CON SELECTOR DE RANGO Y FILTROS AVANZADOS   -->
+    <!-- 1. ENCABEZADO CON PANEL UNIFICADO Y ACCIONES DIRECTAS     -->
     <!-- ========================================================= -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div>
             <h4 class="fw-bold mb-1" style="color: #003876;">Panel de Control Institucional</h4>
-            <p class="text-secondary small mb-0">Resumen operativo y métricas de trámites migratorios</p>
+            <p class="small mb-0 text-dark">Resumen operativo y métricas estadísticas de trámites migratorios</p>
         </div>
 
-        <!-- Barra Compacta Derecha -->
+        <!-- Barra Superior Compacta -->
         <div class="d-flex align-items-center gap-2 bg-white p-2 rounded-3 shadow-sm border border-light-subtle position-relative">
 
-            <!-- Botón de Rango de Fechas Estilizado -->
-            <button class="btn btn-sm btn-light border border-secondary border-opacity-25 text-dark fw-medium px-3 d-flex align-items-center gap-2"
-                    @onclick="() => { mostrarSelectorFechas = !mostrarSelectorFechas; mostrarFiltrosAvanzados = false; }"
-                    style="background-color: #f8fafc; font-size: 0.82rem;">
-                <i class="bi bi-calendar3 text-primary"></i>
-                <span>@fechaInicio.ToString("dd MMM yyyy") - @fechaFin.ToString("dd MMM yyyy")</span>
-                <i class="bi bi-chevron-down text-muted small"></i>
-            </button>
+            <!-- Indicador Visual del Periodo Activo -->
+            <div class="d-none d-sm-flex align-items-center gap-2 px-2 small">
+                <i class="bi bi-calendar3" style="color: #003876;"></i>
+                <span class="fw-medium text-dark">
+                    @(filtroFechaAplicado ? $"{fechaInicio.ToString("dd/MM/yyyy")} - {fechaFin.ToString("dd/MM/yyyy")}" : "Histórico Completo")
+                </span>
+            </div>
 
-            <!-- Botón Filtros Avanzados -->
-            <button class="btn btn-sm btn-light border border-secondary border-opacity-25 text-secondary fw-semibold px-2 position-relative"
-                    @onclick="() => { mostrarFiltrosAvanzados = !mostrarFiltrosAvanzados; mostrarSelectorFechas = false; }"
-                    title="Filtros avanzados">
-                <i class="bi bi-sliders me-1"></i> Filtros
-                @if (!string.IsNullOrEmpty(filtroEstado) || !string.IsNullOrEmpty(filtroTipoTramite) || !string.IsNullOrEmpty(filtroTexto))
+            <div class="vr d-none d-sm-block my-1"></div>
+
+            <!-- Botón Filtros -->
+            <button class="btn btn-sm btn-light border border-secondary border-opacity-25 text-dark fw-medium px-3 position-relative d-flex align-items-center gap-2"
+                    @onclick="() => mostrarPanelFiltros = !mostrarPanelFiltros"
+                    style="background-color: #ffffff; font-size: 0.82rem; border-radius: 6px;">
+                <i class="bi bi-sliders" style="color: #003876;"></i> Filtros
+                @if (FiltrosActivos())
                 {
-                    <span class="position-absolute top-0 start-100 translate-middle p-1 bg-primary border border-light rounded-circle"></span>
+                    <span class="p-1 rounded-circle position-relative" style="background-color: #003876; width: 7px; height: 7px; display: inline-block;"></span>
                 }
             </button>
 
-            <!-- Botón Principal Aplicar -->
-            <button class="btn btn-sm text-white fw-semibold px-3 shadow-sm"
-                    @onclick="CargarDatosDashboard"
-                    style="background-color: #003876; border-radius: 6px;">
-                <i class="bi bi-filter me-1"></i> Filtrar
+            <!-- Botón Exterior Limpiar -->
+            <button class="btn btn-sm text-white d-flex align-items-center justify-content-center shadow-sm"
+                    @onclick="LimpiarFiltrosExterior"
+                    title="Restablecer filtros al historial completo"
+                    style="background-color: #003876; width: 34px; height: 31px; border-radius: 6px;">
+                <i class="bi bi-arrow-counterclockwise fs-6"></i>
             </button>
 
             <!-- ========================================================= -->
-            <!-- CALENDARIO INTERACTIVO PROPIO (SIN NATIVO DE CHROME)     -->
+            <!-- PANEL FLOTANTE COMPACTO Y ARMONIOSO                       -->
             <!-- ========================================================= -->
-            @if (mostrarSelectorFechas)
+            @if (mostrarPanelFiltros)
             {
-                <div class="card shadow-lg border-0 rounded-3 position-absolute end-0 p-3 bg-white"
-                     style="top: 115%; width: 330px; z-index: 1055; border: 1px solid #e2e8f0 !important;">
+                <div class="card shadow-lg border rounded-4 position-absolute end-0 p-3 bg-white"
+                     style="top: 115%; width: 355px; z-index: 1055; border-color: #e2e8f0 !important; box-shadow: 0 14px 30px rgba(0,0,0,0.15) !important;">
 
-                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
-                        <span class="fw-bold small text-dark"><i class="bi bi-calendar-range me-1 text-primary"></i> Periodo de Consulta</span>
-                        <button type="button" class="btn-close btn-sm" @onclick="() => mostrarSelectorFechas = false"></button>
-                    </div>
-
-                    <!-- Accesos Rápidos -->
-                    <div class="d-flex flex-wrap gap-1 mb-3">
-                        <button class="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill small" style="font-size: 0.72rem;" @onclick="() => SeleccionarPeriodo(1)">Hoy</button>
-                        <button class="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill small" style="font-size: 0.72rem;" @onclick="() => SeleccionarPeriodo(7)">Últimos 7 días</button>
-                        <button class="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill small" style="font-size: 0.72rem;" @onclick="() => SeleccionarPeriodo(30)">Últimos 30 días</button>
-                        <button class="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill small" style="font-size: 0.72rem;" @onclick="() => SeleccionarPeriodo(0)">Este Mes</button>
-                    </div>
-
-                    <!-- Navegación Mes / Año -->
-                    <div class="d-flex justify-content-between align-items-center mb-2 px-1">
-                        <button class="btn btn-sm btn-light border-0 p-1" @onclick="MesAnterior">
-                            <i class="bi bi-chevron-left text-secondary"></i>
-                        </button>
-                        <span class="fw-bold small text-dark text-capitalize">
-                            @mesVisualizado.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-ES"))
+                    <!-- Cabecera -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <span class="fw-bold small text-dark">
+                            <i class="bi bi-funnel-fill me-1" style="color: #003876;"></i> Filtros del Panel
                         </span>
-                        <button class="btn btn-sm btn-light border-0 p-1" @onclick="MesSiguiente">
-                            <i class="bi bi-chevron-right text-secondary"></i>
-                        </button>
+                        <button type="button" class="btn-close btn-sm" @onclick="() => { mostrarPanelFiltros = false; calendarioAbierto = string.Empty; }"></button>
                     </div>
 
-                    <!-- Días Cabecera -->
-                    <div class="d-grid mb-1 text-center" style="grid-template-columns: repeat(7, 1fr); font-size: 0.72rem; color: #94a3b8; font-weight: 600;">
-                        <div>DO</div><div>LU</div><div>MA</div><div>MI</div><div>JU</div><div>VI</div><div>SA</div>
-                    </div>
-
-                    <!-- Cuadrícula de Días -->
-                    <div class="d-grid gap-1 mb-3 text-center" style="grid-template-columns: repeat(7, 1fr);">
-                        @for (int i = 0; i < (int)primerDiaDelMes.DayOfWeek; i++)
-                        {
-                            <div style="height: 30px;"></div>
-                        }
-
-                        @for (int dia = 1; dia <= diasEnMes; dia++)
-                        {
-                            var fechaActual = new DateTime(mesVisualizado.Year, mesVisualizado.Month, dia);
-                            bool esInicio = fechaActual.Date == fechaInicio.Date;
-                            bool esFin = fechaActual.Date == fechaFin.Date;
-                            bool enRango = fechaActual.Date > fechaInicio.Date && fechaActual.Date < fechaFin.Date;
-
-                            string estilo = "height: 30px; font-size: 0.78rem; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none;";
-
-                            if (esInicio || esFin)
-                            {
-                                estilo += " background-color: #003876; color: white; font-weight: bold;";
-                            }
-                            else if (enRango)
-                            {
-                                estilo += " background-color: rgba(0, 56, 118, 0.12); color: #003876; font-weight: 600;";
-                            }
-                            else
-                            {
-                                estilo += " color: #334155;";
-                            }
-
-                            <div style="@estilo" class="cal-dia" @onclick="() => SeleccionarDia(fechaActual)">
-                                @dia
+                    <!-- 1. Rango de Fechas con Apertura Dinámica -->
+                    <div class="mb-2">
+                        <label class="fw-bold mb-1 d-block text-dark" style="font-size: 0.72rem;">RANGO DE FECHAS (Día/Mes/Año)</label>
+                        <div class="d-flex gap-2">
+                            <!-- Campo Desde -->
+                            <div class="flex-fill position-relative">
+                                <input type="text" class="form-control form-control-sm border text-center fw-medium bg-light text-dark @(calendarioAbierto == "desde" ? "border-primary shadow-xs" : "")"
+                                       style="font-size: 0.78rem; cursor: pointer;"
+                                       value="@txtFechaInicio"
+                                       placeholder="DD/MM/AAAA"
+                                       @onclick='() => ToggleCalendario("desde")'
+                                       @oninput="(e) => ActualizarFechaEscrita(true, e.Value?.ToString())" />
                             </div>
-                        }
-                    </div>
-
-                    <button class="btn btn-sm text-white w-100 fw-semibold"
-                            @onclick="async () => { mostrarSelectorFechas = false; await CargarDatosDashboard(); }"
-                            style="background-color: #003876; border-radius: 6px;">
-                        Aplicar Rango
-                    </button>
-                </div>
-            }
-
-            <!-- DESPLEGABLE DE FILTROS AVANZADOS -->
-            @if (mostrarFiltrosAvanzados)
-            {
-                <div class="card shadow-lg border-0 rounded-3 position-absolute end-0 p-3 bg-white"
-                     style="top: 115%; width: 340px; z-index: 1050; border: 1px solid #e2e8f0 !important;">
-
-                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.9rem;">
-                            <i class="bi bi-funnel me-1 text-primary"></i> Filtros Avanzados
-                        </h6>
-                        <button type="button" class="btn-close btn-sm" @onclick="() => mostrarFiltrosAvanzados = false"></button>
-                    </div>
-
-                    <!-- Búsqueda por Texto -->
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary fw-semibold mb-1">Buscar Solicitud:</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-light border-secondary border-opacity-25 text-secondary">
-                                <i class="bi bi-search"></i>
-                            </span>
-                            <input type="text" class="form-control bg-light border-secondary border-opacity-25"
-                                   placeholder="Expediente, Pasaporte..."
-                                   @bind="filtroTexto" />
+                            <!-- Campo Hasta -->
+                            <div class="flex-fill position-relative">
+                                <input type="text" class="form-control form-control-sm border text-center fw-medium bg-light text-dark @(calendarioAbierto == "hasta" ? "border-primary shadow-xs" : "")"
+                                       style="font-size: 0.78rem; cursor: pointer;"
+                                       value="@txtFechaFin"
+                                       placeholder="DD/MM/AAAA"
+                                       @onclick='() => ToggleCalendario("hasta")'
+                                       @oninput="(e) => ActualizarFechaEscrita(false, e.Value?.ToString())" />
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Estado del Trámite -->
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary fw-semibold mb-1">Estado:</label>
-                        <select class="form-select form-select-sm bg-light border-secondary border-opacity-25" @bind="filtroEstado">
-                            <option value="">Todos los Estados</option>
-                            <option value="Pendiente">Pendientes</option>
-                            <option value="En Proceso">En Proceso</option>
-                            <option value="Aprobado">Aprobadas</option>
-                            <option value="Rechazada">Rechazadas</option>
-                            <option value="Cancelada">Canceladas</option>
-                        </select>
+                    <!-- 2. Accesos Rápidos -->
+                    <div class="d-flex flex-wrap gap-1 mb-2">
+                        <button type="button" class="btn btn-xs btn-chip" @onclick="() => AplicarPreset(1)">Hoy</button>
+                        <button type="button" class="btn btn-xs btn-chip" @onclick="() => AplicarPreset(2)">Ayer</button>
+                        <button type="button" class="btn btn-xs btn-chip" @onclick="() => AplicarPreset(7)">Esta Semana</button>
+                        <button type="button" class="btn btn-xs btn-chip" @onclick="() => AplicarPreset(30)">Este Mes</button>
+                        <button type="button" class="btn btn-xs btn-chip" @onclick="() => AplicarPreset(365)">Este Año</button>
                     </div>
 
-                    <!-- Tipo de Trámite -->
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary fw-semibold mb-1">Tipo de Trámite:</label>
-                        <select class="form-select form-select-sm bg-light border-secondary border-opacity-25" @bind="filtroTipoTramite">
-                            <option value="">Todos los Trámites</option>
-                            <option value="Residencia Temporal">Residencia Temporal</option>
-                            <option value="Residencia Definitiva">Residencia Definitiva</option>
-                            <option value="Renovación">Renovación</option>
-                            <option value="Permiso de Reingreso">Permiso de Reingreso</option>
-                        </select>
+                    <!-- 3. Mini Calendario Interactivo -->
+                    @if (!string.IsNullOrEmpty(calendarioAbierto))
+                    {
+                        <div class="p-2 mb-2 rounded-3 bg-light border border-light-subtle">
+                            <div class="d-flex justify-content-between align-items-center mb-1 px-1">
+                                <span class="badge bg-primary-subtle text-primary border" style="font-size: 0.68rem;">
+                                    Modificando fecha: <strong>@(calendarioAbierto == "desde" ? "Desde" : "Hasta")</strong>
+                                </span>
+                                <button type="button" class="btn-close btn-sm" style="font-size: 0.6rem;" @onclick='() => calendarioAbierto = string.Empty'></button>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                                <button type="button" class="btn btn-sm btn-light border-0 rounded-circle p-0 d-flex align-items-center justify-content-center bg-white shadow-xs"
+                                        style="width: 24px; height: 24px;" @onclick="() => AvanzarRetrocederMesManual(-1)">
+                                    <i class="bi bi-chevron-left" style="color: #003876; font-size: 0.7rem;"></i>
+                                </button>
+
+                                <div class="d-flex align-items-center gap-1">
+                                    <select class="form-select form-select-sm select-sin-flecha fw-medium text-capitalize text-dark"
+                                            style="width: auto; cursor: pointer; font-size: 0.76rem; padding: 2px 8px;"
+                                            value="@mesVistaCalendario.Month"
+                                            @onchange="CambiarMesMiniCal">
+                                        @for (int m = 1; m <= 12; m++)
+                                        {
+                                            <option value="@m">@ObtenerNombreMes(m)</option>
+                                        }
+                                    </select>
+
+                                    <select class="form-select form-select-sm select-sin-flecha fw-medium text-dark"
+                                            style="width: 72px; cursor: pointer; font-size: 0.76rem; padding: 2px 6px;"
+                                            value="@mesVistaCalendario.Year"
+                                            @onchange="CambiarAnioMiniCal">
+                                        @for (int a = 2020; a <= DateTime.Today.Year + 5; a++)
+                                        {
+                                            <option value="@a">@a</option>
+                                        }
+                                    </select>
+                                </div>
+
+                                <button type="button" class="btn btn-sm btn-light border-0 rounded-circle p-0 d-flex align-items-center justify-content-center bg-white shadow-xs"
+                                        style="width: 24px; height: 24px;" @onclick="() => AvanzarRetrocederMesManual(1)">
+                                    <i class="bi bi-chevron-right" style="color: #003876; font-size: 0.7rem;"></i>
+                                </button>
+                            </div>
+
+                            <div class="d-grid text-center mb-1" style="grid-template-columns: repeat(7, 1fr); font-size: 0.62rem; color: #000000; font-weight: 700;">
+                                <div>DO</div><div>LU</div><div>MA</div><div>MI</div><div>JU</div><div>VI</div><div>SA</div>
+                            </div>
+
+                            <div class="d-grid text-center" style="grid-template-columns: repeat(7, 1fr); row-gap: 1px;">
+                                @for (int i = 0; i < (int)(new DateTime(mesVistaCalendario.Year, mesVistaCalendario.Month, 1).DayOfWeek); i++)
+                                {
+                                    <div style="height: 24px;"></div>
+                                }
+                                @for (int d = 1; d <= DateTime.DaysInMonth(mesVistaCalendario.Year, mesVistaCalendario.Month); d++)
+                                {
+                                    var fecha = new DateTime(mesVistaCalendario.Year, mesVistaCalendario.Month, d);
+                                    @RenderizarMiniDia(fecha, d)
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <hr class="my-2" />
+
+                    <!-- 4. Filtros de Estado y Trámite -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold mb-1 text-dark" style="font-size: 0.72rem;">ESTADO</label>
+                            <select class="form-select form-select-sm bg-light border text-dark fw-normal" @bind="filtroEstado" style="font-size: 0.78rem;">
+                                <option value="">Todos</option>
+                                <option value="Pendiente">Pendientes</option>
+                                <option value="En Proceso">En Proceso</option>
+                                <option value="Aprobada">Aprobadas</option>
+                                <option value="Rechazada">Rechazadas</option>
+                                <option value="Cancelada">Canceladas</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold mb-1 text-dark" style="font-size: 0.72rem;">TRÁMITE</label>
+                            <select class="form-select form-select-sm bg-light border text-dark fw-normal" @bind="filtroTipoTramite" style="font-size: 0.78rem;">
+                                <option value="">Todos</option>
+                                <option value="Residencia Temporal">Temporal</option>
+                                <option value="Residencia Definitiva">Definitiva</option>
+                                <option value="Renovación">Renovación</option>
+                                <option value="Permiso de Reingreso">Reingreso</option>
+                            </select>
+                        </div>
                     </div>
 
-                    <div class="d-flex justify-content-between pt-2 border-top">
-                        <button class="btn btn-sm btn-link text-decoration-none text-secondary p-0" @onclick="LimpiarFiltros">
-                            Limpiar todo
+                    <!-- 5. Acciones Internas del Panel -->
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                        <button type="button" class="btn btn-sm text-white fw-semibold px-3"
+                                style="background-color: #003876; font-size: 0.78rem; border-radius: 6px;"
+                                @onclick="LimpiarCamposPanel">
+                            Limpiar
                         </button>
-                        <button class="btn btn-sm text-white px-3 fw-semibold"
-                                @onclick="async () => { mostrarFiltrosAvanzados = false; await CargarDatosDashboard(); }"
-                                style="background-color: #003876;">
+                        <button type="button" class="btn btn-sm text-white px-4 fw-semibold shadow-sm"
+                                style="background-color: #003876; font-size: 0.78rem; border-radius: 6px;"
+                                @onclick="AplicarFiltrosYConsultar">
                             Aplicar
                         </button>
                     </div>
@@ -197,12 +211,11 @@
     <!-- 2. TARJETAS KPI HORIZONTALES                              -->
     <!-- ========================================================= -->
     <div class="row g-3 mb-4">
-        <!-- Total -->
         <div class="col-12 col-sm-6 col-xl-2">
             <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #003876 !important;">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <span class="text-secondary small fw-semibold d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Total</span>
+                        <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">Total</span>
                         <h3 class="fw-bold mb-0 mt-1" style="color: #003876;">@totalSolicitudes</h3>
                     </div>
                     <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: rgba(0, 56, 118, 0.08); color: #003876;">
@@ -212,12 +225,11 @@
             </div>
         </div>
 
-        <!-- Pendientes -->
         <div class="col-12 col-sm-6 col-xl-2">
             <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #f59e0b !important;">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <span class="text-secondary small fw-semibold d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Pendientes</span>
+                        <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">Pendientes</span>
                         <h3 class="fw-bold mb-0 mt-1" style="color: #b45309;">@totalPendientes</h3>
                     </div>
                     <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: #fef3c7; color: #d97706;">
@@ -227,12 +239,11 @@
             </div>
         </div>
 
-        <!-- En Proceso -->
         <div class="col-12 col-sm-6 col-xl-2">
             <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #0284c7 !important;">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <span class="text-secondary small fw-semibold d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">En Proceso</span>
+                        <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">En Proceso</span>
                         <h3 class="fw-bold mb-0 mt-1" style="color: #0369a1;">@totalEnProceso</h3>
                     </div>
                     <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: #e0f2fe; color: #0284c7;">
@@ -242,12 +253,11 @@
             </div>
         </div>
 
-        <!-- Aprobadas -->
         <div class="col-12 col-sm-6 col-xl-2">
             <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #10b981 !important;">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <span class="text-secondary small fw-semibold d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Aprobadas</span>
+                        <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">Aprobadas</span>
                         <h3 class="fw-bold mb-0 mt-1" style="color: #047857;">@totalAprobadas</h3>
                     </div>
                     <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: #d1fae5; color: #059669;">
@@ -257,12 +267,11 @@
             </div>
         </div>
 
-        <!-- Rechazadas -->
         <div class="col-12 col-sm-6 col-xl-2">
             <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #EE2A24 !important;">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <span class="text-secondary small fw-semibold d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Rechazadas</span>
+                        <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">Rechazadas</span>
                         <h3 class="fw-bold mb-0 mt-1" style="color: #b91c1c;">@totalRechazadas</h3>
                     </div>
                     <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: #fee2e2; color: #dc2626;">
@@ -272,12 +281,11 @@
             </div>
         </div>
 
-        <!-- Canceladas -->
         <div class="col-12 col-sm-6 col-xl-2">
             <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #64748b !important;">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <span class="text-secondary small fw-semibold d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Canceladas</span>
+                        <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">Canceladas</span>
                         <h3 class="fw-bold mb-0 mt-1" style="color: #475569;">@totalCanceladas</h3>
                     </div>
                     <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: #f1f5f9; color: #64748b;">
@@ -289,15 +297,14 @@
     </div>
 
     <!-- ========================================================= -->
-    <!-- 3. PANEL DE GRÁFICAS                                      -->
+    <!-- 3. FILA 1 DE GRÁFICAS (ESTADOS OPERATIVOS)                -->
     <!-- ========================================================= -->
-    <div class="row g-3">
-        <!-- Gráfica de Barras -->
+    <div class="row g-3 mb-4">
         <div class="col-lg-7">
             <div class="card shadow-sm border-0 rounded-3 h-100 bg-white">
                 <div class="card-header bg-transparent border-0 pt-3 px-4 pb-0">
                     <h6 class="fw-bold mb-0" style="color: #003876;">Volumen Operativo por Estado</h6>
-                    <small class="text-muted">Distribución cuantitativa de expedientes</small>
+                    <small class="text-dark">Distribución cuantitativa de expedientes</small>
                 </div>
                 <div class="card-body px-4 pb-3 pt-2">
                     <ApexChart @ref="miGrafico" TItem="DatoGrafico" Options="opcionesGraficoBarras">
@@ -313,12 +320,11 @@
             </div>
         </div>
 
-        <!-- Gráfica Donut -->
         <div class="col-lg-5">
             <div class="card shadow-sm border-0 rounded-3 h-100 bg-white">
                 <div class="card-header bg-transparent border-0 pt-3 px-4 pb-0">
                     <h6 class="fw-bold mb-0" style="color: #003876;">Distribución Porcentual</h6>
-                    <small class="text-muted">Proporción relativa de trámites</small>
+                    <small class="text-dark">Proporción relativa de trámites</small>
                 </div>
                 <div class="card-body px-3 pb-3 pt-2 text-center">
                     <ApexChart @ref="miGraficoCircular" TItem="DatoGrafico" Options="opcionesGraficoCircular">
@@ -335,15 +341,64 @@
         </div>
     </div>
 
+    <!-- ========================================================= -->
+    <!-- 4. FILA 2 DE GRÁFICAS (TIPO DE TRÁMITE Y TENDENCIA)       -->
+    <!-- ========================================================= -->
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 rounded-3 h-100 bg-white">
+                <div class="card-header bg-transparent border-0 pt-3 px-4 pb-0 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="fw-bold mb-0" style="color: #003876;">Trámites más Frecuentes</h6>
+                        <small class="text-dark">Demanda por tipo de servicio migratorio</small>
+                    </div>
+                    <i class="bi bi-pie-chart fs-5" style="color: #003876;"></i>
+                </div>
+                <div class="card-body px-4 pb-3 pt-2">
+                    <ApexChart @ref="miGraficoTipos" TItem="DatoGrafico" Options="opcionesGraficoTipos">
+                        <ApexPointSeries TItem="DatoGrafico"
+                                         Items="datosPorTipo"
+                                         Name="Expedientes"
+                                         SeriesType="SeriesType.Bar"
+                                         XValue="@(e => e.Estado)"
+                                         YValue="@(e => e.Cantidad)" />
+                    </ApexChart>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 rounded-3 h-100 bg-white">
+                <div class="card-header bg-transparent border-0 pt-3 px-4 pb-0 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="fw-bold mb-0" style="color: #003876;">Evolución de Registro</h6>
+                        <small class="text-dark">Ingreso cronológico de solicitudes</small>
+                    </div>
+                    <i class="bi bi-graph-up-arrow fs-5" style="color: #003876;"></i>
+                </div>
+                <div class="card-body px-4 pb-3 pt-2">
+                    <ApexChart @ref="miGraficoTendencia" TItem="DatoGrafico" Options="opcionesGraficoTendencia">
+                        <ApexPointSeries TItem="DatoGrafico"
+                                         Items="datosTendencia"
+                                         Name="Solicitudes"
+                                         SeriesType="SeriesType.Area"
+                                         XValue="@(e => e.Estado)"
+                                         YValue="@(e => e.Cantidad)" />
+                    </ApexChart>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
-<style>
-    .cal-dia:hover {
-        background-color: #f1f5f9;
-    }
-</style>
-
 @code {
+    public class EstadisticaItemDto
+    {
+        public string Etiqueta { get; set; } = string.Empty;
+        public int Cantidad { get; set; }
+    }
+
     public class DashboardDto
     {
         public int TotalSolicitudes { get; set; }
@@ -352,6 +407,8 @@
         public int Pendientes { get; set; }
         public int Canceladas { get; set; }
         public int Rechazadas { get; set; }
+        public List<EstadisticaItemDto> PorTipoTramite { get; set; } = new();
+        public List<EstadisticaItemDto> TendenciaMensual { get; set; } = new();
     }
 
     public class DatoGrafico
@@ -360,26 +417,43 @@
         public int Cantidad { get; set; }
     }
 
+    public class EstadoPersistenciaDashboard
+    {
+        public bool FiltroFechaAplicado { get; set; }
+        public DateTime FechaInicio { get; set; }
+        public DateTime FechaFin { get; set; }
+        public string TxtFechaInicio { get; set; } = string.Empty;
+        public string TxtFechaFin { get; set; } = string.Empty;
+        public string FiltroEstado { get; set; } = string.Empty;
+        public string FiltroTipoTramite { get; set; } = string.Empty;
+    }
+
     private ApexChart<DatoGrafico>? miGrafico;
     private ApexChart<DatoGrafico>? miGraficoCircular;
+    private ApexChart<DatoGrafico>? miGraficoTipos;
+    private ApexChart<DatoGrafico>? miGraficoTendencia;
 
     private ApexChartOptions<DatoGrafico> opcionesGraficoBarras = new();
     private ApexChartOptions<DatoGrafico> opcionesGraficoCircular = new();
+    private ApexChartOptions<DatoGrafico> opcionesGraficoTipos = new();
+    private ApexChartOptions<DatoGrafico> opcionesGraficoTendencia = new();
 
     private List<DatoGrafico> datosDelGrafico = new();
-    private DateTime fechaInicio = DateTime.Today.AddDays(-7);
+    private List<DatoGrafico> datosPorTipo = new();
+    private List<DatoGrafico> datosTendencia = new();
+
+    private bool filtroFechaAplicado = false;
+    private DateTime fechaInicio = DateTime.Today;
     private DateTime fechaFin = DateTime.Today;
 
-    // Calendario interactivo en C#
-    private DateTime mesVisualizado = DateTime.Today;
-    private bool eligiendoFin = false;
-    private DateTime primerDiaDelMes => new DateTime(mesVisualizado.Year, mesVisualizado.Month, 1);
-    private int diasEnMes => DateTime.DaysInMonth(mesVisualizado.Year, mesVisualizado.Month);
+    private string txtFechaInicio = DateTime.Today.ToString("dd/MM/yyyy");
+    private string txtFechaFin = DateTime.Today.ToString("dd/MM/yyyy");
 
-    // Variables de Filtros y Desplegables
-    private bool mostrarSelectorFechas = false;
-    private bool mostrarFiltrosAvanzados = false;
-    private string filtroTexto = string.Empty;
+    // Control de calendario interactivo para "desde" y "hasta"
+    private string calendarioAbierto = string.Empty;
+    private DateTime mesVistaCalendario = DateTime.Today;
+
+    private bool mostrarPanelFiltros = false;
     private string filtroEstado = string.Empty;
     private string filtroTipoTramite = string.Empty;
 
@@ -390,9 +464,9 @@
     private int totalRechazadas = 0;
     private int totalCanceladas = 0;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        opcionesGraficoBarras.Chart = new Chart { Height = 290, Toolbar = new Toolbar { Show = false } };
+        opcionesGraficoBarras.Chart = new Chart { Height = 280, Toolbar = new Toolbar { Show = false } };
         opcionesGraficoBarras.PlotOptions = new PlotOptions
         {
             Bar = new PlotOptionsBar
@@ -404,83 +478,333 @@
 
         opcionesGraficoCircular = new ApexChartOptions<DatoGrafico>
         {
-            Chart = new Chart
-            {
-                Height = 350,
-                Toolbar = new Toolbar { Show = false }
-            },
-            Legend = new Legend
-            {
-                Position = LegendPosition.Bottom,
-                HorizontalAlign = Align.Center,
-                FontSize = "13px"
-            },
+            Chart = new Chart { Height = 340, Toolbar = new Toolbar { Show = false } },
+            Legend = new Legend { Position = LegendPosition.Bottom, HorizontalAlign = Align.Center, FontSize = "13px" },
             PlotOptions = new PlotOptions
             {
                 Pie = new PlotOptionsPie
                 {
                     CustomScale = 1.0,
-                    Donut = new PlotOptionsDonut
-                    {
-                        Size = "65%"
-                    }
+                    Donut = new PlotOptionsDonut { Size = "65%" }
                 }
             }
         };
 
-        await CargarDatosDashboard();
+        opcionesGraficoTipos = new ApexChartOptions<DatoGrafico>
+        {
+            Chart = new Chart { Height = 280, Toolbar = new Toolbar { Show = false } },
+            Colors = new List<string> { "#003876" },
+            PlotOptions = new PlotOptions
+            {
+                Bar = new PlotOptionsBar
+                {
+                    Horizontal = true,
+                    BorderRadius = 5,
+                    BarHeight = "48%"
+                }
+            }
+        };
+
+        opcionesGraficoTendencia = new ApexChartOptions<DatoGrafico>
+        {
+            Chart = new Chart { Height = 280, Toolbar = new Toolbar { Show = false } },
+            Colors = new List<string> { "#0284C7" },
+            Stroke = new Stroke { Curve = Curve.Smooth, Width = 3 },
+            Fill = new Fill { Type = new List<FillType> { FillType.Gradient }, Gradient = new FillGradient { ShadeIntensity = 1, OpacityFrom = 0.45, OpacityTo = 0.05 } }
+        };
+
+        mesVistaCalendario = fechaFin;
     }
 
-    private void MesAnterior() => mesVisualizado = mesVisualizado.AddMonths(-1);
-    private void MesSiguiente() => mesVisualizado = mesVisualizado.AddMonths(1);
-
-    private void SeleccionarDia(DateTime fecha)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!eligiendoFin || fecha < fechaInicio)
+        if (firstRender)
         {
-            fechaInicio = fecha;
-            fechaFin = fecha;
-            eligiendoFin = true;
+            await RestaurarEstadoDesdeStorage();
+            await CargarDatosDashboard();
+        }
+    }
+
+    private void ToggleCalendario(string tipo)
+    {
+        if (calendarioAbierto == tipo)
+        {
+            calendarioAbierto = string.Empty;
         }
         else
         {
-            fechaFin = fecha;
-            eligiendoFin = false;
+            calendarioAbierto = tipo;
+            mesVistaCalendario = tipo == "desde" ? fechaInicio : fechaFin;
         }
     }
 
-    private void SeleccionarPeriodo(int dias)
+    private async Task GuardarEstadoEnStorage()
     {
-        if (dias == 1) // Hoy
+        try
         {
-            fechaInicio = DateTime.Today;
-            fechaFin = DateTime.Today;
+            var estado = new EstadoPersistenciaDashboard
+            {
+                FiltroFechaAplicado = filtroFechaAplicado,
+                FechaInicio = fechaInicio,
+                FechaFin = fechaFin,
+                TxtFechaInicio = txtFechaInicio,
+                TxtFechaFin = txtFechaFin,
+                FiltroEstado = filtroEstado,
+                FiltroTipoTramite = filtroTipoTramite
+            };
+
+            var json = JsonSerializer.Serialize(estado);
+            await JS.InvokeVoidAsync("sessionStorage.setItem", "dashboard_filtros", json);
         }
-        else if (dias == 0) // Este Mes
+        catch { }
+    }
+
+    private async Task RestaurarEstadoDesdeStorage()
+    {
+        try
         {
-            fechaInicio = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-            fechaFin = DateTime.Today;
+            var json = await JS.InvokeAsync<string>("sessionStorage.getItem", "dashboard_filtros");
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                var estado = JsonSerializer.Deserialize<EstadoPersistenciaDashboard>(json);
+                if (estado != null)
+                {
+                    filtroFechaAplicado = estado.FiltroFechaAplicado;
+                    fechaInicio = estado.FechaInicio;
+                    fechaFin = estado.FechaFin;
+                    txtFechaInicio = string.IsNullOrWhiteSpace(estado.TxtFechaInicio) ? fechaInicio.ToString("dd/MM/yyyy") : estado.TxtFechaInicio;
+                    txtFechaFin = string.IsNullOrWhiteSpace(estado.TxtFechaFin) ? fechaFin.ToString("dd/MM/yyyy") : estado.TxtFechaFin;
+                    filtroEstado = estado.FiltroEstado;
+                    filtroTipoTramite = estado.FiltroTipoTramite;
+                    mesVistaCalendario = fechaFin;
+                }
+            }
         }
-        else // Últimos N días
+        catch { }
+    }
+
+    private bool FiltrosActivos() =>
+        filtroFechaAplicado ||
+        !string.IsNullOrEmpty(filtroEstado) ||
+        !string.IsNullOrEmpty(filtroTipoTramite);
+
+    private string ObtenerNombreMes(int mes)
+    {
+        return new DateTime(2026, mes, 1).ToString("MMMM", new System.Globalization.CultureInfo("es-ES")).ToUpper();
+    }
+
+    private void ActualizarFechaEscrita(bool esInicio, string? valor)
+    {
+        if (esInicio)
         {
-            fechaInicio = DateTime.Today.AddDays(-dias);
-            fechaFin = DateTime.Today;
+            txtFechaInicio = valor ?? string.Empty;
+            if (DateTime.TryParseExact(txtFechaInicio, "dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime f))
+            {
+                fechaInicio = f;
+                mesVistaCalendario = f;
+                filtroFechaAplicado = true;
+            }
         }
-        mesVisualizado = fechaInicio;
+        else
+        {
+            txtFechaFin = valor ?? string.Empty;
+            if (DateTime.TryParseExact(txtFechaFin, "dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime f))
+            {
+                fechaFin = f;
+                mesVistaCalendario = f;
+                filtroFechaAplicado = true;
+            }
+        }
+    }
+
+    private void CambiarMesMiniCal(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int nuevoMes))
+        {
+            mesVistaCalendario = new DateTime(mesVistaCalendario.Year, nuevoMes, 1);
+            ActualizarFechaSegunVista();
+        }
+    }
+
+    private void CambiarAnioMiniCal(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int nuevoAnio))
+        {
+            mesVistaCalendario = new DateTime(nuevoAnio, mesVistaCalendario.Month, 1);
+            ActualizarFechaSegunVista();
+        }
+    }
+
+    private void AvanzarRetrocederMesManual(int meses)
+    {
+        mesVistaCalendario = mesVistaCalendario.AddMonths(meses);
+        ActualizarFechaSegunVista();
+    }
+
+    private void ActualizarFechaSegunVista()
+    {
+        if (calendarioAbierto == "desde")
+        {
+            int diasEnMes = DateTime.DaysInMonth(mesVistaCalendario.Year, mesVistaCalendario.Month);
+            int diaAjustado = Math.Min(fechaInicio.Day, diasEnMes);
+            fechaInicio = new DateTime(mesVistaCalendario.Year, mesVistaCalendario.Month, diaAjustado);
+            txtFechaInicio = fechaInicio.ToString("dd/MM/yyyy");
+            filtroFechaAplicado = true;
+        }
+        else if (calendarioAbierto == "hasta")
+        {
+            int diasEnMes = DateTime.DaysInMonth(mesVistaCalendario.Year, mesVistaCalendario.Month);
+            int diaAjustado = Math.Min(fechaFin.Day, diasEnMes);
+            fechaFin = new DateTime(mesVistaCalendario.Year, mesVistaCalendario.Month, diaAjustado);
+            txtFechaFin = fechaFin.ToString("dd/MM/yyyy");
+            filtroFechaAplicado = true;
+        }
+    }
+
+    private async Task AplicarPreset(int opcion)
+    {
+        var hoy = DateTime.Today;
+        switch (opcion)
+        {
+            case 1: // Hoy
+                fechaInicio = hoy; fechaFin = hoy; break;
+            case 2: // Ayer
+                fechaInicio = hoy.AddDays(-1); fechaFin = hoy.AddDays(-1); break;
+            case 7: // Esta Semana
+                fechaInicio = hoy.AddDays(-(int)hoy.DayOfWeek); fechaFin = hoy; break;
+            case 30: // Este Mes
+                fechaInicio = new DateTime(hoy.Year, hoy.Month, 1); fechaFin = hoy; break;
+            case 365: // Este Año
+                fechaInicio = new DateTime(hoy.Year, 1, 1); fechaFin = hoy; break;
+        }
+        filtroFechaAplicado = true;
+        txtFechaInicio = fechaInicio.ToString("dd/MM/yyyy");
+        txtFechaFin = fechaFin.ToString("dd/MM/yyyy");
+        mesVistaCalendario = fechaFin;
+        calendarioAbierto = string.Empty;
+
+        await GuardarEstadoEnStorage();
+    }
+
+    private void SeleccionarDia(DateTime fecha)
+    {
+        if (calendarioAbierto == "desde")
+        {
+            fechaInicio = fecha;
+            if (fechaInicio > fechaFin)
+                fechaFin = fechaInicio;
+
+            txtFechaInicio = fechaInicio.ToString("dd/MM/yyyy");
+            txtFechaFin = fechaFin.ToString("dd/MM/yyyy");
+            calendarioAbierto = string.Empty;
+        }
+        else if (calendarioAbierto == "hasta")
+        {
+            if (fecha < fechaInicio)
+                fechaInicio = fecha;
+
+            fechaFin = fecha;
+            txtFechaInicio = fechaInicio.ToString("dd/MM/yyyy");
+            txtFechaFin = fechaFin.ToString("dd/MM/yyyy");
+            calendarioAbierto = string.Empty;
+        }
+        filtroFechaAplicado = true;
+    }
+
+    private RenderFragment RenderizarMiniDia(DateTime fecha, int d) => builder =>
+    {
+        bool esSeleccionado = (calendarioAbierto == "desde" && fecha.Date == fechaInicio.Date) ||
+                              (calendarioAbierto == "hasta" && fecha.Date == fechaFin.Date);
+        bool enRango = fecha.Date >= fechaInicio.Date && fecha.Date <= fechaFin.Date;
+
+        string circuloEstilo = "width: 24px; height: 24px; border-radius: 50%; font-size: 0.70rem; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.15s;";
+
+        if (esSeleccionado)
+            circuloEstilo += " background-color: #003876; color: #ffffff !important; font-weight: 700;";
+        else if (enRango)
+            circuloEstilo += " background-color: #e0f2fe; color: #003876 !important; font-weight: 600;";
+        else
+            circuloEstilo += " color: #000000;";
+
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "d-flex align-items-center justify-content-center dia-mini");
+        builder.AddAttribute(2, "style", "height: 26px;");
+        builder.AddAttribute(3, "onclick", Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => SeleccionarDia(fecha)));
+
+        builder.OpenElement(4, "div");
+        builder.AddAttribute(5, "class", "dia-circle");
+        builder.AddAttribute(6, "style", circuloEstilo);
+        builder.AddContent(7, d);
+        builder.CloseElement();
+
+        builder.CloseElement();
+    };
+
+    private async Task AplicarFiltrosYConsultar()
+    {
+        if (DateTime.TryParseExact(txtFechaInicio, "dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime fIni))
+        {
+            fechaInicio = fIni;
+        }
+
+        if (DateTime.TryParseExact(txtFechaFin, "dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime fFin))
+        {
+            fechaFin = fFin;
+        }
+
+        filtroFechaAplicado = true;
+        mostrarPanelFiltros = false;
+        calendarioAbierto = string.Empty;
+        await GuardarEstadoEnStorage();
+        await CargarDatosDashboard();
+    }
+
+    private async Task LimpiarCamposPanel()
+    {
+        filtroFechaAplicado = false;
+        filtroEstado = string.Empty;
+        filtroTipoTramite = string.Empty;
+        fechaInicio = DateTime.Today;
+        fechaFin = DateTime.Today;
+        txtFechaInicio = fechaInicio.ToString("dd/MM/yyyy");
+        txtFechaFin = fechaFin.ToString("dd/MM/yyyy");
+        mesVistaCalendario = DateTime.Today;
+        calendarioAbierto = string.Empty;
+
+        try
+        {
+            await JS.InvokeVoidAsync("sessionStorage.removeItem", "dashboard_filtros");
+        }
+        catch { }
+    }
+
+    private async Task LimpiarFiltrosExterior()
+    {
+        await LimpiarCamposPanel();
+        mostrarPanelFiltros = false;
+        await CargarDatosDashboard();
     }
 
     private async Task CargarDatosDashboard()
     {
         try
         {
-            string url = $"api/solicitud/dashboard?fechaInicio={fechaInicio:yyyy-MM-dd}&fechaFin={fechaFin:yyyy-MM-dd}";
+            var queryParams = new List<string>();
 
-            if (!string.IsNullOrWhiteSpace(filtroTexto))
-                url += $"&busqueda={Uri.EscapeDataString(filtroTexto)}";
+            if (filtroFechaAplicado)
+            {
+                queryParams.Add($"fechaInicio={fechaInicio:yyyy-MM-dd}");
+                queryParams.Add($"fechaFin={fechaFin:yyyy-MM-dd}");
+            }
+
             if (!string.IsNullOrWhiteSpace(filtroEstado))
-                url += $"&estado={Uri.EscapeDataString(filtroEstado)}";
+                queryParams.Add($"estado={Uri.EscapeDataString(filtroEstado)}");
             if (!string.IsNullOrWhiteSpace(filtroTipoTramite))
-                url += $"&tipoTramite={Uri.EscapeDataString(filtroTipoTramite)}";
+                queryParams.Add($"tipoTramite={Uri.EscapeDataString(filtroTipoTramite)}");
+
+            string url = "api/solicitud/dashboard";
+            if (queryParams.Any())
+                url += "?" + string.Join("&", queryParams);
 
             var resumen = await Http.GetFromJsonAsync<DashboardDto>(url);
 
@@ -501,6 +825,18 @@
                     new DatoGrafico { Estado = "Rechazadas", Cantidad = totalRechazadas },
                     new DatoGrafico { Estado = "Canceladas", Cantidad = totalCanceladas }
                 };
+
+                datosPorTipo = resumen.PorTipoTramite.Select(t => new DatoGrafico
+                {
+                    Estado = t.Etiqueta,
+                    Cantidad = t.Cantidad
+                }).ToList();
+
+                datosTendencia = resumen.TendenciaMensual.Select(m => new DatoGrafico
+                {
+                    Estado = m.Etiqueta,
+                    Cantidad = m.Cantidad
+                }).ToList();
             }
         }
         catch (Exception ex)
@@ -510,40 +846,21 @@
 
         await InvokeAsync(StateHasChanged);
 
-        if (miGrafico != null)
-        {
-            await miGrafico.RenderAsync();
-        }
-
-        if (miGraficoCircular != null)
-        {
-            await miGraficoCircular.RenderAsync();
-        }
-    }
-
-    private async Task LimpiarFiltros()
-    {
-        filtroTexto = string.Empty;
-        filtroEstado = string.Empty;
-        filtroTipoTramite = string.Empty;
-        fechaInicio = DateTime.Today.AddDays(-7);
-        fechaFin = DateTime.Today;
-        mesVisualizado = fechaInicio;
-        mostrarFiltrosAvanzados = false;
-        mostrarSelectorFechas = false;
-
-        await CargarDatosDashboard();
+        if (miGrafico != null) await miGrafico.RenderAsync();
+        if (miGraficoCircular != null) await miGraficoCircular.RenderAsync();
+        if (miGraficoTipos != null) await miGraficoTipos.RenderAsync();
+        if (miGraficoTendencia != null) await miGraficoTendencia.RenderAsync();
     }
 
     private string ObtenerColorSolido(string? estado)
     {
         return estado switch
         {
-            "Pendientes" => "#f59e0b",
-            "En Proceso" => "#0284c7",
-            "Aprobadas" => "#10b981",
-            "Rechazadas" => "#EE2A24",
-            "Canceladas" => "#64748b",
+            "Pendientes" => "#F59E0B",
+            "En Proceso" => "#0284C7",
+            "Aprobadas" => "#10B981",
+            "Rechazadas" => "#DC2626",
+            "Canceladas" => "#94A3B8",
             _ => "#003876"
         };
     }

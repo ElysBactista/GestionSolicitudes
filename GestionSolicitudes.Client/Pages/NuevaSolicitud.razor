@@ -1,0 +1,261 @@
+﻿@page "/nueva-solicitud"
+@layout EmptyLayout
+@using System.Net.Http.Headers
+@using System.Net.Http.Json
+@using GestionSolicitudes.Client.DTOs
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject HttpClient Http
+
+<PageTitle>Radicación de Expediente | DGM</PageTitle>
+
+<div class="radicacion-externa-container py-4">
+
+    <div class="container" style="max-width: 820px;">
+
+        <!-- Header Flotante -->
+        <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-shield-shaded fs-4 text-primary"></i>
+                <h5 class="fw-bold mb-0" style="color: #003876;">Radicación Oficial de Residencia</h5>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" @onclick="VolverAlPortal">
+                <i class="bi bi-x-lg me-1"></i> Cancelar
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger small py-2 px-3 rounded-3 mb-3 border-0 shadow-sm">
+                <i class="bi bi-exclamation-circle me-1"></i> @mensajeError
+            </div>
+        }
+
+        <!-- Formulario Flotante en Tarjeta Única -->
+        <div class="card border-0 shadow rounded-4 p-4 p-md-5 bg-white">
+
+            <!-- 1. Datos Personales y Residencia -->
+            <h6 class="fw-bold text-dark mb-3 pb-2 border-bottom" style="color: #003876;">
+                <i class="bi bi-person-lines-fill me-2"></i>1. Datos Personales del Solicitante
+            </h6>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold text-muted">NOMBRE COMPLETO</label>
+                    <input type="text" class="form-control" @bind="solicitud.Solicitante" placeholder="Nombres y Apellidos" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold text-muted">NÚMERO DE PASAPORTE</label>
+                    <input type="text" class="form-control" @bind="numeroPasaporte" placeholder="Ej: P01234567" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold text-muted">PAÍS DE ORIGEN / NACIONALIDAD</label>
+                    <input type="text" class="form-control" @bind="paisOrigen" placeholder="Ej: Colombia" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold text-muted">TELÉFONO DE CONTACTO</label>
+                    <input type="text" class="form-control" @bind="telefonoContacto" placeholder="Ej: 809-555-0123" />
+                </div>
+                <div class="col-12">
+                    <label class="form-label small fw-semibold text-muted">DIRECCIÓN DONDE RESIDE ACTUALMENTE</label>
+                    <input type="text" class="form-control" @bind="direccionResidencia" placeholder="Calle, Número, Sector, Ciudad" />
+                </div>
+            </div>
+
+            <!-- 2. Tipo de Residencia y Motivo -->
+            <h6 class="fw-bold text-dark mb-3 pb-2 border-bottom" style="color: #003876;">
+                <i class="bi bi-file-earmark-text-fill me-2"></i>2. Categoría de Residencia Solicitada
+            </h6>
+
+            <div class="row g-3 mb-4">
+                <div class="col-12">
+                    <label class="form-label small fw-semibold text-muted">TIPO DE TRÁMITE</label>
+                    <select class="form-select" @bind="solicitud.Titulo">
+                        <option value="Residencia Temporal por Trabajo (RT-3)">Residencia Temporal por Trabajo (RT-3)</option>
+                        <option value="Renovación de Residencia Temporal">Renovación de Residencia Temporal</option>
+                        <option value="Residencia Definitiva (RD-1)">Residencia Definitiva (RD-1)</option>
+                        <option value="Permiso de Reingreso Múltiple">Permiso de Reingreso Múltiple</option>
+                        <option value="Duplicado de Carnet por Deterioro">Duplicado de Carnet por Deterioro</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label small fw-semibold text-muted">MOTIVO / DESCRIPCIÓN DEL EXPEDIENTE</label>
+                    <textarea class="form-control" rows="3" @bind="solicitud.Descripcion" placeholder="Describe brevemente el propósito de la solicitud..."></textarea>
+                </div>
+            </div>
+
+            <!-- 3. Carga Obligatoria de Documentos -->
+            <h6 class="fw-bold text-dark mb-3 pb-2 border-bottom" style="color: #003876;">
+                <i class="bi bi-cloud-upload-fill me-2"></i>3. Carga de Documentación y Requisitos (PDF / Imágenes)
+            </h6>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded-3 border h-100">
+                        <label class="form-label small fw-bold text-dark mb-1">Copia de Pasaporte (Página de Datos)</label>
+                        <InputFile OnChange="SeleccionarPasaporte" class="form-control form-control-sm" accept=".pdf,.png,.jpg,.jpeg" />
+                        @if (archivoPasaporte != null)
+                        {
+                            <small class="text-success fw-semibold mt-1 d-block"><i class="bi bi-check-circle me-1"></i>@archivoPasaporte.Name</small>
+                        }
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded-3 border h-100">
+                        <label class="form-label small fw-bold text-dark mb-1">Certificado de Antecedentes Penales</label>
+                        <InputFile OnChange="SeleccionarRecord" class="form-control form-control-sm" accept=".pdf,.png,.jpg,.jpeg" />
+                        @if (archivoRecord != null)
+                        {
+                            <small class="text-success fw-semibold mt-1 d-block"><i class="bi bi-check-circle me-1"></i>@archivoRecord.Name</small>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Declaración Jurada y Envío -->
+            <div class="form-check mb-4">
+                <input class="form-check-input" type="checkbox" id="checkDeclaracion" @bind="aceptoDeclaracion">
+                <label class="form-check-label small text-muted" for="checkDeclaracion">
+                    Declaro bajo juramento que toda la información suministrada y los documentos adjuntos son legítimos y verídicos.
+                </label>
+            </div>
+
+            <div class="d-flex justify-content-end gap-3 pt-3 border-top">
+                <button class="btn btn-outline-secondary px-4 rounded-pill" @onclick="VolverAlPortal" disabled="@enviando">
+                    Cancelar
+                </button>
+                <button class="btn btn-primary px-5 rounded-pill fw-bold shadow"
+                        style="background-color: #003876;"
+                        @onclick="RadicarYTransferirAlPanel"
+                        disabled="@(!aceptoDeclaracion || enviando)">
+                    @if (enviando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        <span>Radicando Expediente...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-send-check me-2"></i>
+                        <span>Enviar Solicitud y Entrar al Panel</span>
+                    }
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+    .radicacion-externa-container {
+        min-height: 100vh;
+        background-color: #f1f5f9;
+        font-family: 'Poppins', sans-serif;
+    }
+</style>
+
+@code {
+    private bool enviando = false;
+    private string mensajeError = string.Empty;
+    private bool aceptoDeclaracion = false;
+
+    private CrearSolicitudDto solicitud = new()
+    {
+        Titulo = "Residencia Temporal por Trabajo (RT-3)"
+    };
+
+    private string numeroPasaporte = "";
+    private string paisOrigen = "";
+    private string telefonoContacto = "";
+    private string direccionResidencia = "";
+
+    private IBrowserFile? archivoPasaporte;
+    private IBrowserFile? archivoRecord;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var nombreGuardado = await JS.InvokeAsync<string>("sessionStorage.getItem", "nombreUsuario");
+        solicitud.Solicitante = !string.IsNullOrWhiteSpace(nombreGuardado) ? nombreGuardado : "";
+    }
+
+    private void SeleccionarPasaporte(InputFileChangeEventArgs e) => archivoPasaporte = e.File;
+    private void SeleccionarRecord(InputFileChangeEventArgs e) => archivoRecord = e.File;
+
+    private async Task RadicarYTransferirAlPanel()
+    {
+        if (string.IsNullOrWhiteSpace(solicitud.Solicitante))
+        {
+            mensajeError = "El nombre del solicitante es requerido.";
+            return;
+        }
+
+        enviando = true;
+        mensajeError = string.Empty;
+
+        try
+        {
+            // 1. Radicar Solicitud Oficial
+            var respuesta = await Http.PostAsJsonAsync("api/solicitud/radicar", solicitud);
+            if (respuesta.IsSuccessStatusCode)
+            {
+                var resultado = await respuesta.Content.ReadFromJsonAsync<RadicarRespuestaDto>();
+                int solicitudId = resultado?.Id ?? 0;
+
+                // 2. Subir Pasaporte si fue adjuntado
+                if (solicitudId > 0 && archivoPasaporte != null)
+                {
+                    await SubirArchivo(solicitudId, "Copia de Pasaporte", archivoPasaporte);
+                }
+
+                // 3. Subir Récord Policial si fue adjuntado
+                if (solicitudId > 0 && archivoRecord != null)
+                {
+                    await SubirArchivo(solicitudId, "Récord Policial / Antecedentes", archivoRecord);
+                }
+
+                // 4. Redirigir al panel oficial del residente (con barra lateral y línea de tiempo activa)
+                Navigation.NavigateTo("mis-solicitudes");
+            }
+            else
+            {
+                mensajeError = "No se pudo procesar la radicación de la solicitud.";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            enviando = false;
+        }
+    }
+
+    private async Task SubirArchivo(int solicitudId, string tipo, IBrowserFile archivo)
+    {
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            content.Add(new StringContent(solicitudId.ToString()), "solicitudId");
+            content.Add(new StringContent(tipo), "tipoDocumento");
+
+            var fileContent = new StreamContent(archivo.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024));
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(archivo.ContentType);
+            content.Add(fileContent, "archivo", archivo.Name);
+
+            await Http.PostAsync("api/solicitud/subir-documento", content);
+        }
+        catch
+        {
+            // Se puede reintentar en el seguimiento
+        }
+    }
+
+    private void VolverAlPortal() => Navigation.NavigateTo("portal-residente");
+
+    public class RadicarRespuestaDto
+    {
+        public string Mensaje { get; set; } = string.Empty;
+        public int Id { get; set; }
+    }
+}

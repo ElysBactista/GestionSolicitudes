@@ -1,11 +1,15 @@
-﻿using GestionSolicitudes.Application.DTOs;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using GestionSolicitudes.Application.DTOs;
 using GestionSolicitudes.Application.Interfaces;
 using GestionSolicitudes.Domain;
 using GestionSolicitudes.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-
 namespace GestionSolicitudes.Infrastructure.Services;
+
 public class SolicitudService : ISolicitudService
 {
     private readonly ApplicationDbContext _context;
@@ -17,30 +21,101 @@ public class SolicitudService : ISolicitudService
 
     public async Task<(int Total, IEnumerable<SolicitudDto> Solicitudes)> ObtenerTodasAsync(string? busqueda, int numeroPagina, int tamanoPagina)
     {
-        // 1. Iniciamos la consulta FILTRANDO SOLO LOS ACTIVOS desde el principio
         var query = _context.Solicitudes.Where(s => s.Activo).AsQueryable();
 
-        // 2. Aplicamos el filtro de búsqueda si el usuario envió algo
         if (!string.IsNullOrWhiteSpace(busqueda))
         {
             query = query.Where(s => s.Titulo.Contains(busqueda) || s.Solicitante.Contains(busqueda));
         }
 
-        // 3. Contamos cuántos registros hay en total con ese filtro
         var totalRegistros = await query.CountAsync();
 
-        // 4. Aplicamos la paginación (Skip y Take)
         var solicitudesPaginadas = await query
             .Skip((numeroPagina - 1) * tamanoPagina)
             .Take(tamanoPagina)
             .ToListAsync();
 
-        // 5. Mapeamos a DTO reutilizando tu método MapToDto que ya tienes abajo
         var listaDtos = solicitudesPaginadas.Select(MapToDto).ToList();
 
-        // 6. Devolvemos el total y la lista
         return (totalRegistros, listaDtos);
     }
+
+    public async Task<List<SolicitudItemDto>> ObtenerFiltradasAsync(
+        DateTime? fechaInicio,
+        DateTime? fechaFin,
+        string? busqueda,
+        string? estado,
+        string? tipoTramite)
+    {
+        var query = _context.Solicitudes
+            .Where(s => s.Activo)
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (fechaInicio.HasValue)
+        {
+            var inicio = fechaInicio.Value.Date;
+            query = query.Where(s => s.FechaCreacion.Date >= inicio);
+        }
+
+        if (fechaFin.HasValue)
+        {
+            var fin = fechaFin.Value.Date;
+            query = query.Where(s => s.FechaCreacion.Date <= fin);
+        }
+
+        if (!string.IsNullOrWhiteSpace(estado))
+        {
+            var estadoLimpio = estado.Trim().ToLower().Replace(" ", "");
+
+            EstadoSolicitud? estadoFiltrar = estadoLimpio switch
+            {
+                "pendiente" or "pendientes" => EstadoSolicitud.Pendiente,
+                "enproceso" => EstadoSolicitud.EnProceso,
+                "aprobado" or "aprobada" or "aprobadas" => EstadoSolicitud.Aprobada,
+                "rechazada" or "rechazadas" or "rechazado" => EstadoSolicitud.Rechazada,
+                "cancelada" or "canceladas" or "cancelado" => EstadoSolicitud.Cancelada,
+                _ => null
+            };
+
+            if (estadoFiltrar.HasValue)
+            {
+                query = query.Where(s => s.Estado == estadoFiltrar.Value);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(busqueda))
+        {
+            var b = busqueda.Trim().ToLower();
+            query = query.Where(s =>
+                s.Titulo.ToLower().Contains(b) ||
+                s.Solicitante.ToLower().Contains(b) ||
+                ("exp-" + s.Id.ToString()).Contains(b));
+        }
+
+        if (!string.IsNullOrWhiteSpace(tipoTramite))
+        {
+            var t = tipoTramite.Trim().ToLower();
+            query = query.Where(s => s.Titulo.ToLower().Contains(t) || s.Descripcion.ToLower().Contains(t));
+        }
+
+        var lista = await query
+            .OrderByDescending(s => s.FechaCreacion)
+            .ToListAsync();
+
+        return lista.Select(s => new SolicitudItemDto
+        {
+            Id = s.Id,
+            NumeroExpediente = $"EXP-{s.Id:D5}",
+            NombreCompleto = s.Solicitante,
+            NumeroPasaporte = "P" + s.Id.ToString("D7"),
+            Email = s.Solicitante.ToLower().Replace(" ", ".") + "@correo.com",
+            TipoTramite = s.Titulo,
+            Estado = s.Estado.ToString(),
+            FechaCreacion = s.FechaCreacion
+        }).ToList();
+    }
+
     public async Task<SolicitudDto?> ObtenerPorIdAsync(int id)
     {
         var solicitud = await _context.Solicitudes
@@ -67,7 +142,6 @@ public class SolicitudService : ISolicitudService
         return Task.FromResult(MapToDto(nuevaSolicitud));
     }
 
-    // --- PUT: Editar datos generales ---
     public async Task<bool> ActualizarAsync(int id, ActualizarSolicitudDto dto)
     {
         var solicitud = await _context.Solicitudes
@@ -84,7 +158,6 @@ public class SolicitudService : ISolicitudService
         return true;
     }
 
-    // --- PATCH: Cambiar estado ---
     public async Task<bool> CambiarEstadoAsync(int id, ActualizarEstadoDto dto)
     {
         var solicitud = await _context.Solicitudes
@@ -99,7 +172,6 @@ public class SolicitudService : ISolicitudService
         return true;
     }
 
-    // --- DELETE: Desactivar registro ---
     public async Task<bool> DesactivarAsync(int id)
     {
         var solicitud = await _context.Solicitudes
@@ -124,20 +196,95 @@ public class SolicitudService : ISolicitudService
         FechaCreacion = s.FechaCreacion
     };
 
-    public async Task<DashboardDto> ObtenerResumenDashboardAsync(DateTime fechaInicio, DateTime fechaFin)
+    public async Task<DashboardDto> ObtenerResumenDashboardAsync(
+        DateTime? fechaInicio,
+        DateTime? fechaFin,
+        string? busqueda,
+        string? estado,
+        string? tipoTramite)
     {
         var query = _context.Solicitudes
-            .Where(s => s.Activo && s.FechaCreacion.Date >= fechaInicio.Date && s.FechaCreacion.Date <= fechaFin.Date);
+            .Where(s => s.Activo)
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (fechaInicio.HasValue)
+        {
+            var inicio = fechaInicio.Value.Date;
+            query = query.Where(s => s.FechaCreacion.Date >= inicio);
+        }
+
+        if (fechaFin.HasValue)
+        {
+            var fin = fechaFin.Value.Date;
+            query = query.Where(s => s.FechaCreacion.Date <= fin);
+        }
+
+        if (!string.IsNullOrWhiteSpace(estado))
+        {
+            var estadoLimpio = estado.Trim().ToLower().Replace(" ", "");
+            EstadoSolicitud? estadoFiltrar = estadoLimpio switch
+            {
+                "pendiente" or "pendientes" => EstadoSolicitud.Pendiente,
+                "enproceso" => EstadoSolicitud.EnProceso,
+                "aprobado" or "aprobada" or "aprobadas" => EstadoSolicitud.Aprobada,
+                "rechazada" or "rechazadas" or "rechazado" => EstadoSolicitud.Rechazada,
+                "cancelada" or "canceladas" or "cancelado" => EstadoSolicitud.Cancelada,
+                _ => null
+            };
+
+            if (estadoFiltrar.HasValue)
+            {
+                query = query.Where(s => s.Estado == estadoFiltrar.Value);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(busqueda))
+        {
+            var b = busqueda.Trim().ToLower();
+            query = query.Where(s => s.Titulo.ToLower().Contains(b) || s.Solicitante.ToLower().Contains(b));
+        }
+
+        if (!string.IsNullOrWhiteSpace(tipoTramite))
+        {
+            var t = tipoTramite.Trim().ToLower();
+            query = query.Where(s => s.Titulo.ToLower().Contains(t) || s.Descripcion.ToLower().Contains(t));
+        }
 
         var resumen = new DashboardDto
         {
             TotalSolicitudes = await query.CountAsync(),
-            Pendientes = await query.CountAsync(s => s.Estado == EstadoSolicitud.Pendiente), // 1
-            EnProceso = await query.CountAsync(s => s.Estado == EstadoSolicitud.EnProceso),   // 2
-            Aprobadas = await query.CountAsync(s => s.Estado == EstadoSolicitud.Aprobada),     // 3
-            Rechazadas = await query.CountAsync(s => s.Estado == EstadoSolicitud.Rechazada),   // 4
-            Canceladas = await query.CountAsync(s => s.Estado == EstadoSolicitud.Cancelada)    // 5
+            Pendientes = await query.CountAsync(s => s.Estado == EstadoSolicitud.Pendiente),
+            EnProceso = await query.CountAsync(s => s.Estado == EstadoSolicitud.EnProceso),
+            Aprobadas = await query.CountAsync(s => s.Estado == EstadoSolicitud.Aprobada),
+            Rechazadas = await query.CountAsync(s => s.Estado == EstadoSolicitud.Rechazada),
+            Canceladas = await query.CountAsync(s => s.Estado == EstadoSolicitud.Cancelada)
         };
+
+        // Trámites frecuentes
+        var tipos = await query
+            .GroupBy(s => string.IsNullOrWhiteSpace(s.Titulo) ? "General" : s.Titulo)
+            .Select(g => new EstadisticaItemDto
+            {
+                Etiqueta = g.Key,
+                Cantidad = g.Count()
+            })
+            .OrderByDescending(x => x.Cantidad)
+            .Take(6)
+            .ToListAsync();
+
+        resumen.PorTipoTramite = tipos;
+
+        // Tendencia cronológica
+        var listaFechas = await query.Select(s => s.FechaCreacion).ToListAsync();
+        resumen.TendenciaMensual = [.. listaFechas
+            .GroupBy(f => f.ToString("MMM yyyy", new System.Globalization.CultureInfo("es-ES")))
+            .Select(g => new EstadisticaItemDto
+            {
+                Etiqueta = g.Key.ToUpper(),
+                Cantidad = g.Count()
+            })
+            .Take(6)];
 
         return resumen;
     }
