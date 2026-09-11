@@ -1,0 +1,149 @@
+﻿@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<div class="dropdown position-relative">
+    <!-- Botón estilo píldora que activa el menú al hacer clic -->
+    <button class="btn border rounded-pill px-3 py-1 bg-white d-flex align-items-center gap-2 shadow-sm"
+            type="button"
+            @onclick="ToggleMenu"
+            style="border-color: #dee2e6 !important;">
+        <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold"
+             style="width: 32px; height: 32px; background-color: #003876; font-size: 14px;">
+            @(string.IsNullOrEmpty(nombreUsuario) || nombreUsuario == "invitado" ? "I" : nombreUsuario.Substring(0, 1).ToUpper())
+        </div>
+        <div class="text-start lh-1">
+            <span class="d-block fw-bold text-dark" style="font-size: 13px;">@nombreUsuario</span>
+            <small class="text-muted" style="font-size: 11px;">@(esInvitado ? "Visitante" : "Residente")</small>
+        </div>
+        <i class="bi bi-chevron-down ms-1 text-muted" style="font-size: 11px;"></i>
+    </button>
+
+    <!-- Menú desplegable condicional controlado por C# -->
+    @if (mostrarMenu)
+    {
+        <div class="dropdown-menu show shadow-lg border-0 rounded-3 p-2 mt-2 position-absolute end-0" style="min-width: 260px; z-index: 1070;">
+            @if (esInvitado)
+            {
+                <!-- Opciones cuando NO ha iniciado sesión -->
+                <div class="px-3 py-2 border-bottom mb-2">
+                    <p class="mb-0 fw-bold text-dark" style="font-size: 13px;">Acceso al Sistema</p>
+                    <small class="text-muted" style="font-size: 11px;">Inicia sesión o regístrate para continuar</small>
+                </div>
+                <li>
+                    <button class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 text-primary fw-semibold small" @type="button" @onclick="IrALogin">
+                        <i class="bi bi-box-arrow-in-right fs-5"></i> Iniciar Sesión
+                    </button>
+                </li>
+                <li>
+                    <button class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 text-dark fw-semibold small" @type="button" @onclick="IrARegistro">
+                        <i class="bi bi-person-plus text-secondary fs-5"></i> Crear cuenta / Registrarse
+                    </button>
+                </li>
+            }
+            else
+            {
+                <!-- Opciones cuando SÍ está registrado -->
+                <li class="px-3 py-2 border-bottom mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold"
+                             style="width: 40px; height: 40px; background-color: #003876; font-size: 16px;">
+                            @nombreUsuario.Substring(0, 1).ToUpper()
+                        </div>
+                        <div class="overflow-hidden">
+                            <p class="mb-0 fw-bold text-dark text-truncate" style="font-size: 13px;">@nombreUsuario</p>
+                            <small class="text-muted text-truncate d-block" style="font-size: 11px;">@correoUsuario</small>
+                        </div>
+                    </div>
+                </li>
+                <li>
+                    <button class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 text-dark small fw-semibold" @type="button" @onclick="CambiarUsuario">
+                        <i class="bi bi-arrow-repeat text-secondary fs-6"></i> Cambiar de usuario
+                    </button>
+                </li>
+                <li>
+                    <button class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 text-dark small fw-semibold" @type="button" @onclick="IrARegistro">
+                        <i class="bi bi-person-plus text-secondary fs-6"></i> Crear cuenta nueva
+                    </button>
+                </li>
+                <li><hr class="dropdown-divider my-1"></li>
+                <li>
+                    <button class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 text-danger small fw-semibold" @type="button" @onclick="CerrarSesion">
+                        <i class="bi bi-box-arrow-right fs-6"></i> Cerrar Sesión
+                    </button>
+                </li>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private string nombreUsuario = "invitado";
+    private string correoUsuario = "";
+    private bool esInvitado = true;
+    private bool mostrarMenu = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var nombre = await JS.InvokeAsync<string>("localStorage.getItem", "nombreUsuario");
+            if (string.IsNullOrWhiteSpace(nombre))
+            {
+                nombre = await JS.InvokeAsync<string>("sessionStorage.getItem", "nombreUsuario");
+            }
+
+            if (!string.IsNullOrWhiteSpace(nombre) && nombre != "invitado")
+            {
+                nombreUsuario = nombre;
+                correoUsuario = nombre.Contains("@") ? nombre : $"{nombre.ToLower()}@migracion.gob.do";
+                esInvitado = false;
+            }
+            else
+            {
+                nombreUsuario = "invitado";
+                esInvitado = true;
+            }
+        }
+        catch
+        {
+            nombreUsuario = "invitado";
+            esInvitado = true;
+        }
+    }
+
+    private void ToggleMenu()
+    {
+        mostrarMenu = !mostrarMenu;
+    }
+
+    private void IrALogin()
+    {
+        mostrarMenu = false;
+        Navigation.NavigateTo("/login");
+    }
+
+    private void IrARegistro()
+    {
+        mostrarMenu = false;
+        Navigation.NavigateTo("/registro"); // Ajusta la ruta a tu vista de registro
+    }
+
+    private void CambiarUsuario()
+    {
+        mostrarMenu = false;
+        Navigation.NavigateTo("/login");
+    }
+
+    private async Task CerrarSesion()
+    {
+        mostrarMenu = false;
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.removeItem", "nombreUsuario");
+            await JS.InvokeVoidAsync("sessionStorage.removeItem", "nombreUsuario");
+        }
+        catch { }
+
+        Navigation.NavigateTo("/login", true);
+    }
+}
