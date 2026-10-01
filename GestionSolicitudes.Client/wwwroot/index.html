@@ -47,11 +47,16 @@
     <!-- 3. Framework Blazor WebAssembly -->
     <script src="_framework/blazor.webassembly.js"></script>
 
-    <!-- 4. Service Worker PWA -->
+    <!-- 4. Script para cerrar menú exterior -->
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js');
-        }
+        window.registerOutsideClickHandler = (dotNetHelper) => {
+            document.addEventListener('click', function (event) {
+                const container = document.getElementById('user-dropdown-container');
+                if (container && !container.contains(event.target)) {
+                    dotNetHelper.invokeMethodAsync('CerrarMenuExterno');
+                }
+            });
+        };
     </script>
 </body>
 </html>

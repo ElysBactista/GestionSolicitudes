@@ -1,777 +1,262 @@
 ﻿@page "/solicitudes"
+@layout MainLayout
+@inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject GestionSolicitudes.Client.Services.ExpedienteStateService StateService
 @using GestionSolicitudes.Client.DTOs
-@using GestionSolicitudes.Client.Services
-@inject SweetAlertService Swal
-@inject SolicitudClientService SolicitudService
-@inject HttpClient Http
+<PageTitle>Gestión de Solicitudes | DGM</PageTitle>
 
-<PageTitle>Gestión de Solicitudes - DGM</PageTitle>
+<div class="container-fluid px-3 px-md-4 py-3">
 
-<div class="container-fluid px-4 py-4">
-
-    <!-- Encabezado Institucional -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom">
+    <!-- ========================================================================= -->
+    <!-- 1. CABECERA Y BARRA DE BÚSQUEDA                                           -->
+    <!-- ========================================================================= -->
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
         <div>
-            <h2 class="fw-bold mb-1 header-title">
-                <i class="bi bi-folder2-open text-primary me-2"></i>Gestión de Solicitudes
-            </h2>
-            <p class="text-muted mb-0 small">
-                Administración, seguimiento y resolución de expedientes migratorios
-            </p>
+            <h3 class="fw-bold mb-1" style="color: #003876;">
+                <i class="bi bi-folder2-open me-2"></i> Gestión de Solicitudes
+            </h3>
+            <p class="text-muted small mb-0">Administración, seguimiento y resolución de expedientes migratorios</p>
         </div>
-        <div class="mt-3 mt-md-0">
-            <button class="btn btn-sm btn-light border text-dark fw-medium px-3 shadow-sm" @onclick="CargarSolicitudes">
-                <i class="bi bi-arrow-clockwise text-primary me-1"></i> Actualizar Bandeja
+
+        <div class="d-flex align-items-center gap-3">
+            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 fw-semibold d-flex align-items-center gap-1 bg-white shadow-xs" @onclick="ActualizarBandeja">
+                <i class="bi bi-arrow-clockwise"></i> Actualizar Bandeja
+            </button>
+            <span class="badge bg-light text-dark border px-3 py-2 rounded-pill fw-semibold">
+                Total de expedientes: @TotalExpedientes
+            </span>
+        </div>
+    </div>
+
+    <!-- BARRA DE BÚSQUEDA RÁPIDA -->
+    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white mb-4">
+        <div class="input-group">
+            <span class="input-group-text bg-light border-0 ps-3 rounded-start-pill text-muted">
+                <i class="bi bi-search"></i>
+            </span>
+            <input type="text" class="form-control border-0 bg-light py-2 shadow-none"
+                   placeholder="Buscar por radicado, título o solicitante..."
+                   @bind="terminoBusqueda" @bind:event="oninput" />
+            @if (!string.IsNullOrWhiteSpace(terminoBusqueda))
+            {
+                <button class="btn btn-light border-0 text-muted px-3" @onclick="() => terminoBusqueda = string.Empty">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 2. TABLA DE GESTIÓN DE EXPEDIENTES                                        -->
+    <!-- ========================================================================= -->
+    <div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden mb-3">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead style="background-color: #003876; color: #ffffff;">
+                    <tr class="small text-uppercase tracking-wider">
+                        <th class="py-3 px-3">Radicado</th>
+                        <th class="py-3">Título / Asunto</th>
+                        <th class="py-3">Solicitante</th>
+                        <th class="py-3">Fecha Registro</th>
+                        <th class="py-3 text-center">Estado</th>
+                        <th class="py-3 text-end px-3">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (ExpedientesPaginados.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox fs-2 d-block mb-2 text-secondary"></i>
+                                <span>No se encontraron expedientes registrados con los criterios de búsqueda.</span>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in ExpedientesPaginados)
+                        {
+                            <tr>
+                                <td class="px-3 fw-bold text-primary">@item.Radicado</td>
+                                <td>
+                                    <strong class="d-block text-dark small">@item.Categoria</strong>
+                                    <span class="text-muted" style="font-size: 0.75rem;">Pasaporte: @item.Pasaporte</span>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar-circle">@GetIniciales(item.Titular)</div>
+                                        <span class="fw-semibold text-dark small">@GetNombreTitular(item.Titular)</span>
+                                    </div>
+                                </td>
+                                <td class="small text-muted">
+                                    <i class="bi bi-calendar3 me-1"></i> @item.FechaRegistro
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge @ObtenerBadgeEstado(item.Estado) px-3 py-1 rounded-pill" style="font-size: 0.75rem;">
+                                        @item.Estado
+                                    </span>
+                                </td>
+                                <td class="text-end px-3">
+                                    <!-- Botón Directo a Revisión para auditar datos y documentos reales -->
+                                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1 shadow-xs"
+                                            @onclick="() => MandarARevision(item.Id)" title="Auditar expediente y ver documentos">
+                                        <i class="bi bi-eye"></i>
+                                        <span>Revisar</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 3. PAGINACIÓN MINIMALISTA Y CONTADOR INFERIOR                             -->
+    <!-- ========================================================================= -->
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2 px-1">
+        <span class="text-muted small">
+            Mostrando @ExpedientesPaginados.Count de @TotalExpedientes solicitudes registradas
+        </span>
+
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 fw-semibold shadow-xs"
+                    @onclick="PaginaAnterior" disabled="@(!TieneAnterior())"
+                    style="@(!TieneAnterior() ? "background-color: #f1f5f9; color: #94a3b8; border-color: #cbd5e1;" : "")">
+                <i class="bi bi-chevron-left me-1"></i> Anterior
+            </button>
+
+            <span class="small fw-bold text-dark px-2">
+                Página @paginaActual de @Math.Max(1, TotalPaginas)
+            </span>
+
+            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 fw-semibold shadow-xs"
+                    @onclick="PaginaSiguiente" disabled="@(!TieneSiguiente())"
+                    style="@(!TieneSiguiente() ? "background-color: #f1f5f9; color: #94a3b8; border-color: #cbd5e1;" : "")">
+                Siguiente <i class="bi bi-chevron-right ms-1"></i>
             </button>
         </div>
     </div>
 
-    <!-- Barra de Búsqueda y Filtros -->
-    <div class="card shadow-sm border-0 rounded-3 mb-4 filter-card">
-        <div class="card-body p-3">
-            <div class="row g-2 align-items-center">
-                <div class="col-md-7 col-lg-8">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0 text-muted">
-                            <i class="bi bi-search"></i>
-                        </span>
-                        <input type="text"
-                               class="form-control border-start-0 ps-0"
-                               placeholder="Buscar por radicado, título o solicitante..."
-                               @bind="terminoBusqueda"
-                               @bind:event="oninput"
-                               @onkeyup="Buscar" />
-                        @if (!string.IsNullOrEmpty(terminoBusqueda))
-                        {
-                            <button class="btn btn-outline-secondary border-start-0 border-end-0" type="button" @onclick="LimpiarBusqueda">
-                                <i class="bi bi-x"></i>
-                            </button>
-                        }
-                        <button class="btn text-white px-4"
-                                style="background: #003876 !important; border-color: #003876 !important;"
-                                type="button"
-                                @onclick="Buscar">
-                            Buscar
-                        </button>
-                    </div>
-                </div>
-
-                <div class="col-md-5 col-lg-4 text-md-end text-muted small">
-                    <span>Total de expedientes: <strong>@totalRegistros</strong></span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Contenido: Spinner, Vacío o Tabla -->
-    @if (cargando)
-    {
-        <div class="text-center my-5 py-5">
-            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
-                <span class="visually-hidden">Cargando...</span>
-            </div>
-            <p class="text-muted mt-3 fw-semibold">Consultando registros...</p>
-        </div>
-    }
-    else if (solicitudes == null || !solicitudes.Any())
-    {
-        <div class="card shadow-sm border-0 rounded-4 text-center p-5 my-4">
-            <div class="card-body">
-                <i class="bi bi-inbox text-muted display-3 mb-3"></i>
-                <h5 class="fw-bold text-secondary">No se encontraron solicitudes</h5>
-                <p class="text-muted small mb-0">
-                    @(string.IsNullOrEmpty(terminoBusqueda) ? "Aún no se han registrado expedientes por parte de los residentes." : $"No hay resultados para la búsqueda '{terminoBusqueda}'.")
-                </p>
-            </div>
-        </div>
-    }
-    else
-    {
-        <!-- Tabla de Datos Principal -->
-        <div class="card shadow-sm border-0 rounded-3 overflow-hidden">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 custom-table">
-                    <thead class="table-header">
-                        <tr>
-                            <th class="ps-4">RADICADO</th>
-                            <th>TÍTULO / ASUNTO</th>
-                            <th>SOLICITANTE</th>
-                            <th>FECHA REGISTRO</th>
-                            <th>ESTADO</th>
-                            <th class="text-center pe-4">ACCIONES</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in solicitudes)
-                        {
-                            <tr>
-                                <td class="ps-4">
-                                    <span class="badge bg-light text-primary border border-primary fw-bold">
-                                        #@item.Id.ToString("D4")
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="fw-semibold text-dark">@item.Titulo</div>
-                                    @if (!string.IsNullOrWhiteSpace(item.Descripcion))
-                                    {
-                                        <small class="text-muted text-truncate d-inline-block" style="max-width: 280px;">
-                                            @item.Descripcion
-                                        </small>
-                                    }
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar-circle me-2">
-                                            @(string.IsNullOrWhiteSpace(item.Solicitante) ? "U" : item.Solicitante.Substring(0, 1).ToUpper())
-                                        </div>
-                                        <span>@item.Solicitante</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="small">
-                                        <i class="bi bi-calendar3 me-1 text-muted"></i>
-                                        @item.FechaCreacion.ToString("dd/MM/yyyy")
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="badge-status @ObtenerClaseEstado(item.Estado)">
-                                        @ObtenerNombreEstado(item.Estado)
-                                    </span>
-                                </td>
-                                <td class="text-center pe-4">
-                                    <div class="d-inline-flex align-items-center gap-1">
-                                        <!-- Botón Ver / Detalle -->
-                                        <button class="btn btn-action btn-edit"
-                                                title="Ver detalle del expediente"
-                                                @onclick="() => AbrirModalDetalle(item)">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-
-                                        <!-- Botón Mandar a Revisión (solo si está Pendiente) -->
-                                        @if (item.Estado == 1)
-                                        {
-                                            <button class="btn btn-action btn-revision"
-                                                    title="Mandar a Revisión"
-                                                    @onclick="() => MandarARevision(item)">
-                                                <i class="bi bi-arrow-repeat"></i>
-                                            </button>
-                                        }
-
-                                        <!-- Botón Eliminar -->
-                                        <button class="btn btn-action btn-delete"
-                                                title="Eliminar Expediente"
-                                                @onclick="() => ConfirmarEliminar(item.Id, item.Solicitante)">
-                                            <i class="bi bi-trash3"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Paginador Footer -->
-            <div class="card-footer bg-white py-3 px-4 d-flex flex-wrap justify-content-between align-items-center border-0">
-                <small class="text-muted">
-                    Mostrando <strong>@solicitudes.Count</strong> de <strong>@totalRegistros</strong> solicitudes registradas
-                </small>
-
-                <nav aria-label="Navegación de solicitudes">
-                    <ul class="pagination pagination-sm mb-0">
-                        <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
-                            <button class="page-link" @onclick="() => CambiarPagina(paginaActual - 1)">
-                                <i class="bi bi-chevron-left me-1"></i> Anterior
-                            </button>
-                        </li>
-                        <li class="page-item disabled">
-                            <span class="page-link px-3 fw-bold text-dark">@paginaActual</span>
-                        </li>
-                        <li class="page-item @(paginaActual * tamanoPagina >= totalRegistros ? "disabled" : "")">
-                            <button class="page-link" @onclick="() => CambiarPagina(paginaActual + 1)">
-                                Siguiente <i class="bi bi-chevron-right ms-1"></i>
-                            </button>
-                        </li>
-                    </ul>
-                </nav>
-            </div>
-        </div>
-    }
 </div>
 
-<!-- Modal Detalle y Gestión de Estado -->
-@if (mostrarModal && solicitudSeleccionada != null)
-{
-    <div class="modal fade show d-block modal-backdrop-custom" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-
-                <!-- Modal Header -->
-                <div class="modal-header modal-header-dgm text-white rounded-top-4 py-3 px-4" style="background: #003876; color: #ffffff !important;">
-                    <h5 class="modal-title fw-bold" style="color: #ffffff !important;">
-                        <i class="bi bi-file-earmark-text me-2" style="color: #ffffff !important;"></i>
-                        Expediente #@solicitudSeleccionada.Id.ToString("D4")
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal"></button>
-                </div>
-
-                <!-- Modal Body -->
-                <div class="modal-body p-4 bg-light">
-                    <!-- Resumen del Solicitante y Trámite -->
-                    <div class="bg-white p-3 rounded-3 border mb-3 shadow-xs">
-                        <div class="row g-3">
-                            <div class="col-sm-6">
-                                <label class="small text-muted fw-semibold d-block mb-1">SOLICITANTE</label>
-                                <span class="fw-bold text-dark">@solicitudSeleccionada.Solicitante</span>
-                            </div>
-                            <div class="col-sm-6">
-                                <label class="small text-muted fw-semibold d-block mb-1">TÍTULO / ASUNTO</label>
-                                <span class="fw-semibold text-dark">@solicitudSeleccionada.Titulo</span>
-                            </div>
-                            <div class="col-sm-6">
-                                <label class="small text-muted fw-semibold d-block mb-1">FECHA DE REGISTRO</label>
-                                <span class="text-dark">@solicitudSeleccionada.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</span>
-                            </div>
-                            <div class="col-sm-6">
-                                <label class="small text-muted fw-semibold d-block mb-1">ESTADO ACTUAL</label>
-                                <span class="badge-status @ObtenerClaseEstado(solicitudSeleccionada.Estado)">
-                                    @ObtenerNombreEstado(solicitudSeleccionada.Estado)
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Descripción del expediente -->
-                    <div class="bg-white p-3 rounded-3 border mb-3 shadow-xs">
-                        <label class="small text-muted fw-semibold d-block mb-1">DESCRIPCIÓN / COMENTARIOS DEL RESIDENTE</label>
-                        <p class="text-dark small mb-0 lh-base" style="white-space: pre-line;">
-                            @(string.IsNullOrWhiteSpace(solicitudSeleccionada.Descripcion) ? "Sin descripción adicional proporcionada." : solicitudSeleccionada.Descripcion)
-                        </p>
-                    </div>
-
-                    <!-- Documentos y Requisitos Adjuntos -->
-                    <div class="bg-white p-3 rounded-3 border mb-3 shadow-xs">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label class="small text-muted fw-bold d-block mb-0">DOCUMENTOS Y REQUISITOS ADJUNTOS</label>
-                            <span class="badge bg-light text-dark border">@documentosExpediente.Count adjuntos</span>
-                        </div>
-
-                        @if (cargandoDocsModal)
-                        {
-                            <div class="text-center py-3">
-                                <span class="spinner-border spinner-border-sm text-primary"></span>
-                                <small class="text-muted ms-2">Cargando anexos...</small>
-                            </div>
-                        }
-                        else if (!documentosExpediente.Any())
-                        {
-                            <p class="text-muted small mb-0 py-2 text-center fst-italic">El solicitante aún no ha subido anexos a este expediente.</p>
-                        }
-                        else
-                        {
-                            <div class="list-group list-group-flush">
-                                @foreach (var doc in documentosExpediente)
-                                {
-                                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-bottom">
-                                        <div class="d-flex align-items-center gap-2">
-                                            <i class="bi @doc.Icono fs-5"></i>
-                                            <div>
-                                                <span class="d-block fw-semibold text-dark small">@doc.Nombre</span>
-                                                <small class="text-muted" style="font-size: 0.70rem;">Subido el: @doc.FechaSubida.ToString("dd/MM/yyyy")</small>
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <span class="badge @ObtenerClaseBadgeDoc(doc.Estado)" style="font-size: 0.72rem;">@doc.Estado</span>
-
-                                            <a href="@doc.UrlDescarga" target="_blank" class="btn btn-sm btn-light border py-0 px-2" title="Abrir / Descargar">
-                                                <i class="bi bi-box-arrow-up-right"></i>
-                                            </a>
-
-                                            <!-- Botones de Auditoría -->
-                                            <button class="btn btn-sm btn-outline-success py-0 px-2" title="Aprobar requisito" @onclick='() => CambiarEstadoDocumento(doc, "Aprobado")'>
-                                                <i class="bi bi-check-lg"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-danger py-0 px-2" title="Rechazar requisito" @onclick='() => CambiarEstadoDocumento(doc, "Rechazado")'>
-                                                <i class="bi bi-x-lg"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                }
-                            </div>
-                        }
-                    </div>
-
-                    <!-- Cambiar Estado Manualmente -->
-                    <div class="bg-white p-3 rounded-3 border shadow-xs">
-                        <label class="form-label fw-bold small text-primary d-block mb-2">
-                            <i class="bi bi-sliders me-1"></i> ACTUALIZAR ESTADO DEL EXPEDIENTE
-                        </label>
-                        <select class="form-select form-control-dgm" @bind="estadoEdicion">
-                            <option value="1">🟡 Pendiente</option>
-                            <option value="2">🔵 En Proceso / Revisión</option>
-                            <option value="3">🟢 Aprobada</option>
-                            <option value="4">🔴 Rechazada</option>
-                            <option value="5">⚫ Cancelada</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Modal Footer -->
-                <div class="modal-footer bg-white py-3 px-4 border-top d-flex justify-content-between">
-                    <button type="button" class="btn btn-outline-secondary px-4" @onclick="CerrarModal" disabled="@guardando">
-                        Cerrar
-                    </button>
-
-                    <div class="d-flex gap-2">
-                        @if (solicitudSeleccionada.Estado == 1)
-                        {
-                            <button type="button" class="btn btn-info text-white px-3" @onclick="() => MandarARevision(solicitudSeleccionada)" disabled="@guardando">
-                                <i class="bi bi-arrow-repeat me-1"></i> Mandar a Revisión
-                            </button>
-                        }
-
-                        <button type="button" class="btn btn-primary px-4 btn-institucional" @onclick="ActualizarEstadoModal" disabled="@guardando">
-                            @if (guardando)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                <span>Guardando...</span>
-                            }
-                            else
-                            {
-                                <i class="bi bi-check2-circle me-1"></i>
-                                <span>Guardar Cambios</span>
-                            }
-                        </button>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </div>
-}
-
 <style>
-    .header-title {
-        color: #003876;
-        letter-spacing: -0.5px;
-    }
-
-    .btn-institucional {
-        background-color: #003876;
-        border-color: #003876;
-        font-weight: 500;
-        transition: all 0.2s ease-in-out;
-    }
-
-        .btn-institucional:hover {
-            background-color: #00234b;
-            border-color: #00234b;
-        }
-
-    .filter-card {
-        background: #ffffff;
-        border: 1px solid #eef2f6 !important;
-    }
-
-    /* Tabla */
-    .custom-table thead th {
-        background-color: #003876;
-        color: #ffffff;
-        font-size: 0.78rem;
-        letter-spacing: 0.8px;
-        font-weight: 600;
-        padding-top: 14px;
-        padding-bottom: 14px;
-        border: none;
-    }
-
-    .custom-table tbody tr {
-        transition: background-color 0.15s ease-in-out;
-    }
-
-        .custom-table tbody tr:hover {
-            background-color: #f8fafd;
-        }
-
-    /* Círculo con Inicial */
     .avatar-circle {
         width: 32px;
         height: 32px;
-        background-color: #e9ecef;
-        color: #003876;
-        font-weight: 700;
-        font-size: 0.85rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
         border-radius: 50%;
-    }
-
-    /* Badges de Estado */
-    .badge-status {
-        display: inline-block;
-        padding: 0.35rem 0.75rem;
-        font-size: 0.78rem;
-        font-weight: 600;
-        border-radius: 50rem;
-    }
-
-    .status-pendiente {
-        background-color: #fff3cd;
-        color: #856404;
-    }
-
-    .status-proceso {
-        background-color: #cfe2ff;
-        color: #084298;
-    }
-
-    .status-aprobada {
-        background-color: #d1e7dd;
-        color: #0f5132;
-    }
-
-    .status-rechazada {
-        background-color: #f8d7da;
-        color: #842029;
-    }
-
-    .status-cancelada {
-        background-color: #e2e3e5;
-        color: #41464b;
-    }
-
-    /* Botones de Acción */
-    .btn-action {
-        width: 34px;
-        height: 34px;
-        padding: 0;
-        display: inline-flex;
+        background-color: #e2e8f0;
+        color: #003876;
+        font-weight: bold;
+        font-size: 0.75rem;
+        display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 8px;
-        border: 1px solid transparent;
-        transition: all 0.2s;
     }
-
-    .btn-edit {
-        color: #003876;
-        background-color: #e8f0fe;
-    }
-
-        .btn-edit:hover {
-            background-color: #003876;
-            color: #ffffff;
-        }
-
-    .btn-revision {
-        color: #0284c7;
-        background-color: #e0f2fe;
-    }
-
-        .btn-revision:hover {
-            background-color: #0284c7;
-            color: #ffffff;
-        }
-
-    .btn-delete {
-        color: #dc3545;
-        background-color: #fee2e2;
-    }
-
-        .btn-delete:hover {
-            background-color: #dc3545;
-            color: #ffffff;
-        }
-
-    /* Modal Backdrop y Form */
-    .modal-backdrop-custom {
-        background-color: rgba(0, 24, 51, 0.6);
-        backdrop-filter: blur(2px);
-    }
-
-    .modal-header-dgm {
-        background: linear-gradient(135deg, #003876 0%, #0056b3 100%);
-    }
-
-        .modal-header-dgm h5,
-        .modal-header-dgm .modal-title {
-            color: #ffffff !important;
-        }
-
-    .form-control-dgm {
-        border-radius: 8px;
-        padding: 0.6rem 0.85rem;
-        border: 1px solid #ced4da;
-    }
-
-        .form-control-dgm:focus {
-            border-color: #003876;
-            box-shadow: 0 0 0 0.2rem rgba(0, 56, 118, 0.15);
-        }
 </style>
 
 @code {
-    private List<SolicitudDto> solicitudes = new();
-    private bool cargando = true;
-    private bool guardando = false;
     private string terminoBusqueda = string.Empty;
     private int paginaActual = 1;
-    private int tamanoPagina = 6;
-    private int totalRegistros = 0;
+    private const int elementosPorPagina = 20;
 
-    private bool mostrarModal = false;
-    private SolicitudDto? solicitudSeleccionada;
-    private int idEdicion = 0;
-    private int estadoEdicion = 1;
-
-    // Control de documentos en el modal
-    private List<DocumentoDto> documentosExpediente = new();
-    private bool cargandoDocsModal = false;
-
+    // MÉTODO: OnInitializedAsync (Carga y sincroniza el estado global)
     protected override async Task OnInitializedAsync()
     {
-        await CargarSolicitudes();
+        await StateService.InicializarAsync();
     }
 
-    private async Task CargarSolicitudes()
+    // PROPIEDAD: Lista filtrada por la barra de búsqueda en tiempo real
+    private List<GestionSolicitudes.Client.DTOs.ExpedienteDto> ExpedientesFiltrados
     {
-        cargando = true;
-        try
+        get
         {
-            var resultado = await SolicitudService.ObtenerTodasAsync(terminoBusqueda, paginaActual, tamanoPagina);
-            totalRegistros = resultado.Total;
-            solicitudes = resultado.Solicitudes;
-        }
-        catch (Exception ex)
-        {
-            await Swal.FireAsync("Error de conexión", "No se pudieron cargar las solicitudes: " + ex.Message, SweetAlertIcon.Error);
-        }
-        finally
-        {
-            cargando = false;
+            var lista = StateService.ListaExpedientes ?? new();
+            if (string.IsNullOrWhiteSpace(terminoBusqueda))
+            {
+                return lista;
+            }
+            return lista.Where(e =>
+                (!string.IsNullOrEmpty(e.Radicado) && e.Radicado.Contains(terminoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(e.Titular) && e.Titular.Contains(terminoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(e.Categoria) && e.Categoria.Contains(terminoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(e.Pasaporte) && e.Pasaporte.Contains(terminoBusqueda, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
         }
     }
 
-    private async Task Buscar()
+    private int TotalExpedientes => ExpedientesFiltrados.Count;
+
+    private int TotalPaginas => (int)Math.Ceiling((double)TotalExpedientes / elementosPorPagina);
+
+    // PROPIEDAD: Aplica el límite de 20 elementos por página con paginación
+    private List<GestionSolicitudes.Client.DTOs.ExpedienteDto> ExpedientesPaginados
     {
-        paginaActual = 1;
-        await CargarSolicitudes();
+        get
+        {
+            if (paginaActual > TotalPaginas && TotalPaginas > 0)
+            {
+                paginaActual = TotalPaginas;
+            }
+            return ExpedientesFiltrados
+                .Skip((paginaActual - 1) * elementosPorPagina)
+                .Take(elementosPorPagina)
+                .ToList();
+        }
     }
 
-    private async Task LimpiarBusqueda()
+    private bool TieneAnterior() => paginaActual > 1;
+    private bool TieneSiguiente() => paginaActual < TotalPaginas;
+
+    private void PaginaAnterior()
     {
+        if (TieneAnterior()) paginaActual--;
+    }
+
+    private void PaginaSiguiente()
+    {
+        if (TieneSiguiente()) paginaActual++;
+    }
+
+    private async Task ActualizarBandeja()
+    {
+        await StateService.InicializarAsync();
         terminoBusqueda = string.Empty;
-        await Buscar();
+        paginaActual = 1;
     }
 
-    private async Task CambiarPagina(int nuevaPagina)
+    private void MandarARevision(int id)
     {
-        if (nuevaPagina < 1 || (nuevaPagina - 1) * tamanoPagina >= totalRegistros) return;
-        paginaActual = nuevaPagina;
-        await CargarSolicitudes();
+        Navigation.NavigateTo($"/revision/{id}");
     }
 
-    private async Task MandarARevision(SolicitudDto item)
+    private static string GetIniciales(string? titular)
     {
-        try
-        {
-            var respuesta = await Http.PatchAsJsonAsync($"api/solicitud/{item.Id}/estado", new { NuevoEstado = 2 });
-            if (respuesta.IsSuccessStatusCode)
-            {
-                item.Estado = 2;
-                if (solicitudSeleccionada != null && solicitudSeleccionada.Id == item.Id)
-                {
-                    solicitudSeleccionada.Estado = 2;
-                    estadoEdicion = 2;
-                }
+        if (string.IsNullOrWhiteSpace(titular))
+            return "US";
 
-                await Swal.FireAsync(new SweetAlertOptions
-                {
-                    Title = "En Revisión",
-                    Text = $"El expediente #{item.Id:D4} ha sido enviado a revisión operativa.",
-                    Icon = SweetAlertIcon.Success,
-                    Timer = 2000,
-                    ShowConfirmButton = false
-                });
+        var nombre = titular.Trim();
 
-                await CargarSolicitudes();
-            }
-            else
-            {
-                await Swal.FireAsync("Error", "No se pudo cambiar el estado a revisión.", SweetAlertIcon.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            await Swal.FireAsync("Error", "Ocurrió un problema: " + ex.Message, SweetAlertIcon.Error);
-        }
+        return nombre.Length >= 2
+            ? nombre.Substring(0, 2).ToUpperInvariant()
+            : nombre.ToUpperInvariant();
     }
 
-    private async Task AbrirModalDetalle(SolicitudDto solicitud)
+    private static string GetNombreTitular(string? titular)
     {
-        solicitudSeleccionada = solicitud;
-        idEdicion = solicitud.Id;
-        estadoEdicion = solicitud.Estado;
-        mostrarModal = true;
-        await CargarDocumentosDelExpediente(solicitud.Id);
+        return string.IsNullOrWhiteSpace(titular) ? "Solicitante" : titular;
     }
 
-    private async Task CargarDocumentosDelExpediente(int solicitudId)
+    private string ObtenerBadgeEstado(string estado) => estado switch
     {
-        cargandoDocsModal = true;
-        documentosExpediente.Clear();
-        try
-        {
-            var docs = await Http.GetFromJsonAsync<List<DocumentoDto>>($"api/solicitud/{solicitudId}/documentos");
-            if (docs != null)
-            {
-                documentosExpediente = docs;
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error al consultar documentos: {ex.Message}");
-        }
-        finally
-        {
-            cargandoDocsModal = false;
-        }
-    }
-
-    private async Task CambiarEstadoDocumento(DocumentoDto doc, string nuevoEstado)
-    {
-        try
-        {
-            var respuesta = await Http.PatchAsJsonAsync($"api/solicitud/documento/{doc.Id}/estado", new { NuevoEstado = nuevoEstado });
-            if (respuesta.IsSuccessStatusCode)
-            {
-                doc.Estado = nuevoEstado;
-                await Swal.FireAsync(new SweetAlertOptions
-                {
-                    Title = "Requisito Auditado",
-                    Text = $"El documento '{doc.Nombre}' fue marcado como: {nuevoEstado}.",
-                    Icon = nuevoEstado == "Aprobado" ? SweetAlertIcon.Success : SweetAlertIcon.Warning,
-                    Timer = 1500,
-                    ShowConfirmButton = false
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            await Swal.FireAsync("Error", "No se pudo cambiar el estado del documento: " + ex.Message, SweetAlertIcon.Error);
-        }
-    }
-
-    private void CerrarModal()
-    {
-        mostrarModal = false;
-        solicitudSeleccionada = null;
-        documentosExpediente.Clear();
-    }
-
-    private async Task ActualizarEstadoModal()
-    {
-        guardando = true;
-        try
-        {
-            var respuesta = await Http.PatchAsJsonAsync($"api/solicitud/{idEdicion}/estado", new { NuevoEstado = estadoEdicion });
-            if (respuesta.IsSuccessStatusCode)
-            {
-                await Swal.FireAsync(new SweetAlertOptions
-                {
-                    Title = "¡Actualizado!",
-                    Text = "El estado del expediente fue actualizado correctamente.",
-                    Icon = SweetAlertIcon.Success,
-                    Timer = 2000,
-                    ShowConfirmButton = false
-                });
-
-                await CargarSolicitudes();
-                CerrarModal();
-            }
-            else
-            {
-                await Swal.FireAsync("Error", "No se pudo actualizar el estado.", SweetAlertIcon.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            await Swal.FireAsync("Error", "Ocurrió un problema: " + ex.Message, SweetAlertIcon.Error);
-        }
-        finally
-        {
-            guardando = false;
-        }
-    }
-
-    private async Task ConfirmarEliminar(int id, string nombreSolicitante)
-    {
-        var result = await Swal.FireAsync(new SweetAlertOptions
-        {
-            Title = "¿Eliminar expediente?",
-            Text = $"¿Confirma la eliminación de la solicitud de {nombreSolicitante}?",
-            Icon = SweetAlertIcon.Warning,
-            ShowCancelButton = true,
-            ConfirmButtonText = "Sí, eliminar",
-            CancelButtonText = "Cancelar",
-            ConfirmButtonColor = "#dc3545",
-            CancelButtonColor = "#6c757d"
-        });
-
-        if (result.IsConfirmed)
-        {
-            var exito = await SolicitudService.DesactivarAsync(id);
-            if (exito)
-            {
-                await Swal.FireAsync(new SweetAlertOptions
-                {
-                    Title = "Eliminado",
-                    Text = "El expediente ha sido eliminado del sistema.",
-                    Icon = SweetAlertIcon.Success,
-                    Timer = 2000,
-                    ShowConfirmButton = false
-                });
-                await CargarSolicitudes();
-            }
-            else
-            {
-                await Swal.FireAsync("Error", "No se pudo eliminar la solicitud.", SweetAlertIcon.Error);
-            }
-        }
-    }
-
-    private string ObtenerClaseBadgeDoc(string estado) => estado switch
-    {
-        "Aprobado" => "bg-success-subtle text-success border border-success-subtle",
-        "Rechazado" => "bg-danger-subtle text-danger border border-danger-subtle",
-        _ => "bg-warning-subtle text-warning border border-warning-subtle"
+        "Aprobado" => "bg-success text-white",
+        "En Revisión" => "bg-primary text-white",
+        "Pendiente" => "bg-warning text-dark",
+        "Subsanación Requerida" => "bg-warning text-dark",
+        "Rechazado" => "bg-danger text-white",
+        "Sin Documentación" => "bg-dark text-white",
+        _ => "bg-secondary text-white"
     };
-
-    private string ObtenerClaseEstado(int estado)
-    {
-        return estado switch
-        {
-            1 => "status-pendiente",
-            2 => "status-proceso",
-            3 => "status-aprobada",
-            4 => "status-rechazada",
-            5 => "status-cancelada",
-            _ => "status-cancelada"
-        };
-    }
-
-    private string ObtenerNombreEstado(int estado)
-    {
-        return estado switch
-        {
-            1 => "Pendiente",
-            2 => "En proceso",
-            3 => "Aprobada",
-            4 => "Rechazada",
-            5 => "Cancelada",
-            _ => "Desconocido"
-        };
-    }
 }

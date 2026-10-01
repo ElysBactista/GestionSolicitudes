@@ -1,5 +1,6 @@
 ﻿@page "/registro"
 @layout EmptyLayout
+@using GestionSolicitudes.Client.Layout
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -7,8 +8,15 @@
 <PageTitle>Registro de Nuevo Usuario - Dirección General de Migración</PageTitle>
 
 <div class="divPrincipalRegistro">
-    <!-- Fondo Curvado Institucional con el Logo Oficial Fantasma -->
-    <div class="curved-background" aria-hidden="true">
+
+    <!-- Fondo de Onda en 'S' con Azul Institucional DGM -->
+    <div class="wave-background-container" aria-hidden="true">
+        <svg class="wave-svg" viewBox="0 0 1440 900" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Curva en 'S': Inicia a media altura a la izquierda (Y: 280), cruza el centro y sube al tope derecho (Y: 0) -->
+            <path d="M 0,280 C 300,350 650,330 950,180 C 1150,80 1300,20 1440,0 L 1440,900 L 0,900 Z" fill="#003876" />
+        </svg>
+
+        <!-- Escudo / Logo institucional fantasma posicionado en el área azul -->
         <div class="image__registro__logo">
             <svg class="registro__main__image" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1238 759.96">
                 <text transform="matrix(1.1561 0 0 1 283.3885 434.893)" fill="#fff" font-family="Gotham-Light" font-size="64.999px">
@@ -42,18 +50,16 @@
         </div>
     </div>
 
-    <!-- Contenedor de la Tarjeta de Registro -->
+    <!-- Contenedor Principal (Tarjeta) -->
     <div class="registro-content-layer">
-        <div class="card border-0 shadow-lg rounded-4 overflow-hidden w-100 mx-3 my-4" style="max-width: 980px; background: #ffffff;">
+        <div class="card border-0 shadow-lg rounded-4 overflow-hidden registro-card my-4 my-md-5">
             <div class="row g-0">
 
                 <!-- Panel Lateral Informativo DGM -->
-                <div class="col-lg-4 d-flex flex-column justify-content-between p-4 p-md-5 text-white" style="background-color: #003876;">
-
+                <div class="col-lg-4 d-none d-lg-flex flex-column justify-content-between p-4 p-xl-5 text-white" style="background-color: #003876;">
                     <div>
-                        <!-- 1. Header: Logo Oficial DGM Separado y Ampliado -->
                         <div class="text-center" style="margin-top: 10px; margin-bottom: 40px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1238 759.96" style="width: 100%; max-width: 260px; height: auto; display: block; margin: 0 auto;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1238 759.96" style="width: 100%; max-width: 240px; height: auto; display: block; margin: 0 auto;">
                                 <text transform="matrix(1.1561 0 0 1 283.3885 434.893)" fill="#fff" font-family="Gotham-Light" font-size="64.999px">
                                     <tspan x="0" y="0">G</tspan><tspan x="50.18" y="0">OBI</tspan><tspan x="168.02" y="0">E</tspan><tspan x="210.79" y="0">R</tspan><tspan x="257.07" y="0">N</tspan><tspan x="307.64" y="0">O </tspan><tspan x="380.95" y="0">DE</tspan><tspan x="473.77" y="0"> L</tspan><tspan x="532.08" y="0">A</tspan>
                                 </text>
@@ -84,7 +90,6 @@
                             </svg>
                         </div>
 
-                        <!-- 2. Información Institucional Ampliada -->
                         <div class="pe-md-1">
                             <h6 class="fw-bold text-white mb-2" style="font-size: 0.95rem;">Portal de Servicios Digitales</h6>
                             <p class="text-white-50 lh-base mb-4" style="font-size: 0.78rem;">
@@ -113,7 +118,6 @@
                         </div>
                     </div>
 
-                    <!-- 3. Footer: Contacto para Asistencia (Anclado al fondo con mayor separación) -->
                     <div class="d-flex align-items-center gap-2 border-top border-white border-opacity-25" style="margin-top: 50px !important; padding-top: 12px !important;">
                         <i class="bi bi-telephone-fill text-warning flex-shrink-0" style="font-size: 0.70rem;"></i>
                         <div class="lh-1">
@@ -127,10 +131,15 @@
                 </div>
 
                 <!-- Formulario de Registro -->
-                <div class="col-lg-8 p-4 p-md-5">
+                <div class="col-12 col-lg-8 p-4 p-md-5 bg-white">
+                    <div class="d-lg-none text-center mb-3">
+                        <img src="logoinstitucional.png" alt="Logo Institucional" style="max-height: 52px; object-fit: contain;" />
+                    </div>
+
+                    <!-- 1. TÍTULO PRINCIPAL EN AZUL INSTITUCIONAL -->
                     <div class="mb-4">
                         <h4 class="fw-bold mb-1" style="color: #003876;">Registro de Nuevo Usuario</h4>
-                        <p class="text-muted small mb-0">Complete la información requerida para habilitar su acceso a la plataforma.</p>
+                        <p class="small mb-0 text-texto-negro">Complete la información requerida para habilitar su acceso a la plataforma.</p>
                     </div>
 
                     @if (!string.IsNullOrEmpty(mensajeError))
@@ -152,66 +161,117 @@
                     <EditForm Model="modelo" OnValidSubmit="ProcesarRegistro">
                         <DataAnnotationsValidator />
 
-                        <!-- Sección: Datos Personales -->
-                        <h6 class="fw-bold text-uppercase small text-muted mb-3">
-                            <i class="bi bi-person-vcard me-2" style="color: #003876;"></i> DATOS PERSONALES
-                        </h6>
+                        <!-- 2. DATOS PERSONALES EN NEGRO Y NEGRITA -->
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <i class="bi bi-person-vcard text-dark"></i>
+                            <span class="fw-bold text-dark text-uppercase small" style="letter-spacing: 0.5px; font-size: 0.8rem;">DATOS PERSONALES</span>
+                        </div>
 
                         <div class="row g-3 mb-3">
+                            <!-- NOMBRE COMPLETO EN NEGRO REGULAR -->
                             <div class="col-12">
-                                <label class="form-label small fw-semibold text-muted mb-1">NOMBRE COMPLETO *</label>
+                                <label class="form-label text-texto-negro small mb-1">NOMBRE COMPLETO *</label>
                                 <input type="text"
                                        class="form-control"
-                                       placeholder="Nombres y Apellidos completos"
+                                       placeholder="Ej. Juana Pérez González"
                                        @bind-value="modelo.NombreCompleto"
                                        required />
                             </div>
 
+                            <!-- DOCUMENTO / PASAPORTE EN NEGRO Y NEGRITA -->
                             <div class="col-md-6">
-                                <label class="form-label small fw-semibold text-muted mb-1">DOCUMENTO / PASAPORTE *</label>
-                                <input type="text"
-                                       class="form-control"
-                                       placeholder="Ej. P0948214"
-                                       @bind-value="modelo.NumeroPasaporte"
-                                       required />
+                                <label class="form-label text-dark fw-bold small mb-1">DOCUMENTO / PASAPORTE *</label>
+                                <div class="input-group">
+                                    <select class="form-select border-secondary-subtle text-texto-negro"
+                                            style="max-width: 115px; font-size: 0.85rem;"
+                                            @bind="tipoDocumentoSeleccionado">
+                                        <option value="Cedula">Cédula</option>
+                                        <option value="Pasaporte">Pasaporte</option>
+                                    </select>
+                                    <input type="text"
+                                           class="form-control"
+                                           placeholder="@(tipoDocumentoSeleccionado == "Cedula" ? "Ej. 402-0000000-0" : "Ej. P0948214")"
+                                           value="@modelo.NumeroPasaporte"
+                                           @oninput="OnDocumentoInput"
+                                           maxlength="@(tipoDocumentoSeleccionado == "Cedula" ? 13 : 20)"
+                                           required />
+                                </div>
                             </div>
 
+                            <!-- TELÉFONO EN NEGRO REGULAR -->
                             <div class="col-md-6">
-                                <label class="form-label small fw-semibold text-muted mb-1">TELÉFONO DE CONTACTO *</label>
-                                <input type="tel"
-                                       class="form-control"
-                                       placeholder="Ej. +1 (809) 000-0000"
-                                       @bind-value="modelo.Telefono"
-                                       required />
+                                <label class="form-label text-texto-negro small mb-1">TELÉFONO *</label>
+                                <div class="input-group position-relative">
+                                    <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2 bg-light px-2"
+                                            type="button"
+                                            style="border-color: #CBD5E1; font-size: 0.85rem; color: #111827;"
+                                            @onclick="() => menuPaisesAbierto = !menuPaisesAbierto">
+                                        <img src="@ObtenerBandera(codigoPais)" alt="Bandera" style="width: 20px; height: 14px; object-fit: cover; border-radius: 2px;" />
+                                        <span>@ObtenerPrefijoTexto(codigoPais)</span>
+                                    </button>
+
+                                    @if (menuPaisesAbierto)
+                                    {
+                                        <div class="dropdown-menu show shadow-sm border p-1 position-absolute"
+                                             style="z-index: 1050; top: 100%; left: 0; min-width: 140px; border-radius: 8px;">
+                                            <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 small"
+                                                    @onclick='() => SeleccionarPais("+1-DO")'>
+                                                <img src="https://flagcdn.com/w40/do.png" alt="DO" style="width: 20px; height: 14px; object-fit: cover; border-radius: 2px;" />
+                                                <span class="text-texto-negro">+1 (DO)</span>
+                                            </button>
+                                            <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 small"
+                                                    @onclick='() => SeleccionarPais("+1-US")'>
+                                                <img src="https://flagcdn.com/w40/us.png" alt="US" style="width: 20px; height: 14px; object-fit: cover; border-radius: 2px;" />
+                                                <span class="text-texto-negro">+1 (US)</span>
+                                            </button>
+                                            <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 small"
+                                                    @onclick='() => SeleccionarPais("+44-GB")'>
+                                                <img src="https://flagcdn.com/w40/gb.png" alt="GB" style="width: 20px; height: 14px; object-fit: cover; border-radius: 2px;" />
+                                                <span class="text-texto-negro">+44 (UK)</span>
+                                            </button>
+                                        </div>
+                                    }
+
+                                    <input type="tel"
+                                           class="form-control"
+                                           placeholder="@(codigoPais.Contains("+1") ? "(809) 000-0000" : "07000 000000")"
+                                           value="@telefonoFormateado"
+                                           @oninput="OnTelefonoInput"
+                                           required />
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Sección: Credenciales -->
-                        <h6 class="fw-bold text-uppercase small text-muted mb-3 mt-4">
-                            <i class="bi bi-key-fill me-2" style="color: #003876;"></i> CREDENCIALES DE ACCESO
-                        </h6>
+                        <!-- 3. CREDENCIALES DE ACCESO EN NEGRO Y NEGRITA -->
+                        <div class="d-flex align-items-center gap-2 mb-3 mt-4">
+                            <i class="bi bi-key text-dark"></i>
+                            <span class="fw-bold text-dark text-uppercase small" style="letter-spacing: 0.5px; font-size: 0.8rem;">CREDENCIALES DE ACCESO</span>
+                        </div>
 
-                        <div class="row g-3 mb-4">
+                        <div class="row g-3 mb-3">
+                            <!-- CORREO ELECTRÓNICO EN NEGRO REGULAR -->
                             <div class="col-12">
-                                <label class="form-label small fw-semibold text-muted mb-1">CORREO ELECTRÓNICO (USUARIO) *</label>
+                                <label class="form-label text-texto-negro small mb-1">CORREO ELECTRÓNICO (USUARIO) *</label>
                                 <input type="email"
                                        class="form-control"
-                                       placeholder="correo@ejemplo.com"
+                                       placeholder="@@admin.do.gob"
                                        @bind-value="modelo.Email"
                                        required />
                             </div>
 
+                            <!-- CONTRASEÑA EN NEGRO REGULAR -->
                             <div class="col-md-6">
-                                <label class="form-label small fw-semibold text-muted mb-1">CONTRASEÑA *</label>
+                                <label class="form-label text-texto-negro small mb-1">CONTRASEÑA *</label>
                                 <input type="password"
                                        class="form-control"
-                                       placeholder="Mínimo 6 caracteres"
+                                       placeholder="••••••"
                                        @bind-value="modelo.Password"
                                        required />
                             </div>
 
+                            <!-- CONFIRMAR CONTRASEÑA EN NEGRO REGULAR -->
                             <div class="col-md-6">
-                                <label class="form-label small fw-semibold text-muted mb-1">CONFIRMAR CONTRASEÑA *</label>
+                                <label class="form-label text-texto-negro small mb-1">CONFIRMAR CONTRASEÑA *</label>
                                 <input type="password"
                                        class="form-control"
                                        placeholder="Repita su contraseña"
@@ -221,11 +281,11 @@
                         </div>
 
                         <!-- Botones de Acción -->
-                        <div class="d-flex justify-content-end align-items-center gap-2 pt-3 border-top">
-                            <button type="button" class="btn btn-outline-secondary px-4 py-2 rounded-3 fw-semibold" @onclick="VolverAlLogin">
-                                <i class="bi bi-x-circle me-1"></i> Cancelar y volver
+                        <div class="d-flex justify-content-end align-items-center gap-3 pt-4 mt-4">
+                            <button type="button" class="btn btn-outline-secondary px-4 py-2 rounded-3 text-texto-negro" @onclick="VolverAlLogin" style="border-radius: 8px;">
+                                <i class="bi bi-x-circle me-1"></i> Cancelar
                             </button>
-                            <button type="submit" class="btn text-white px-4 py-2 rounded-3 fw-semibold shadow-sm" style="background-color: #003876;" disabled="@cargando">
+                            <button type="submit" class="btn text-white px-4 py-2 rounded-3 fw-semibold shadow-sm" style="background-color: #003876; border-radius: 8px;" disabled="@cargando">
                                 @if (cargando)
                                 {
                                     <span class="spinner-border spinner-border-sm me-2" role="status"></span>
@@ -243,36 +303,63 @@
             </div>
         </div>
     </div>
+
+    <!-- Footer Institucional de Extremo a Extremo -->
+    <div class="w-100 mt-auto" style="position: relative; z-index: 20;">
+        <GestionSolicitudes.Client.Layout.FooterInstitucional />
+    </div>
 </div>
 
 <style>
+    html, body {
+        height: auto !important;
+        min-height: 100% !important;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+        background-color: #003876;
+    }
+
     .divPrincipalRegistro {
         position: relative;
         min-height: 100vh;
-        width: 100vw;
+        width: 100%;
         overflow-x: hidden;
-        background-color: #f8f9fa;
+        background-color: #ffffff; /* Fondo blanco superior */
         font-family: 'Poppins', sans-serif;
+        display: flex;
+        flex-direction: column;
     }
 
-    .curved-background {
-        position: fixed;
+    /* Contenedor del fondo curvo en 'S' continua */
+    .wave-background-container {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 1;
+        overflow: hidden;
+    }
+
+    .wave-svg {
+        position: absolute;
         top: 0;
         right: 0;
         width: 100%;
         height: 100%;
-        background-color: #003876;
-        clip-path: ellipse(110% 90% at 85% 100%);
-        pointer-events: none;
-        z-index: 1;
+        display: block;
     }
 
     .image__registro__logo {
         position: absolute;
-        right: 6%;
-        bottom: 12%;
-        width: 440px;
-        opacity: 0.10;
+        right: 4%;
+        top: 25%;
+        width: 460px;
+        opacity: 0.12;
         z-index: 2;
         pointer-events: none;
     }
@@ -280,21 +367,46 @@
     .registro-content-layer {
         position: relative;
         z-index: 10;
-        min-height: 100vh;
         width: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
+        padding: 3.5rem 1.5rem 5rem 1.5rem;
+        flex-grow: 1;
     }
 
-    .form-control {
+    .registro-card {
+        width: 100%;
+        max-width: 980px;
+        background: #ffffff;
+    }
+
+    @@media (max-width: 991.98px) {
+        .registro-card {
+            max-width: 580px;
+            margin: 1rem auto;
+        }
+    }
+
+    .text-texto-negro {
+        color: #111827 !important;
+        font-weight: 400 !important;
+    }
+
+    .form-control, .form-select {
         border-radius: 8px;
-        padding: 0.6rem 0.85rem;
+        padding: 0.65rem 0.85rem;
         font-size: 0.9rem;
         border: 1px solid #CBD5E1;
+        color: #111827 !important;
     }
 
-        .form-control:focus {
+        .form-control::placeholder {
+            color: #94a3b8 !important;
+            font-weight: 400;
+        }
+
+        .form-control:focus, .form-select:focus {
             border-color: #003876;
             box-shadow: 0 0 0 0.2rem rgba(0, 56, 118, 0.15);
         }
@@ -302,6 +414,10 @@
 
 @code {
     private RegistroUsuarioModelo modelo = new();
+    private string tipoDocumentoSeleccionado = "Cedula";
+    private string codigoPais = "+1-DO";
+    private bool menuPaisesAbierto = false;
+    private string telefonoFormateado = string.Empty;
     private string confirmarPassword = string.Empty;
     private string mensajeError = string.Empty;
     private string mensajeExito = string.Empty;
@@ -310,6 +426,90 @@
     private void VolverAlLogin()
     {
         Navigation.NavigateTo("/login");
+    }
+
+    private string ObtenerBandera(string codigo)
+    {
+        return codigo switch
+        {
+            "+1-DO" => "https://flagcdn.com/w40/do.png",
+            "+1-US" => "https://flagcdn.com/w40/us.png",
+            "+44-GB" => "https://flagcdn.com/w40/gb.png",
+            _ => "https://flagcdn.com/w40/do.png"
+        };
+    }
+
+    private string ObtenerPrefijoTexto(string codigo)
+    {
+        return codigo switch
+        {
+            "+1-DO" => "+1",
+            "+1-US" => "+1",
+            "+44-GB" => "+44",
+            _ => "+1"
+        };
+    }
+
+    private void SeleccionarPais(string codigo)
+    {
+        codigoPais = codigo;
+        menuPaisesAbierto = false;
+        telefonoFormateado = string.Empty;
+        modelo.Telefono = string.Empty;
+    }
+
+    private void OnDocumentoInput(ChangeEventArgs e)
+    {
+        var raw = e.Value?.ToString() ?? string.Empty;
+
+        if (tipoDocumentoSeleccionado == "Cedula")
+        {
+            var digitos = new string(raw.Where(char.IsDigit).Take(11).ToArray());
+            if (digitos.Length <= 3)
+            {
+                modelo.NumeroPasaporte = digitos;
+            }
+            else if (digitos.Length <= 10)
+            {
+                modelo.NumeroPasaporte = $"{digitos.Substring(0, 3)}-{digitos.Substring(3)}";
+            }
+            else
+            {
+                modelo.NumeroPasaporte = $"{digitos.Substring(0, 3)}-{digitos.Substring(3, 7)}-{digitos.Substring(10)}";
+            }
+        }
+        else
+        {
+            modelo.NumeroPasaporte = new string(raw.Where(char.IsLetterOrDigit).Take(12).ToArray()).ToUpper();
+        }
+    }
+
+    private void OnTelefonoInput(ChangeEventArgs e)
+    {
+        var raw = e.Value?.ToString() ?? string.Empty;
+        var digitos = new string(raw.Where(char.IsDigit).ToArray());
+
+        if (codigoPais.Contains("+1"))
+        {
+            var clean = new string(digitos.Take(10).ToArray());
+            if (clean.Length <= 3)
+                telefonoFormateado = clean;
+            else if (clean.Length <= 6)
+                telefonoFormateado = $"({clean.Substring(0, 3)}) {clean.Substring(3)}";
+            else
+                telefonoFormateado = $"({clean.Substring(0, 3)}) {clean.Substring(3, 3)}-{clean.Substring(6)}";
+        }
+        else
+        {
+            var clean = new string(digitos.Take(11).ToArray());
+            if (clean.Length <= 5)
+                telefonoFormateado = clean;
+            else
+                telefonoFormateado = $"{clean.Substring(0, 5)} {clean.Substring(5)}";
+        }
+
+        var prefijoLimpio = codigoPais.Split('-')[0];
+        modelo.Telefono = $"{prefijoLimpio} {telefonoFormateado}".Trim();
     }
 
     private async Task ProcesarRegistro()
@@ -333,29 +533,44 @@
 
         try
         {
+            var esAdmin = modelo.Email.Trim().EndsWith("@admin.do.gob", StringComparison.OrdinalIgnoreCase);
+            var rolAsignado = esAdmin ? "Administrador" : "Residente";
+
             var payload = new
             {
-                Email = modelo.Email,
+                Email = modelo.Email.Trim(),
                 Password = modelo.Password,
-                Rol = "Residente"
+                Rol = rolAsignado
             };
 
             var response = await Http.PostAsJsonAsync("api/auth/registro", payload);
 
             if (response.IsSuccessStatusCode)
             {
-                // Guardamos la sesión del usuario recién creado
-                await JS.InvokeVoidAsync("sessionStorage.setItem", "nombreUsuario", modelo.NombreCompleto);
-                await JS.InvokeVoidAsync("sessionStorage.setItem", "correoUsuario", modelo.Email);
-                await JS.InvokeVoidAsync("sessionStorage.setItem", "rolUsuario", "Residente");
+                var respuesta = await response.Content.ReadFromJsonAsync<RespuestaApiDto>();
 
-                mensajeExito = "¡Cuenta creada exitosamente! Accediendo al portal de trámites...";
-                StateHasChanged();
+                await JS.InvokeVoidAsync("localStorage.setItem", "nombreUsuario", modelo.NombreCompleto);
+                await JS.InvokeVoidAsync("localStorage.setItem", "correoUsuario", modelo.Email);
+                await JS.InvokeVoidAsync("localStorage.setItem", "rolUsuario", rolAsignado);
+                if (!string.IsNullOrEmpty(respuesta?.Token))
+                {
+                    await JS.InvokeVoidAsync("localStorage.setItem", "authToken", respuesta.Token);
+                }
 
-                await Task.Delay(1200);
-
-                // Redirección directa al portal flotante intermedio
-                Navigation.NavigateTo("/portal-residente");
+                if (esAdmin)
+                {
+                    mensajeExito = "¡Cuenta de Administrador creada! Ingresando a la plataforma...";
+                    StateHasChanged();
+                    await Task.Delay(1000);
+                    Navigation.NavigateTo("/dashboard");
+                }
+                else
+                {
+                    mensajeExito = "¡Cuenta creada exitosamente! Accediendo al portal de trámites...";
+                    StateHasChanged();
+                    await Task.Delay(1000);
+                    Navigation.NavigateTo("/portal-residente");
+                }
             }
             else
             {
@@ -386,5 +601,7 @@
     {
         public bool Exito { get; set; }
         public string Mensaje { get; set; } = string.Empty;
+        public string? Token { get; set; }
+        public string? Rol { get; set; }
     }
 }

@@ -1,0 +1,26 @@
+﻿version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gestionsolicitudes_app
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=db;Database=GestionSolicitudesDB;User Id=sa;Password=PasswordSeguro2026!;TrustServerCertificate=True;
+      - Jwt__Key=ClaveSuperSecretaYLargaParaFirmarLosTokensJWT2026Produccion!
+      - Jwt__Issuer=GestionSolicitudesApi
+    depends_on:
+      - db
+
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: gestionsolicitudes_db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=PasswordSeguro2026!
+    ports:
+      - "1433:1433"

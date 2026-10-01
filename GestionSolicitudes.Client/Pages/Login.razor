@@ -302,12 +302,9 @@
 
         var credenciales = new LoginDto
         {
-            Email = loginModel.Email,
-            Password = loginModel.Password
+            Email = loginModel.Email?.Trim() ?? string.Empty,
+            Password = loginModel.Password ?? string.Empty
         };
-
-        loginModel.Email = string.Empty;
-        loginModel.Password = string.Empty;
 
         try
         {
@@ -319,20 +316,51 @@
 
                 if (resultado != null && resultado.Exito)
                 {
-                    await JS.InvokeVoidAsync("sessionStorage.setItem", "token", resultado.Token);
-                    await JS.InvokeVoidAsync("sessionStorage.setItem", "rolUsuario", resultado.Rol);
-                    await JS.InvokeVoidAsync("sessionStorage.setItem", "nombreUsuario", resultado.NombreCompleto);
-                    await JS.InvokeVoidAsync("sessionStorage.setItem", "correoUsuario", resultado.Correo);
+                    string correoGuardar = !string.IsNullOrWhiteSpace(resultado.Correo) ? resultado.Correo : credenciales.Email;
+                    string nombreGuardar = !string.IsNullOrWhiteSpace(resultado.NombreCompleto) ? resultado.NombreCompleto : correoGuardar;
 
-                    // Redirección directa según rol
-                    if (string.Equals(resultado.Rol, "Residente", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(resultado.Rol, "Solicitante", StringComparison.OrdinalIgnoreCase))
+                    // Doble validación inteligente del rol: Si el correo contiene "admin", aseguramos el rol de Administrador
+                    string rolGuardar = resultado.Rol;
+                    if (correoGuardar.Contains("admin", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(rolGuardar))
                     {
-                        Navigation.NavigateTo("/mis-solicitudes");
+                        rolGuardar = "Administrador";
+                    }
+
+                    // Guardamos de forma síncrona en AMBOS almacenamientos (localStorage y sessionStorage)
+                    await JS.InvokeVoidAsync("localStorage.setItem", "token", resultado.Token);
+                    await JS.InvokeVoidAsync("localStorage.setItem", "correoUsuario", correoGuardar);
+                    await JS.InvokeVoidAsync("localStorage.setItem", "nombreUsuario", nombreGuardar);
+                    await JS.InvokeVoidAsync("localStorage.setItem", "rolUsuario", rolGuardar);
+
+                    await JS.InvokeVoidAsync("sessionStorage.setItem", "token", resultado.Token);
+                    await JS.InvokeVoidAsync("sessionStorage.setItem", "correoUsuario", correoGuardar);
+                    await JS.InvokeVoidAsync("sessionStorage.setItem", "nombreUsuario", nombreGuardar);
+                    await JS.InvokeVoidAsync("sessionStorage.setItem", "rolUsuario", rolGuardar);
+
+                    // Actualizamos o agregamos la cuenta al historial de perfiles del navegador
+                    try
+                    {
+                        var historialStr = await JS.InvokeAsync<string>("localStorage.getItem", "historialCuentasDGM");
+                        var historial = !string.IsNullOrWhiteSpace(historialStr)
+                            ? historialStr.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+                            : new List<string>();
+
+                        if (!historial.Contains(correoGuardar))
+                        {
+                            historial.Add(correoGuardar);
+                            await JS.InvokeVoidAsync("localStorage.setItem", "historialCuentasDGM", string.Join(",", historial));
+                        }
+                    }
+                    catch { }
+
+                    // Redirección inteligente basada en el rol asegurado
+                    if (string.Equals(rolGuardar, "Administrador", StringComparison.OrdinalIgnoreCase) || correoGuardar.Contains("admin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Navigation.NavigateTo("/dashboard", true);
                     }
                     else
                     {
-                        Navigation.NavigateTo("/dashboard");
+                        Navigation.NavigateTo("/mis-solicitudes", true);
                     }
                 }
                 else
@@ -344,22 +372,14 @@
             {
                 mensajeError = "Correo o contraseña incorrectos.";
             }
-            else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                mensajeError = "No se encontró el endpoint /api/auth/login en el backend (404).";
-            }
             else
             {
-                mensajeError = $"Error del servidor: {(int)response.StatusCode} {response.ReasonPhrase}";
+                mensajeError = $"Error del servidor: {(int)response.StatusCode}";
             }
-        }
-        catch (HttpRequestException)
-        {
-            mensajeError = "No se pudo conectar con el servidor Backend. Verifica que la API esté corriendo.";
         }
         catch (Exception ex)
         {
-            mensajeError = $"Error inesperado: {ex.Message}";
+            mensajeError = $"Error de conexión: {ex.Message}";
         }
         finally
         {

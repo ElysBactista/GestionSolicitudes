@@ -23,7 +23,6 @@ public class AuthController(
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
-        // 1. Busca el usuario por correo
         var usuario = await _userManager.FindByEmailAsync(dto.Email);
         if (usuario == null)
         {
@@ -34,7 +33,6 @@ public class AuthController(
             });
         }
 
-        // 2. Valida la contraseña
         var passwordValido = await _userManager.CheckPasswordAsync(usuario, dto.Password);
         if (!passwordValido)
         {
@@ -45,11 +43,8 @@ public class AuthController(
             });
         }
 
-        // 3. Obtiene el rol asignado
         var roles = await _userManager.GetRolesAsync(usuario);
         var rolPrincipal = roles.FirstOrDefault() ?? "Residente";
-
-        // 4. Genera el token JWT
         var token = GenerarTokenJwt(usuario, rolPrincipal);
 
         return Ok(new RespuestaAuthDto
@@ -64,11 +59,9 @@ public class AuthController(
     }
 
     // POST: api/auth/registro
-    // Nota: El registro público siempre crea usuarios con rol 'Residente'
     [HttpPost("registro")]
     public async Task<IActionResult> Registrar([FromBody] RegistroDto dto)
     {
-        // 1. Verifica si ya existe
         var usuarioExiste = await _userManager.FindByEmailAsync(dto.Email);
         if (usuarioExiste != null)
         {
@@ -79,7 +72,6 @@ public class AuthController(
             });
         }
 
-        // 2. Crea el nuevo IdentityUser
         var nuevoUsuario = new IdentityUser
         {
             UserName = dto.Email,
@@ -98,18 +90,26 @@ public class AuthController(
             });
         }
 
-        // 3. Asegura y asigna el rol 'Residente'
-        const string rolAsignado = "Residente";
+        // Determinar rol: si termina en @admin.do.gob se asigna Administrador
+        var esAdmin = dto.Email.Trim().EndsWith("@admin.do.gob", StringComparison.OrdinalIgnoreCase);
+        var rolAsignado = esAdmin ? "Administrador" : "Residente";
+
         if (!await _roleManager.RoleExistsAsync(rolAsignado))
         {
             await _roleManager.CreateAsync(new IdentityRole(rolAsignado));
         }
         await _userManager.AddToRoleAsync(nuevoUsuario, rolAsignado);
 
+        var token = GenerarTokenJwt(nuevoUsuario, rolAsignado);
+
         return Ok(new RespuestaAuthDto
         {
             Exito = true,
-            Mensaje = "Cuenta creada exitosamente como Residente."
+            Token = token,
+            Rol = rolAsignado,
+            NombreCompleto = nuevoUsuario.Email ?? string.Empty,
+            Correo = nuevoUsuario.Email ?? string.Empty,
+            Mensaje = esAdmin ? "Cuenta creada exitosamente como Administrador." : "Cuenta creada exitosamente como Residente."
         });
     }
 

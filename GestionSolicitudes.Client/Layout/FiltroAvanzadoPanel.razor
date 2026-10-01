@@ -1,0 +1,388 @@
+﻿@inject IJSRuntime JS
+
+<div class="d-flex align-items-center gap-2 bg-white p-2 rounded-3 shadow-sm border border-light-subtle position-relative">
+
+    <!-- Indicador Visual del Periodo Activo -->
+    <div class="d-none d-sm-flex align-items-center gap-2 px-2 small">
+        <i class="bi bi-calendar3" style="color: #003876;"></i>
+        <span class="fw-medium text-dark">
+            @(FiltroFechaAplicado ? $"{FechaInicio:dd/MM/yyyy} - {FechaFin:dd/MM/yyyy}" : "Histórico Completo")
+        </span>
+    </div>
+
+    <div class="vr d-none d-sm-block my-1"></div>
+
+    <!-- Botón Dinámico de Filtros (Se vuelve azul institucional si hay filtros activos) -->
+    <button class="btn btn-sm @(TieneFiltrosActivos() ? "text-white shadow-sm" : "btn-light border border-secondary border-opacity-25 text-dark") fw-medium px-3 d-flex align-items-center gap-2"
+            @onclick="() => mostrarPanelFiltros = !mostrarPanelFiltros"
+            style="background-color: @(TieneFiltrosActivos() ? "#003876" : "#ffffff"); font-size: 0.82rem; border-radius: 6px; transition: all 0.2s ease;">
+        <i class="bi bi-sliders" style="color: @(TieneFiltrosActivos() ? "#ffffff" : "#003876");"></i> Filtros
+    </button>
+
+    <!-- Botón Exterior Limpiar -->
+    <button class="btn btn-sm text-white d-flex align-items-center justify-content-center shadow-sm"
+            @onclick="LimpiarCamposInternos"
+            title="Restablecer filtros al historial completo"
+            style="background-color: #003876; width: 34px; height: 31px; border-radius: 6px;">
+        <i class="bi bi-arrow-counterclockwise fs-6"></i>
+    </button>
+
+    <!-- ========================================================= -->
+    <!-- PANEL FLOTANTE DE FILTROS                                 -->
+    <!-- ========================================================= -->
+    @if (mostrarPanelFiltros)
+    {
+        <div class="card shadow-lg border rounded-4 position-absolute end-0 p-3 bg-white"
+             style="top: 115%; width: 355px; z-index: 1055; border-color: #e2e8f0 !important; box-shadow: 0 14px 30px rgba(0,0,0,0.15) !important;">
+
+            <!-- Cabecera -->
+            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                <span class="fw-bold small text-dark">
+                    <i class="bi bi-funnel-fill me-1" style="color: #003876;"></i> Filtros del Panel
+                </span>
+                <button type="button" class="btn-close btn-sm" @onclick="() => { mostrarPanelFiltros = false; calendarioAbierto = string.Empty; }"></button>
+            </div>
+
+            <!-- 1. Rango de Fechas -->
+            <div class="mb-2">
+                <label class="fw-bold mb-1 d-block text-dark" style="font-size: 0.72rem;">RANGO DE FECHAS (Día/Mes/Año)</label>
+                <div class="d-flex gap-2">
+                    <div class="flex-fill position-relative">
+                        <input type="text" class="form-control form-control-sm border text-center fw-medium bg-light text-dark @(calendarioAbierto == "desde" ? "border-primary shadow-xs" : "")"
+                               style="font-size: 0.78rem; cursor: pointer;"
+                               value="@txtFechaInicio"
+                               placeholder="DD/MM/AAAA"
+                               @onclick='() => ToggleCalendario("desde")'
+                               @oninput="(e) => ActualizarFechaEscrita(true, e.Value?.ToString())" />
+                    </div>
+                    <div class="flex-fill position-relative">
+                        <input type="text" class="form-control form-control-sm border text-center fw-medium bg-light text-dark @(calendarioAbierto == "hasta" ? "border-primary shadow-xs" : "")"
+                               style="font-size: 0.78rem; cursor: pointer;"
+                               value="@txtFechaFin"
+                               placeholder="DD/MM/AAAA"
+                               @onclick='() => ToggleCalendario("hasta")'
+                               @oninput="(e) => ActualizarFechaEscrita(false, e.Value?.ToString())" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Accesos Rápidos -->
+            <div class="d-flex flex-wrap gap-1 mb-2">
+                <button type="button" class="btn btn-xs btn-light border px-2 py-1 text-dark fw-medium" style="font-size: 0.7rem;" @onclick="() => SeleccionarPreset(1)">Hoy</button>
+                <button type="button" class="btn btn-xs btn-light border px-2 py-1 text-dark fw-medium" style="font-size: 0.7rem;" @onclick="() => SeleccionarPreset(2)">Ayer</button>
+                <button type="button" class="btn btn-xs btn-light border px-2 py-1 text-dark fw-medium" style="font-size: 0.7rem;" @onclick="() => SeleccionarPreset(7)">Esta Semana</button>
+                <button type="button" class="btn btn-xs btn-light border px-2 py-1 text-dark fw-medium" style="font-size: 0.7rem;" @onclick="() => SeleccionarPreset(30)">Este Mes</button>
+                <button type="button" class="btn btn-xs btn-light border px-2 py-1 text-dark fw-medium" style="font-size: 0.7rem;" @onclick="() => SeleccionarPreset(365)">Este Año</button>
+            </div>
+
+            <!-- 3. Mini Calendario Interactivo -->
+            @if (!string.IsNullOrEmpty(calendarioAbierto))
+            {
+                <div class="p-2 mb-2 rounded-3 bg-light border border-light-subtle">
+                    <div class="d-flex justify-content-between align-items-center mb-1 px-1">
+                        <span class="badge bg-primary-subtle text-primary border" style="font-size: 0.68rem;">
+                            Modificando fecha: <strong>@(calendarioAbierto == "desde" ? "Desde" : "Hasta")</strong>
+                        </span>
+                        <button type="button" class="btn-close btn-sm" style="font-size: 0.6rem;" @onclick='() => calendarioAbierto = string.Empty'></button>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                        <button type="button" class="btn btn-sm btn-light border-0 rounded-circle p-0 d-flex align-items-center justify-content-center bg-white shadow-xs"
+                                style="width: 24px; height: 24px;" @onclick="() => AvanzarRetrocederMesManual(-1)">
+                            <i class="bi bi-chevron-left" style="color: #003876; font-size: 0.7rem;"></i>
+                        </button>
+
+                        <div class="d-flex align-items-center gap-1">
+                            <select class="form-select form-select-sm select-sin-flecha fw-medium text-capitalize text-dark"
+                                    style="width: auto; cursor: pointer; font-size: 0.76rem; padding: 2px 8px;"
+                                    value="@mesVistaCalendario.Month"
+                                    @onchange="CambiarMesMiniCal">
+                                @for (int m = 1; m <= 12; m++)
+                                {
+                                    <option value="@m">@ObtenerNombreMes(m)</option>
+                                }
+                            </select>
+
+                            <select class="form-select form-select-sm select-sin-flecha fw-medium text-dark"
+                                    style="width: 72px; cursor: pointer; font-size: 0.76rem; padding: 2px 6px;"
+                                    value="@mesVistaCalendario.Year"
+                                    @onchange="CambiarAnioMiniCal">
+                                @for (int a = 2020; a <= DateTime.Today.Year + 5; a++)
+                                {
+                                    <option value="@a">@a</option>
+                                }
+                            </select>
+                        </div>
+
+                        <button type="button" class="btn btn-sm btn-light border-0 rounded-circle p-0 d-flex align-items-center justify-content-center bg-white shadow-xs"
+                                style="width: 24px; height: 24px;" @onclick="() => AvanzarRetrocederMesManual(1)">
+                            <i class="bi bi-chevron-right" style="color: #003876; font-size: 0.7rem;"></i>
+                        </button>
+                    </div>
+
+                    <div class="d-grid text-center mb-1" style="grid-template-columns: repeat(7, 1fr); font-size: 0.62rem; color: #000000; font-weight: 700;">
+                        <div>DO</div><div>LU</div><div>MA</div><div>MI</div><div>JU</div><div>VI</div><div>SA</div>
+                    </div>
+
+                    <div class="d-grid text-center" style="grid-template-columns: repeat(7, 1fr); row-gap: 1px;">
+                        @for (int i = 0; i < (int)(new DateTime(mesVistaCalendario.Year, mesVistaCalendario.Month, 1).DayOfWeek); i++)
+                        {
+                            <div style="height: 24px;"></div>
+                        }
+                        @for (int d = 1; d <= DateTime.DaysInMonth(mesVistaCalendario.Year, mesVistaCalendario.Month); d++)
+                        {
+                            var fecha = new DateTime(mesVistaCalendario.Year, mesVistaCalendario.Month, d);
+                            @RenderizarMiniDia(fecha, d)
+                        }
+                    </div>
+                </div>
+            }
+
+            <hr class="my-2" />
+
+            <!-- 4. Filtros de Estado y Trámite -->
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <label class="form-label fw-bold mb-1 text-dark" style="font-size: 0.72rem;">ESTADO</label>
+                    <select class="form-select form-select-sm bg-light border text-dark fw-normal" @bind="FiltroEstado" style="font-size: 0.78rem;">
+                        <option value="">Todos</option>
+                        <option value="Pendiente">Pendientes</option>
+                        <option value="En Proceso">En Proceso</option>
+                        <option value="Aprobada">Aprobadas</option>
+                        <option value="Rechazada">Rechazadas</option>
+                        <option value="Cancelada">Canceladas</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label fw-bold mb-1 text-dark" style="font-size: 0.72rem;">TRÁMITE</label>
+                    <select class="form-select form-select-sm bg-light border text-dark fw-normal" @bind="FiltroTipoTramite" style="font-size: 0.78rem;">
+                        <option value="">Todos</option>
+                        <option value="Residencia de Estudiante">Estudiante</option>
+                        <option value="Residencia de Trabajo">Trabajo</option>
+                        <option value="Residencia por Familia">Familia</option>
+                        <option value="Residencia de Menores">Menores</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 5. Acciones Internas -->
+            <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                <button type="button" class="btn btn-sm text-white fw-semibold px-3"
+                        style="background-color: #003876; font-size: 0.78rem; border-radius: 6px;"
+                        @onclick="LimpiarCamposInternos">
+                    Limpiar
+                </button>
+                <button type="button" class="btn btn-sm text-white px-4 fw-semibold shadow-sm"
+                        style="background-color: #003876; font-size: 0.78rem; border-radius: 6px;"
+                        @onclick="AplicarFiltrosInternos">
+                    Aplicar
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public bool FiltroFechaAplicado { get; set; } = false;
+    [Parameter] public DateTime FechaInicio { get; set; } = DateTime.Today;
+    [Parameter] public DateTime FechaFin { get; set; } = DateTime.Today;
+    [Parameter] public string FiltroEstado { get; set; } = string.Empty;
+    [Parameter] public string FiltroTipoTramite { get; set; } = string.Empty;
+
+    [Parameter] public EventCallback<FiltroDataModel> OnAplicarFiltros { get; set; }
+    [Parameter] public EventCallback OnLimpiar { get; set; }
+
+    private bool mostrarPanelFiltros = false;
+    private string calendarioAbierto = string.Empty;
+    private DateTime mesVistaCalendario = DateTime.Today;
+    private string txtFechaInicio = DateTime.Today.ToString("dd/MM/yyyy");
+    private string txtFechaFin = DateTime.Today.ToString("dd/MM/yyyy");
+
+    public class FiltroDataModel
+    {
+        public bool FiltroFechaAplicado { get; set; }
+        public DateTime FechaInicio { get; set; }
+        public DateTime FechaFin { get; set; }
+        public string FiltroEstado { get; set; } = string.Empty;
+        public string FiltroTipoTramite { get; set; } = string.Empty;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (FiltroFechaAplicado)
+        {
+            txtFechaInicio = FechaInicio.ToString("dd/MM/yyyy");
+            txtFechaFin = FechaFin.ToString("dd/MM/yyyy");
+        }
+        else
+        {
+            txtFechaInicio = DateTime.Today.ToString("dd/MM/yyyy");
+            txtFechaFin = DateTime.Today.ToString("dd/MM/yyyy");
+        }
+        mesVistaCalendario = FechaFin;
+    }
+
+    private bool TieneFiltrosActivos() =>
+        FiltroFechaAplicado || !string.IsNullOrEmpty(FiltroEstado) || !string.IsNullOrEmpty(FiltroTipoTramite);
+
+    private void ToggleCalendario(string tipo)
+    {
+        if (calendarioAbierto == tipo) calendarioAbierto = string.Empty;
+        else { calendarioAbierto = tipo; mesVistaCalendario = tipo == "desde" ? FechaInicio : FechaFin; }
+    }
+
+    private string ObtenerNombreMes(int mes) => new DateTime(2026, mes, 1).ToString("MMMM", new System.Globalization.CultureInfo("es-ES")).ToUpper();
+
+    private void ActualizarFechaEscrita(bool esInicio, string? valor)
+    {
+        if (esInicio)
+        {
+            txtFechaInicio = valor ?? string.Empty;
+            if (DateTime.TryParseExact(txtFechaInicio, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime f))
+            {
+                FechaInicio = f; mesVistaCalendario = f; FiltroFechaAplicado = true;
+            }
+        }
+        else
+        {
+            txtFechaFin = valor ?? string.Empty;
+            if (DateTime.TryParseExact(txtFechaFin, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime f))
+            {
+                FechaFin = f; mesVistaCalendario = f; FiltroFechaAplicado = true;
+            }
+        }
+    }
+
+    private void CambiarMesMiniCal(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int nuevoMes))
+        {
+            mesVistaCalendario = new DateTime(mesVistaCalendario.Year, nuevoMes, 1);
+            ActualizarFechaSegunVista();
+        }
+    }
+
+    private void CambiarAnioMiniCal(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int nuevoAnio))
+        {
+            mesVistaCalendario = new DateTime(nuevoAnio, mesVistaCalendario.Month, 1);
+            ActualizarFechaSegunVista();
+        }
+    }
+
+    private void AvanzarRetrocederMesManual(int meses)
+    {
+        mesVistaCalendario = mesVistaCalendario.AddMonths(meses);
+        ActualizarFechaSegunVista();
+    }
+
+    private void ActualizarFechaSegunVista()
+    {
+        int dias = DateTime.DaysInMonth(mesVistaCalendario.Year, mesVistaCalendario.Month);
+        if (calendarioAbierto == "desde")
+        {
+            FechaInicio = new DateTime(mesVistaCalendario.Year, mesVistaCalendario.Month, Math.Min(FechaInicio.Day, dias));
+            txtFechaInicio = FechaInicio.ToString("dd/MM/yyyy");
+            FiltroFechaAplicado = true;
+        }
+        else if (calendarioAbierto == "hasta")
+        {
+            FechaFin = new DateTime(mesVistaCalendario.Year, mesVistaCalendario.Month, Math.Min(FechaFin.Day, dias));
+            txtFechaFin = FechaFin.ToString("dd/MM/yyyy");
+            FiltroFechaAplicado = true;
+        }
+    }
+
+    private void SeleccionarPreset(int opcion)
+    {
+        var hoy = DateTime.Today;
+        switch (opcion)
+        {
+            case 1: FechaInicio = hoy; FechaFin = hoy; break;
+            case 2: FechaInicio = hoy.AddDays(-1); FechaFin = hoy.AddDays(-1); break;
+            case 7: FechaInicio = hoy.AddDays(-(int)hoy.DayOfWeek); FechaFin = hoy; break;
+            case 30: FechaInicio = new DateTime(hoy.Year, hoy.Month, 1); FechaFin = hoy; break;
+            case 365: FechaInicio = new DateTime(hoy.Year, 1, 1); FechaFin = hoy; break;
+        }
+        FiltroFechaAplicado = true;
+        txtFechaInicio = FechaInicio.ToString("dd/MM/yyyy");
+        txtFechaFin = FechaFin.ToString("dd/MM/yyyy");
+        calendarioAbierto = string.Empty;
+    }
+
+    private void SeleccionarDia(DateTime fecha)
+    {
+        if (calendarioAbierto == "desde")
+        {
+            FechaInicio = fecha;
+            if (FechaInicio > FechaFin) FechaFin = FechaInicio;
+            txtFechaInicio = FechaInicio.ToString("dd/MM/yyyy");
+            txtFechaFin = FechaFin.ToString("dd/MM/yyyy");
+            calendarioAbierto = string.Empty;
+        }
+        else if (calendarioAbierto == "hasta")
+        {
+            if (fecha < FechaInicio) FechaInicio = fecha;
+            FechaFin = fecha;
+            txtFechaInicio = FechaInicio.ToString("dd/MM/yyyy");
+            txtFechaFin = FechaFin.ToString("dd/MM/yyyy");
+            calendarioAbierto = string.Empty;
+        }
+        FiltroFechaAplicado = true;
+    }
+
+    private RenderFragment RenderizarMiniDia(DateTime fecha, int d) => builder =>
+    {
+        bool esSel = (calendarioAbierto == "desde" && fecha.Date == FechaInicio.Date) || (calendarioAbierto == "hasta" && fecha.Date == FechaFin.Date);
+        bool enRango = fecha.Date >= FechaInicio.Date && fecha.Date <= FechaFin.Date;
+        string estilo = "width: 24px; height: 24px; border-radius: 50%; font-size: 0.70rem; display: flex; align-items: center; justify-content: center; cursor: pointer;";
+        if (esSel) estilo += " background-color: #003876; color: #fff !important; font-weight: 700;";
+        else if (enRango) estilo += " background-color: #e0f2fe; color: #003876 !important;";
+        else estilo += " color: #000;";
+
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "d-flex align-items-center justify-content-center");
+        builder.AddAttribute(2, "style", "height: 26px;");
+        builder.AddAttribute(3, "onclick", EventCallback.Factory.Create(this, () => SeleccionarDia(fecha)));
+        builder.OpenElement(4, "div");
+        builder.AddAttribute(5, "style", estilo);
+        builder.AddContent(6, d);
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private async Task AplicarFiltrosInternos()
+    {
+        if (DateTime.TryParseExact(txtFechaInicio, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime fi)) FechaInicio = fi;
+        if (DateTime.TryParseExact(txtFechaFin, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime ff)) FechaFin = ff;
+
+        FiltroFechaAplicado = true;
+        mostrarPanelFiltros = false;
+        calendarioAbierto = string.Empty;
+
+        await OnAplicarFiltros.InvokeAsync(new FiltroDataModel
+        {
+            FiltroFechaAplicado = FiltroFechaAplicado,
+            FechaInicio = FechaInicio,
+            FechaFin = FechaFin,
+            FiltroEstado = FiltroEstado,
+            FiltroTipoTramite = FiltroTipoTramite
+        });
+    }
+
+    private async Task LimpiarCamposInternos()
+    {
+        FiltroFechaAplicado = false;
+        FiltroEstado = string.Empty;
+        FiltroTipoTramite = string.Empty;
+        FechaInicio = DateTime.Today;
+        FechaFin = DateTime.Today;
+        txtFechaInicio = DateTime.Today.ToString("dd/MM/yyyy");
+        txtFechaFin = DateTime.Today.ToString("dd/MM/yyyy");
+        mostrarPanelFiltros = false;
+        calendarioAbierto = string.Empty;
+
+        await OnLimpiar.InvokeAsync();
+    }
+}

@@ -16,11 +16,12 @@ builder.Services.AddScoped(sp => new HttpClient
 
 builder.Services.AddScoped<SolicitudClientService>();
 builder.Services.AddSweetAlert2();
+builder.Services.AddSingleton<ExpedienteStateService>();
 
 // Autenticación y Layouts
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
 builder.Services.AddScoped<CustomAuthenticationStateProvider>(provider =>
     (CustomAuthenticationStateProvider)provider.GetRequiredService<AuthenticationStateProvider>());
-
+builder.Services.AddScoped<GestionSolicitudes.Client.Services.ExpedienteStateService>();
 await builder.Build().RunAsync();

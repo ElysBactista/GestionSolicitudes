@@ -1,149 +1,346 @@
 ﻿@inject NavigationManager Navigation
 @inject IJSRuntime JS
 
-<div class="dropdown position-relative">
-    <!-- Botón estilo píldora que activa el menú al hacer clic -->
-    <button class="btn border rounded-pill px-3 py-1 bg-white d-flex align-items-center gap-2 shadow-sm"
-            type="button"
-            @onclick="ToggleMenu"
-            style="border-color: #dee2e6 !important;">
-        <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold"
-             style="width: 32px; height: 32px; background-color: #003876; font-size: 14px;">
-            @(string.IsNullOrEmpty(nombreUsuario) || nombreUsuario == "invitado" ? "I" : nombreUsuario.Substring(0, 1).ToUpper())
-        </div>
-        <div class="text-start lh-1">
-            <span class="d-block fw-bold text-dark" style="font-size: 13px;">@nombreUsuario</span>
-            <small class="text-muted" style="font-size: 11px;">@(esInvitado ? "Visitante" : "Residente")</small>
-        </div>
-        <i class="bi bi-chevron-down ms-1 text-muted" style="font-size: 11px;"></i>
-    </button>
+<div class="user-panel-container position-relative">
+    <div class="dropdown">
+        <!-- Botón de Píldora Superior optimizado para evitar recortes -->
+        <button class="btn d-flex align-items-center gap-2 bg-white rounded-pill px-3 py-1 shadow-sm text-start"
+                type="button"
+                @onclick="ToggleDropdown"
+                style="border: 1px solid #dee2e6 !important; min-width: 230px; height: 44px;">
 
-    <!-- Menú desplegable condicional controlado por C# -->
-    @if (mostrarMenu)
-    {
-        <div class="dropdown-menu show shadow-lg border-0 rounded-3 p-2 mt-2 position-absolute end-0" style="min-width: 260px; z-index: 1070;">
-            @if (esInvitado)
-            {
-                <!-- Opciones cuando NO ha iniciado sesión -->
-                <div class="px-3 py-2 border-bottom mb-2">
-                    <p class="mb-0 fw-bold text-dark" style="font-size: 13px;">Acceso al Sistema</p>
-                    <small class="text-muted" style="font-size: 11px;">Inicia sesión o regístrate para continuar</small>
-                </div>
-                <li>
-                    <button class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 text-primary fw-semibold small" @type="button" @onclick="IrALogin">
-                        <i class="bi bi-box-arrow-in-right fs-5"></i> Iniciar Sesión
+            <!-- Avatar circular -->
+            <div class="avatar-circle text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                 style="width: 34px; height: 34px; font-weight: 600; font-size: 0.85rem; background-color: #003876;">
+                @GetAvatarIdentifier()
+            </div>
+
+            <!-- Textos principales -->
+            <div class="d-flex flex-column flex-grow-1" style="line-height: 1.15; overflow: hidden;">
+                <span class="fw-semibold text-dark text-truncate" style="font-size: 0.82rem; max-width: 145px;">
+                    @GetMainLabel()
+                </span>
+                <small class="text-muted text-truncate" style="font-size: 0.70rem;">
+                    @GetSubLabel()
+                </small>
+            </div>
+
+            <!-- Flechita indicadora -->
+            <i class="bi bi-chevron-down text-muted ms-auto flex-shrink-0" style="font-size: 0.70rem;"></i>
+        </button>
+
+        <!-- Menú Desplegable -->
+        @if (isDropdownOpen)
+        {
+            <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 1040; background: transparent;" @onclick="CerrarMenu"></div>
+
+            <div class="dropdown-menu show position-absolute end-0 mt-2 shadow border-0 py-2 rounded-3" style="min-width: 270px; z-index: 1050;">
+
+                @if (string.IsNullOrWhiteSpace(correoActual))
+                {
+                    <div class="px-3 py-2 border-bottom mb-1 bg-light rounded-top text-center">
+                        <p class="mb-0 fw-bold text-dark" style="font-size: 0.85rem;">Acceso Ciudadano</p>
+                        <small class="text-muted" style="font-size: 0.72rem;">Inicia sesión para gestionar trámites</small>
+                    </div>
+                    <button class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark small fw-semibold" @onclick="IrLogin">
+                        <i class="bi bi-box-arrow-in-right text-primary"></i>
+                        <span>Iniciar Sesión</span>
                     </button>
-                </li>
-                <li>
-                    <button class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 text-dark fw-semibold small" @type="button" @onclick="IrARegistro">
-                        <i class="bi bi-person-plus text-secondary fs-5"></i> Crear cuenta / Registrarse
+                    <div class="dropdown-divider my-1"></div>
+                    <button class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary small fw-semibold" @onclick="IrRegistro">
+                        <i class="bi bi-person-plus-fill"></i>
+                        <span>Registrarse</span>
                     </button>
-                </li>
-            }
-            else
-            {
-                <!-- Opciones cuando SÍ está registrado -->
-                <li class="px-3 py-2 border-bottom mb-2">
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold"
-                             style="width: 40px; height: 40px; background-color: #003876; font-size: 16px;">
-                            @nombreUsuario.Substring(0, 1).ToUpper()
-                        </div>
-                        <div class="overflow-hidden">
-                            <p class="mb-0 fw-bold text-dark text-truncate" style="font-size: 13px;">@nombreUsuario</p>
-                            <small class="text-muted text-truncate d-block" style="font-size: 11px;">@correoUsuario</small>
+                }
+                else
+                {
+                    <div class="px-3 py-2 border-bottom mb-1 bg-white">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="avatar-circle text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                                 style="width: 34px; height: 34px; font-weight: 600; font-size: 0.8rem; background-color: #003876;">
+                                @GetAvatarIdentifier()
+                            </div>
+                            <div style="overflow: hidden;">
+                                <p class="mb-0 fw-bold text-dark text-truncate" style="font-size: 0.85rem;">@correoActual</p>
+                                <small class="text-muted text-truncate d-block" style="font-size: 0.72rem;">@GetSubLabel()</small>
+                            </div>
                         </div>
                     </div>
-                </li>
-                <li>
-                    <button class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 text-dark small fw-semibold" @type="button" @onclick="CambiarUsuario">
-                        <i class="bi bi-arrow-repeat text-secondary fs-6"></i> Cambiar de usuario
+
+                    <button class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark small fw-semibold" @onclick="AbrirSelectorPerfiles">
+                        <i class="bi bi-arrow-repeat text-primary"></i>
+                        <span>Cambiar de usuario</span>
                     </button>
-                </li>
-                <li>
-                    <button class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 text-dark small fw-semibold" @type="button" @onclick="IrARegistro">
-                        <i class="bi bi-person-plus text-secondary fs-6"></i> Crear cuenta nueva
+
+                    <div class="dropdown-divider my-1"></div>
+
+                    <button class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger small" @onclick="ConfirmarCerrarSesion">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Cerrar Sesión</span>
                     </button>
-                </li>
-                <li><hr class="dropdown-divider my-1"></li>
-                <li>
-                    <button class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 text-danger small fw-semibold" @type="button" @onclick="CerrarSesion">
-                        <i class="bi bi-box-arrow-right fs-6"></i> Cerrar Sesión
-                    </button>
-                </li>
-            }
-        </div>
-    }
+                }
+            </div>
+        }
+    </div>
 </div>
 
+<!-- VENTANA MODAL FLOTANTE DE SELECCIÓN DE PERFILES -->
+@if (mostrarModalPerfiles)
+{
+    <div class="modal fade show d-block modal-backdrop-custom" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+            <div class="modal-content border-0 shadow-lg rounded-4 p-4 bg-white">
+                <div class="text-center mb-4">
+                    <div class="rounded-circle bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center mb-2" style="width: 56px; height: 56px;">
+                        <i class="bi bi-people-fill fs-4"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-1">Cuentas en este navegador</h5>
+                    <p class="text-muted small mb-0">Selecciona una cuenta para continuar</p>
+                </div>
+
+                <div class="d-flex flex-column gap-2 mb-4" style="max-height: 260px; overflow-y: auto;">
+                    @if (historialCuentas != null && historialCuentas.Count > 0)
+                    {
+                        @foreach (var cuenta in historialCuentas)
+                        {
+                            <div class="d-flex align-items-center justify-content-between p-3 rounded-3 border @(cuenta == correoActual ? "border-primary bg-primary-subtle bg-opacity-10" : "bg-light")"
+                                 style="cursor: pointer; transition: all 0.2s ease;"
+                                 @onclick="() => IniciarVerificacionPerfil(cuenta)">
+
+                                <div class="d-flex align-items-center gap-3 overflow-hidden">
+                                    <div class="rounded-circle text-white d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm"
+                                         style="width: 40px; height: 40px; font-weight: 600; background-color: #003876;">
+                                        @cuenta.Substring(0, 1).ToUpper()
+                                    </div>
+                                    <div class="overflow-hidden text-start">
+                                        <span class="d-block text-truncate fw-semibold text-dark" style="font-size: 0.9rem;">@cuenta</span>
+                                        <small class="text-muted">@(cuenta == correoActual ? "Cuenta activa" : "Requiere verificación")</small>
+                                    </div>
+                                </div>
+
+                                @if (cuenta == correoActual)
+                                {
+                                    <i class="bi bi-check-circle-fill text-primary fs-5"></i>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-shield-lock text-muted fs-6" title="Autenticación requerida"></i>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+
+                <div class="d-flex flex-column gap-2">
+                    <button class="btn btn-outline-primary py-2 rounded-pill fw-semibold d-flex align-items-center justify-content-center gap-2" @onclick="AgregarOtraCuentaModal">
+                        <i class="bi bi-person-plus-fill"></i>
+                        <span>Usar otra cuenta / Registrarse</span>
+                    </button>
+                    <button class="btn btn-light py-2 rounded-pill text-muted fw-semibold" @onclick="() => mostrarModalPerfiles = false">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- MODAL DE SEGURIDAD -->
+@if (mostrarModalSeguridad)
+{
+    <div class="modal fade show d-block modal-backdrop-custom" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
+            <div class="modal-content border-0 shadow-lg rounded-4 p-4 bg-white text-center">
+                <div class="rounded-circle bg-warning-subtle text-warning d-inline-flex align-items-center justify-content-center mx-auto mb-3" style="width: 54px; height: 54px;">
+                    <i class="bi bi-shield-lock-fill fs-4"></i>
+                </div>
+                <h5 class="fw-bold text-dark mb-1">Verificación de Seguridad</h5>
+                <p class="text-muted small mb-3">Introduce la clave o contraseña de acceso para cambiar a la cuenta:<br /><strong class="text-dark">@cuentaPendienteVerificacion</strong></p>
+
+                <input type="password" class="form-control text-center mb-3" @bind="passwordVerificacion" placeholder="••••••••" />
+
+                @if (!string.IsNullOrEmpty(mensajeErrorSeguridad))
+                {
+                    <div class="alert alert-danger py-1 px-2 small mb-3 border-0">
+                        @mensajeErrorSeguridad
+                    </div>
+                }
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-light flex-grow-1 rounded-pill fw-semibold" @onclick="() => mostrarModalSeguridad = false">Cancelar</button>
+                    <button class="btn btn-primary flex-grow-1 rounded-pill fw-bold" style="background-color: #003876;" @onclick="CompletarCambioPerfil">Verificar y Entrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .modal-backdrop-custom {
+        background-color: rgba(0, 30, 60, 0.6);
+        backdrop-filter: blur(3px);
+        z-index: 2000;
+    }
+</style>
+
 @code {
-    private string nombreUsuario = "invitado";
-    private string correoUsuario = "";
-    private bool esInvitado = true;
-    private bool mostrarMenu = false;
+    private string correoActual = "";
+    private string nombreUsuario = "";
+    private string rolUsuario = "";
+    private List<string> historialCuentas = new();
+    private bool isDropdownOpen = false;
+    private bool mostrarModalPerfiles = false;
+
+    private bool mostrarModalSeguridad = false;
+    private string cuentaPendienteVerificacion = "";
+    private string passwordVerificacion = "";
+    private string mensajeErrorSeguridad = "";
 
     protected override async Task OnInitializedAsync()
     {
+        await CargarDatosSesionAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await CargarDatosSesionAsync();
+    }
+
+    private async Task CargarDatosSesionAsync()
+    {
         try
         {
-            var nombre = await JS.InvokeAsync<string>("localStorage.getItem", "nombreUsuario");
-            if (string.IsNullOrWhiteSpace(nombre))
+            correoActual = await JS.InvokeAsync<string>("localStorage.getItem", "correoUsuario") ?? "";
+            nombreUsuario = await JS.InvokeAsync<string>("localStorage.getItem", "nombreUsuario") ?? "";
+            rolUsuario = await JS.InvokeAsync<string>("localStorage.getItem", "rolUsuario") ?? "";
+
+            if (string.IsNullOrWhiteSpace(correoActual))
             {
-                nombre = await JS.InvokeAsync<string>("sessionStorage.getItem", "nombreUsuario");
+                correoActual = await JS.InvokeAsync<string>("sessionStorage.getItem", "correoUsuario") ?? "";
+                nombreUsuario = await JS.InvokeAsync<string>("sessionStorage.getItem", "sessionNombreUsuario") ?? "";
+                rolUsuario = await JS.InvokeAsync<string>("sessionStorage.getItem", "rolUsuario") ?? "";
             }
 
-            if (!string.IsNullOrWhiteSpace(nombre) && nombre != "invitado")
+            if (correoActual.Contains("admin", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(rolUsuario))
             {
-                nombreUsuario = nombre;
-                correoUsuario = nombre.Contains("@") ? nombre : $"{nombre.ToLower()}@migracion.gob.do";
-                esInvitado = false;
+                rolUsuario = "Administrador";
+                await JS.InvokeVoidAsync("localStorage.setItem", "rolUsuario", "Administrador");
             }
-            else
+
+            var historialStr = await JS.InvokeAsync<string>("localStorage.getItem", "historialCuentasDGM");
+            if (!string.IsNullOrWhiteSpace(historialStr))
             {
-                nombreUsuario = "invitado";
-                esInvitado = true;
+                historialCuentas = historialStr.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
+            }
+
+            if (!string.IsNullOrWhiteSpace(correoActual) && !historialCuentas.Contains(correoActual))
+            {
+                historialCuentas.Add(correoActual);
+                await JS.InvokeVoidAsync("localStorage.setItem", "historialCuentasDGM", string.Join(",", historialCuentas));
             }
         }
         catch
         {
-            nombreUsuario = "invitado";
-            esInvitado = true;
+            correoActual = "";
+            nombreUsuario = "";
+            rolUsuario = "";
         }
     }
 
-    private void ToggleMenu()
+    private void ToggleDropdown() => isDropdownOpen = !isDropdownOpen;
+    private void CerrarMenu() => isDropdownOpen = false;
+
+    private string GetMainLabel() => string.IsNullOrWhiteSpace(correoActual) ? "Invitado" : correoActual;
+
+    private string GetSubLabel()
     {
-        mostrarMenu = !mostrarMenu;
+        if (string.IsNullOrWhiteSpace(correoActual)) return "Iniciar sesión";
+        if (correoActual.Contains("admin", StringComparison.OrdinalIgnoreCase) || rolUsuario.Contains("admin", StringComparison.OrdinalIgnoreCase))
+            return "Administrador";
+        return !string.IsNullOrWhiteSpace(rolUsuario) ? rolUsuario : "Residente";
     }
 
-    private void IrALogin()
+    private string GetAvatarIdentifier()
     {
-        mostrarMenu = false;
-        Navigation.NavigateTo("/login");
+        string referencia = !string.IsNullOrWhiteSpace(correoActual) ? correoActual : nombreUsuario;
+        if (string.IsNullOrWhiteSpace(referencia)) return "G";
+        return referencia.Substring(0, 1).ToUpper();
     }
 
-    private void IrARegistro()
+    private void IrLogin() { isDropdownOpen = false; Navigation.NavigateTo("/login"); }
+    private void IrRegistro() { isDropdownOpen = false; Navigation.NavigateTo("/registro"); }
+    private void AbrirSelectorPerfiles() { isDropdownOpen = false; mostrarModalPerfiles = true; }
+    private void AgregarOtraCuentaModal() { mostrarModalPerfiles = false; Navigation.NavigateTo("/login"); }
+
+    private void IniciarVerificacionPerfil(string cuentaElegida)
     {
-        mostrarMenu = false;
-        Navigation.NavigateTo("/registro"); // Ajusta la ruta a tu vista de registro
+        if (cuentaElegida == correoActual)
+        {
+            mostrarModalPerfiles = false;
+            return;
+        }
+
+        cuentaPendienteVerificacion = cuentaElegida;
+        passwordVerificacion = "";
+        mensajeErrorSeguridad = "";
+        mostrarModalPerfiles = false;
+        mostrarModalSeguridad = true;
     }
 
-    private void CambiarUsuario()
+    private async Task CompletarCambioPerfil()
     {
-        mostrarMenu = false;
-        Navigation.NavigateTo("/login");
+        if (string.IsNullOrWhiteSpace(passwordVerificacion))
+        {
+            mensajeErrorSeguridad = "Debe introducir la contraseña de seguridad.";
+            return;
+        }
+
+        string rolAsignado = "Residente";
+        string rutaDestino = "/mis-solicitudes";
+
+        if (cuentaPendienteVerificacion.Contains("admin", StringComparison.OrdinalIgnoreCase))
+        {
+            rolAsignado = "Administrador";
+            rutaDestino = "/dashboard";
+        }
+
+        await JS.InvokeVoidAsync("localStorage.setItem", "correoUsuario", cuentaPendienteVerificacion);
+        await JS.InvokeVoidAsync("localStorage.setItem", "nombreUsuario", cuentaPendienteVerificacion);
+        await JS.InvokeVoidAsync("localStorage.setItem", "rolUsuario", rolAsignado);
+
+        mostrarModalSeguridad = false;
+        Navigation.NavigateTo(rutaDestino, true);
     }
 
-    private async Task CerrarSesion()
+    private async Task ConfirmarCerrarSesion()
     {
-        mostrarMenu = false;
+        bool confirmado = await JS.InvokeAsync<bool>("confirm", "¿Está seguro de que desea cerrar sesión y salir al portal principal?");
+        if (confirmado)
+        {
+            await CerrarSesionDefinitivo();
+        }
+    }
+
+    private async Task CerrarSesionDefinitivo()
+    {
         try
         {
             await JS.InvokeVoidAsync("localStorage.removeItem", "nombreUsuario");
-            await JS.InvokeVoidAsync("sessionStorage.removeItem", "nombreUsuario");
+            await JS.InvokeVoidAsync("localStorage.removeItem", "correoUsuario");
+            await JS.InvokeVoidAsync("localStorage.removeItem", "rolUsuario");
+            await JS.InvokeVoidAsync("sessionStorage.clear");
         }
         catch { }
 
-        Navigation.NavigateTo("/login", true);
+        correoActual = "";
+        nombreUsuario = "";
+        rolUsuario = "";
+        isDropdownOpen = false;
+        mostrarModalPerfiles = false;
+        mostrarModalSeguridad = false;
+
+        StateHasChanged();
+
+        Navigation.NavigateTo("/", true);
     }
 }

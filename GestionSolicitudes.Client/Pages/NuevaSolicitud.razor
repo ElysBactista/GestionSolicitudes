@@ -1,261 +1,917 @@
 ﻿@page "/nueva-solicitud"
-@layout EmptyLayout
-@using System.Net.Http.Headers
-@using System.Net.Http.Json
-@using GestionSolicitudes.Client.DTOs
+@page "/gestion-solicitud"
+@layout MainLayout
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject HttpClient Http
+@inject GestionSolicitudes.Client.Services.ExpedienteStateService StateService
 
-<PageTitle>Radicación de Expediente | DGM</PageTitle>
+<PageTitle>Solicitud de Residencia | DGM</PageTitle>
 
-<div class="radicacion-externa-container py-4">
+<div class="solicitud-container py-3 px-2 px-md-4">
 
-    <div class="container" style="max-width: 820px;">
+    <!-- BARRA SUPERIOR LIMPIA -->
+    <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 mb-4">
+        <div>
+            <h2 class="fw-bold mb-1" style="color: #003876;">
+                @(idiomaActual == "ES" ? "Solicitud de Residencia" : "Residence Application")
+            </h2>
+            <p class="text-muted small mb-0">
+                @(idiomaActual == "ES" ? "Complete los datos y adjunte su documentación para radicar su expediente oficial." : "Complete the information and attach your documents to submit your official file.")
+            </p>
+        </div>
 
-        <!-- Header Flotante -->
-        <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
-            <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-shield-shaded fs-4 text-primary"></i>
-                <h5 class="fw-bold mb-0" style="color: #003876;">Radicación Oficial de Residencia</h5>
-            </div>
-            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" @onclick="VolverAlPortal">
-                <i class="bi bi-x-lg me-1"></i> Cancelar
+        <!-- Selector Bilingüe ES / EN -->
+        <div class="btn-group p-1 bg-white rounded-pill border shadow-xs align-self-start align-self-sm-center">
+            <button type="button" class="btn btn-sm rounded-pill py-1 px-3 fw-bold @(idiomaActual == "ES" ? "btn-primary text-white" : "btn-light text-muted")"
+                    style="@(idiomaActual == "ES" ? "background-color: #003876; border-color: #003876;" : "")"
+                    @onclick='() => idiomaActual = "ES"'>
+                🇩🇴 ES
+            </button>
+            <button type="button" class="btn btn-sm rounded-pill py-1 px-3 fw-bold @(idiomaActual == "EN" ? "btn-primary text-white" : "btn-light text-muted")"
+                    style="@(idiomaActual == "EN" ? "background-color: #003876; border-color: #003876;" : "")"
+                    @onclick='() => idiomaActual = "EN"'>
+                🇺🇸 EN
             </button>
         </div>
+    </div>
 
-        @if (!string.IsNullOrEmpty(mensajeError))
-        {
-            <div class="alert alert-danger small py-2 px-3 rounded-3 mb-3 border-0 shadow-sm">
-                <i class="bi bi-exclamation-circle me-1"></i> @mensajeError
+    <!-- STEPPER DE 4 PASOS -->
+    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white mb-4">
+        <div class="d-flex justify-content-around position-relative align-items-center">
+            <div class="step-indicator @(pasoActual >= 1 ? "active" : "") @(pasoActual > 1 ? "completed" : "")">
+                <span class="step-num">1</span>
+                <span class="step-text d-none d-md-inline">@(idiomaActual == "ES" ? "Datos Personales" : "Personal Info")</span>
             </div>
-        }
-
-        <!-- Formulario Flotante en Tarjeta Única -->
-        <div class="card border-0 shadow rounded-4 p-4 p-md-5 bg-white">
-
-            <!-- 1. Datos Personales y Residencia -->
-            <h6 class="fw-bold text-dark mb-3 pb-2 border-bottom" style="color: #003876;">
-                <i class="bi bi-person-lines-fill me-2"></i>1. Datos Personales del Solicitante
-            </h6>
-
-            <div class="row g-3 mb-4">
-                <div class="col-md-6">
-                    <label class="form-label small fw-semibold text-muted">NOMBRE COMPLETO</label>
-                    <input type="text" class="form-control" @bind="solicitud.Solicitante" placeholder="Nombres y Apellidos" />
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label small fw-semibold text-muted">NÚMERO DE PASAPORTE</label>
-                    <input type="text" class="form-control" @bind="numeroPasaporte" placeholder="Ej: P01234567" />
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label small fw-semibold text-muted">PAÍS DE ORIGEN / NACIONALIDAD</label>
-                    <input type="text" class="form-control" @bind="paisOrigen" placeholder="Ej: Colombia" />
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label small fw-semibold text-muted">TELÉFONO DE CONTACTO</label>
-                    <input type="text" class="form-control" @bind="telefonoContacto" placeholder="Ej: 809-555-0123" />
-                </div>
-                <div class="col-12">
-                    <label class="form-label small fw-semibold text-muted">DIRECCIÓN DONDE RESIDE ACTUALMENTE</label>
-                    <input type="text" class="form-control" @bind="direccionResidencia" placeholder="Calle, Número, Sector, Ciudad" />
-                </div>
+            <div class="step-line @(pasoActual >= 2 ? "active" : "")"></div>
+            <div class="step-indicator @(pasoActual >= 2 ? "active" : "") @(pasoActual > 2 ? "completed" : "")">
+                <span class="step-num">2</span>
+                <span class="step-text d-none d-md-inline">@(idiomaActual == "ES" ? "Domicilio" : "Address")</span>
             </div>
-
-            <!-- 2. Tipo de Residencia y Motivo -->
-            <h6 class="fw-bold text-dark mb-3 pb-2 border-bottom" style="color: #003876;">
-                <i class="bi bi-file-earmark-text-fill me-2"></i>2. Categoría de Residencia Solicitada
-            </h6>
-
-            <div class="row g-3 mb-4">
-                <div class="col-12">
-                    <label class="form-label small fw-semibold text-muted">TIPO DE TRÁMITE</label>
-                    <select class="form-select" @bind="solicitud.Titulo">
-                        <option value="Residencia Temporal por Trabajo (RT-3)">Residencia Temporal por Trabajo (RT-3)</option>
-                        <option value="Renovación de Residencia Temporal">Renovación de Residencia Temporal</option>
-                        <option value="Residencia Definitiva (RD-1)">Residencia Definitiva (RD-1)</option>
-                        <option value="Permiso de Reingreso Múltiple">Permiso de Reingreso Múltiple</option>
-                        <option value="Duplicado de Carnet por Deterioro">Duplicado de Carnet por Deterioro</option>
-                    </select>
-                </div>
-                <div class="col-12">
-                    <label class="form-label small fw-semibold text-muted">MOTIVO / DESCRIPCIÓN DEL EXPEDIENTE</label>
-                    <textarea class="form-control" rows="3" @bind="solicitud.Descripcion" placeholder="Describe brevemente el propósito de la solicitud..."></textarea>
-                </div>
+            <div class="step-line @(pasoActual >= 3 ? "active" : "")"></div>
+            <div class="step-indicator @(pasoActual >= 3 ? "active" : "") @(pasoActual > 3 ? "completed" : "")">
+                <span class="step-num">3</span>
+                <span class="step-text d-none d-md-inline">@(idiomaActual == "ES" ? "Condición" : "Status")</span>
             </div>
-
-            <!-- 3. Carga Obligatoria de Documentos -->
-            <h6 class="fw-bold text-dark mb-3 pb-2 border-bottom" style="color: #003876;">
-                <i class="bi bi-cloud-upload-fill me-2"></i>3. Carga de Documentación y Requisitos (PDF / Imágenes)
-            </h6>
-
-            <div class="row g-3 mb-4">
-                <div class="col-md-6">
-                    <div class="p-3 bg-light rounded-3 border h-100">
-                        <label class="form-label small fw-bold text-dark mb-1">Copia de Pasaporte (Página de Datos)</label>
-                        <InputFile OnChange="SeleccionarPasaporte" class="form-control form-control-sm" accept=".pdf,.png,.jpg,.jpeg" />
-                        @if (archivoPasaporte != null)
-                        {
-                            <small class="text-success fw-semibold mt-1 d-block"><i class="bi bi-check-circle me-1"></i>@archivoPasaporte.Name</small>
-                        }
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <div class="p-3 bg-light rounded-3 border h-100">
-                        <label class="form-label small fw-bold text-dark mb-1">Certificado de Antecedentes Penales</label>
-                        <InputFile OnChange="SeleccionarRecord" class="form-control form-control-sm" accept=".pdf,.png,.jpg,.jpeg" />
-                        @if (archivoRecord != null)
-                        {
-                            <small class="text-success fw-semibold mt-1 d-block"><i class="bi bi-check-circle me-1"></i>@archivoRecord.Name</small>
-                        }
-                    </div>
-                </div>
+            <div class="step-line @(pasoActual >= 4 ? "active" : "")"></div>
+            <div class="step-indicator @(pasoActual >= 4 ? "active" : "")">
+                <span class="step-num">4</span>
+                <span class="step-text d-none d-md-inline">@(idiomaActual == "ES" ? "Documentación" : "Documents")</span>
             </div>
-
-            <!-- Declaración Jurada y Envío -->
-            <div class="form-check mb-4">
-                <input class="form-check-input" type="checkbox" id="checkDeclaracion" @bind="aceptoDeclaracion">
-                <label class="form-check-label small text-muted" for="checkDeclaracion">
-                    Declaro bajo juramento que toda la información suministrada y los documentos adjuntos son legítimos y verídicos.
-                </label>
-            </div>
-
-            <div class="d-flex justify-content-end gap-3 pt-3 border-top">
-                <button class="btn btn-outline-secondary px-4 rounded-pill" @onclick="VolverAlPortal" disabled="@enviando">
-                    Cancelar
-                </button>
-                <button class="btn btn-primary px-5 rounded-pill fw-bold shadow"
-                        style="background-color: #003876;"
-                        @onclick="RadicarYTransferirAlPanel"
-                        disabled="@(!aceptoDeclaracion || enviando)">
-                    @if (enviando)
-                    {
-                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                        <span>Radicando Expediente...</span>
-                    }
-                    else
-                    {
-                        <i class="bi bi-send-check me-2"></i>
-                        <span>Enviar Solicitud y Entrar al Panel</span>
-                    }
-                </button>
-            </div>
-
         </div>
     </div>
+
+    @if (!string.IsNullOrWhiteSpace(mensajeError))
+    {
+        <div class="alert alert-danger py-2 px-3 small rounded-4 shadow-sm border-0 d-flex align-items-center gap-2 mb-4">
+            <i class="bi bi-exclamation-triangle-fill fs-5 text-danger"></i>
+            <div>@mensajeError</div>
+        </div>
+    }
+
+    <!-- CONTENEDOR PRINCIPAL -->
+    <div class="card border-0 shadow-sm rounded-4 p-4 p-lg-5 bg-white mb-5">
+
+        @switch (pasoActual)
+        {
+            case 1:
+                <!-- SECCIÓN 1: DATOS PERSONALES -->
+                <div class="section-fade-in">
+                    <div class="d-flex align-items-center gap-2 pb-2 mb-4 border-bottom">
+                        <i class="bi bi-person-badge fs-4" style="color: #003876;"></i>
+                        <h5 class="fw-bold mb-0" style="color: #003876;">
+                            @(idiomaActual == "ES" ? "1. INFORMACIÓN DE LA PERSONA" : "1. PERSONAL INFORMATION")
+                        </h5>
+                    </div>
+
+                    <div class="row g-4 mb-4">
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="floating-group">
+                                <label class="floating-label">@(idiomaActual == "ES" ? "Nacionalidad *" : "Nationality *")</label>
+                                <select class="form-select custom-input" @bind="solicitud.Nacionalidad">
+                                    <option value="">-- @(idiomaActual == "ES" ? "Seleccionar" : "Select") --</option>
+                                    <option value="ARG">[ARG] ARGENTINA</option>
+                                    <option value="CAN">[CAN] CANADÁ</option>
+                                    <option value="COL">[COL] COLOMBIA</option>
+                                    <option value="ESP">[ESP] ESPAÑA</option>
+                                    <option value="USA">[USA] ESTADOS UNIDOS</option>
+                                    <option value="FRA">[FRA] FRANCIA</option>
+                                    <option value="ITA">[ITA] ITALIA</option>
+                                    <option value="MEX">[MEX] MÉXICO</option>
+                                    <option value="VEN">[VEN] VENEZUELA</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="floating-group">
+                                <label class="floating-label">@(idiomaActual == "ES" ? "Categoría de Residencia *" : "Residence Category *")</label>
+                                <select class="form-select custom-input" @bind="solicitud.CategoriaResidencia">
+                                    <option value="Trabajo">Residencia Temporal de Trabajo (RT-3)</option>
+                                    <option value="Estudiante">Residencia Temporal de Estudiante (RE-1)</option>
+                                    <option value="Familiar">Residencia por Vínculo Familiar</option>
+                                    <option value="Inversionista">Residencia Inversionista / Rentista</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="floating-group">
+                                <label class="floating-label">@(idiomaActual == "ES" ? "No. Residencia Previa (Si aplica)" : "Previous Residence No. (If any)")</label>
+                                <input type="text" class="form-control custom-input" placeholder="Ej. R-098231" @bind="solicitud.NumeroResidenciaPrevia" />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <div class="floating-group">
+                                <label class="floating-label">@(idiomaActual == "ES" ? "Nombres *" : "Given Names *")</label>
+                                <input type="text" class="form-control custom-input" placeholder="Ej. Camila" @bind="solicitud.Nombres" />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <div class="floating-group">
+                                <label class="floating-label">@(idiomaActual == "ES" ? "Apellidos *" : "Surnames *")</label>
+                                <input type="text" class="form-control custom-input" placeholder="Ej. Batista Encarnación" @bind="solicitud.Apellidos" />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="floating-group">
+                                <label class="floating-label">@(idiomaActual == "ES" ? "Número de Pasaporte *" : "Passport Number *")</label>
+                                <input type="text" class="form-control custom-input" placeholder="Ej. P0948214" @bind="solicitud.NumeroPasaporte" />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="floating-group">
+                                <label class="floating-label">@(idiomaActual == "ES" ? "Fecha de Nacimiento *" : "Date of Birth *")</label>
+                                <input type="date" class="form-control custom-input" @bind="solicitud.FechaNacimiento" />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="floating-group">
+                                <label class="floating-label">@(idiomaActual == "ES" ? "Sexo Correspondiente *" : "Gender *")</label>
+                                <div class="toggle-pill-container custom-input p-1">
+                                    <button type="button"
+                                            class="toggle-pill-btn @(solicitud.Sexo == "M" ? "active" : "")"
+                                            @onclick='() => solicitud.Sexo = "M"'>
+                                        <i class="bi bi-gender-male me-1"></i> @(idiomaActual == "ES" ? "Masculino" : "Male")
+                                    </button>
+                                    <button type="button"
+                                            class="toggle-pill-btn @(solicitud.Sexo == "F" ? "active" : "")"
+                                            @onclick='() => solicitud.Sexo = "F"'>
+                                        <i class="bi bi-gender-female me-1"></i> @(idiomaActual == "ES" ? "Femenino" : "Female")
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end pt-3 border-top">
+                        <button type="button" class="btn text-white rounded-pill px-5 py-2 fw-semibold shadow-sm"
+                                style="background-color: #003876;"
+                                @onclick="IrAPaso2">
+                            @(idiomaActual == "ES" ? "Siguiente: Domicilio y Contacto" : "Next: Address & Contact")
+                            <i class="bi bi-arrow-right ms-2"></i>
+                        </button>
+                    </div>
+                </div>
+                break;
+
+            case 2:
+                <!-- SECCIÓN 2: DOMICILIO DECLARADO -->
+                <div class="section-fade-in">
+                    <div class="d-flex align-items-center gap-2 pb-2 mb-4 border-bottom">
+                        <i class="bi bi-geo-alt-fill fs-4" style="color: #003876;"></i>
+                        <h5 class="fw-bold mb-0" style="color: #003876;">
+                            @(idiomaActual == "ES" ? "2. DOMICILIO DECLARADO Y CONTACTO" : "2. RESIDENCE ADDRESS & CONTACT")
+                        </h5>
+                    </div>
+
+                    <div class="row g-4 mb-4">
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="floating-group">
+                                <label class="floating-label">@(idiomaActual == "ES" ? "Correo Electrónico *" : "Email Address *")</label>
+                                <input type="email" class="form-control custom-input" placeholder="correo@ejemplo.com" @bind="solicitud.Correo" />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="floating-group">
+                                <label class="floating-label">@(idiomaActual == "ES" ? "Teléfono Fijo" : "Phone Number")</label>
+                                <input type="tel" class="form-control custom-input" placeholder="809-000-0000" @bind="solicitud.Telefono" />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="floating-group">
+                                <label class="floating-label">@(idiomaActual == "ES" ? "Celular / Móvil *" : "Mobile Phone *")</label>
+                                <input type="tel" class="form-control custom-input" placeholder="829-000-0000" @bind="solicitud.Celular" />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="floating-group">
+                                <label class="floating-label">@(idiomaActual == "ES" ? "Provincia *" : "Province *")</label>
+                                <select class="form-select custom-input" @onchange="OnProvinciaChanged">
+                                    <option value="">-- @(idiomaActual == "ES" ? "Seleccionar" : "Select") --</option>
+                                    @foreach (var prov in ProvinciasDisponibles)
+                                    {
+                                        <option value="@prov" selected="@(solicitud.Provincia == prov)">@prov</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="floating-group">
+                                <label class="floating-label">@(idiomaActual == "ES" ? "Municipio *" : "Municipality *")</label>
+                                <select class="form-select custom-input" @bind="solicitud.Municipio" disabled="@(MunicipiosDisponibles.Count == 0)">
+                                    <option value="">-- @(idiomaActual == "ES" ? "Seleccionar" : "Select") --</option>
+                                    @foreach (var mun in MunicipiosDisponibles)
+                                    {
+                                        <option value="@mun">@mun</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="floating-group">
+                                <label class="floating-label">@(idiomaActual == "ES" ? "Sector *" : "Sector *")</label>
+                                <input type="text" class="form-control custom-input" placeholder="Ej. Piantini, Bella Vista..." @bind="solicitud.Sector" />
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="floating-group">
+                                <label class="floating-label">@(idiomaActual == "ES" ? "Calle, Edificio y Número *" : "Street & Building Number *")</label>
+                                <input type="text" class="form-control custom-input" placeholder="Ej. Av. Central #45, Edif. Torre Real, Apto 4B" @bind="solicitud.Calle" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between pt-3 border-top">
+                        <button type="button" class="btn btn-outline-secondary rounded-pill px-4 py-2 fw-semibold" @onclick="() => pasoActual = 1">
+                            <i class="bi bi-arrow-left me-1"></i> @(idiomaActual == "ES" ? "Anterior" : "Back")
+                        </button>
+                        <button type="button" class="btn text-white rounded-pill px-5 py-2 fw-semibold shadow-sm"
+                                style="background-color: #003876;"
+                                @onclick="IrAPaso3">
+                            @(idiomaActual == "ES" ? "Siguiente: Condición Migratoria" : "Next: Immigration Status")
+                            <i class="bi bi-arrow-right ms-2"></i>
+                        </button>
+                    </div>
+                </div>
+                break;
+
+            case 3:
+                <!-- SECCIÓN 3: CONDICIÓN MIGRATORIA -->
+                <div class="section-fade-in">
+                    <div class="d-flex align-items-center gap-2 pb-2 mb-4 border-bottom">
+                        <i class="bi bi-question-diamond-fill fs-4" style="color: #003876;"></i>
+                        <h5 class="fw-bold mb-0" style="color: #003876;">
+                            @(idiomaActual == "ES" ? "3. CONDICIÓN MIGRATORIA Y ANTECEDENTES" : "3. IMMIGRATION STATUS")
+                        </h5>
+                    </div>
+
+                    <div class="row g-4 mb-4">
+                        <div class="col-12 col-lg-6">
+                            <div class="p-3 rounded-4 border bg-light d-flex align-items-center justify-content-between gap-3">
+                                <span class="small fw-semibold text-dark">
+                                    @(idiomaActual == "ES" ? "¿Es actualmente extranjero residente en el país?" : "Are you currently a foreign resident in the country?")
+                                </span>
+                                <div class="toggle-pill-container" style="width: 150px;">
+                                    <button type="button" class="toggle-pill-btn @(solicitud.EsResidenteActual ? "active" : "")"
+                                            @onclick="() => solicitud.EsResidenteActual = true">
+                                        @(idiomaActual == "ES" ? "Sí" : "Yes")
+                                    </button>
+                                    <button type="button" class="toggle-pill-btn @(!solicitud.EsResidenteActual ? "active" : "")"
+                                            @onclick="() => solicitud.EsResidenteActual = false">
+                                        No
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6">
+                            <div class="p-3 rounded-4 border bg-light d-flex align-items-center justify-content-between gap-3">
+                                <span class="small fw-semibold text-dark">
+                                    @(idiomaActual == "ES" ? "¿Tiene nacionalidad distinta a su lugar de origen?" : "Do you hold nationality other than your birthplace?")
+                                </span>
+                                <div class="toggle-pill-container" style="width: 150px;">
+                                    <button type="button" class="toggle-pill-btn @(solicitud.PoseeDobleNacionalidad ? "active" : "")"
+                                            @onclick="() => solicitud.PoseeDobleNacionalidad = true">
+                                        @(idiomaActual == "ES" ? "Sí" : "Yes")
+                                    </button>
+                                    <button type="button" class="toggle-pill-btn @(!solicitud.PoseeDobleNacionalidad ? "active" : "")"
+                                            @onclick="() => solicitud.PoseeDobleNacionalidad = false">
+                                        No
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between pt-3 border-top">
+                        <button type="button" class="btn btn-outline-secondary rounded-pill px-4 py-2 fw-semibold" @onclick="() => pasoActual = 2">
+                            <i class="bi bi-arrow-left me-1"></i> @(idiomaActual == "ES" ? "Anterior" : "Back")
+                        </button>
+                        <button type="button" class="btn text-white rounded-pill px-5 py-2 fw-semibold shadow-sm"
+                                style="background-color: #003876;"
+                                @onclick="() => pasoActual = 4">
+                            @(idiomaActual == "ES" ? "Siguiente: Carga de Documentos" : "Next: Upload Documents")
+                            <i class="bi bi-arrow-right ms-2"></i>
+                        </button>
+                    </div>
+                </div>
+                break;
+
+            case 4:
+                <!-- SECCIÓN 4: DEPÓSITO Y CARGA DOCUMENTAL -->
+                <div class="section-fade-in">
+                    <div class="d-flex align-items-center gap-2 pb-2 mb-2 border-bottom">
+                        <i class="bi bi-folder-check fs-4" style="color: #003876;"></i>
+                        <h5 class="fw-bold mb-0" style="color: #003876;">
+                            @(idiomaActual == "ES" ? "4. DEPÓSITO DE DOCUMENTOS REQUERIDOS" : "4. REQUIRED DOCUMENTS UPLOAD")
+                        </h5>
+                    </div>
+                    <p class="text-muted small mb-4">
+                        @(idiomaActual == "ES"
+                                        ? "Adjunte archivos legibles en formato PDF, PNG o JPG (máximo 5 MB por documento). Estos recaudos serán evaluados por el departamento legal en el visor de auditoría."
+                                        : "Attach legible files in PDF, PNG or JPG format (maximum 5 MB per document). These will be audited by the legal department in the viewer.")
+            </p>
+
+                    <div class="row g-4 mb-4">
+                        <!-- Doc 1: Pasaporte -->
+                        <div class="col-12 col-md-6">
+                            <div class="document-upload-card @(!string.IsNullOrEmpty(docPasaporteNombre) ? "has-file" : "")">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="doc-icon-box">
+                                        <i class="bi bi-person-vcard fs-3 text-primary"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="fw-bold mb-1">@(idiomaActual == "ES" ? "Página Biográfica del Pasaporte *" : "Passport Biographical Page *")</h6>
+                                        <small class="text-muted d-block mb-2">Vigencia mínima exigida de 6 meses.</small>
+
+                                @if (string.IsNullOrEmpty(docPasaporteNombre))
+                                        {
+                                            <label class="btn btn-sm btn-outline-primary rounded-pill px-3 cursor-pointer">
+                                                <i class="bi bi-upload me-1"></i> Seleccionar Archivo
+                                                <InputFile OnChange="@(e => CargarArchivo(e, "Pasaporte"))" class="d-none" accept=".pdf,.jpg,.jpeg,.png" />
+                                            </label>
+                                        }
+                                        else
+                                        {
+                                            <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-light border">
+                                                <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 80%;">
+                                                    <i class="bi bi-file-earmark-check-fill text-success"></i>
+                                                    <span class="small fw-semibold text-truncate">@docPasaporteNombre</span>
+                                                </div>
+                                                <button type="button" class="btn btn-sm text-danger p-0" @onclick='() => { docPasaporteNombre = ""; docPasaporteData = ""; }'>
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Doc 2: Certificado de Antecedentes -->
+                        <div class="col-12 col-md-6">
+                            <div class="document-upload-card @(!string.IsNullOrEmpty(docAntecedentesNombre) ? "has-file" : "")">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="doc-icon-box">
+                                        <i class="bi bi-shield-check fs-3 text-primary"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="fw-bold mb-1">@(idiomaActual == "ES" ? "Certificado de No Antecedentes *" : "Police Clearance Certificate *")</h6>
+                                        <small class="text-muted d-block mb-2">Legalizado o apostillado oficialmente.</small>
+
+                                        @if (string.IsNullOrEmpty(docAntecedentesNombre))
+                                        {
+                                            <label class="btn btn-sm btn-outline-primary rounded-pill px-3 cursor-pointer">
+                                                <i class="bi bi-upload me-1"></i> Seleccionar Archivo
+                                                <InputFile OnChange="@(e => CargarArchivo(e, "Antecedentes"))" class="d-none" accept=".pdf,.jpg,.jpeg,.png" />
+                                            </label>
+                                        }
+                                        else
+                                        {
+                                            <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-light border">
+                                                <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 80%;">
+                                                    <i class="bi bi-file-earmark-check-fill text-success"></i>
+                                                    <span class="small fw-semibold text-truncate">@docAntecedentesNombre</span>
+                                                </div>
+                                                <button type="button" class="btn btn-sm text-danger p-0" @onclick='() => { docAntecedentesNombre = ""; docAntecedentesData = ""; }'>
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Doc 3: Fotografía Frontal 2x2 -->
+                        <div class="col-12 col-md-6">
+                            <div class="document-upload-card @(!string.IsNullOrEmpty(docFotoNombre) ? "has-file" : "")">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="doc-icon-box">
+                                        <i class="bi bi-person-bounding-box fs-3 text-primary"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="fw-bold mb-1">@(idiomaActual == "ES" ? "Fotografía Tipo Carnet (2x2) *" : "Passport Photo (2x2) *")</h6>
+                                        <small class="text-muted d-block mb-2">Fondo blanco, vista frontal sin accesorios.</small>
+
+                                        @if (string.IsNullOrEmpty(docFotoNombre))
+                                        {
+                                            <label class="btn btn-sm btn-outline-primary rounded-pill px-3 cursor-pointer">
+                                                <i class="bi bi-upload me-1"></i> Seleccionar Foto
+                                                <InputFile OnChange="@(e => CargarArchivo(e, "Foto"))" class="d-none" accept=".pdf,.jpg,.jpeg,.png" />
+                                            </label>
+                                        }
+                                        else
+                                        {
+                                            <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-light border">
+                                                <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 80%;">
+                                                    <i class="bi bi-image text-success"></i>
+                                                    <span class="small fw-semibold text-truncate">@docFotoNombre</span>
+                                                </div>
+                                                <button type="button" class="btn btn-sm text-danger p-0" @onclick='() => { docFotoNombre = ""; docFotoData = ""; }'>
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Doc 4: Soporte de Actividad -->
+                        <div class="col-12 col-md-6">
+                            <div class="document-upload-card @(!string.IsNullOrEmpty(docSoporteNombre) ? "has-file" : "")">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="doc-icon-box">
+                                        <i class="bi bi-file-earmark-text fs-3 text-primary"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="fw-bold mb-1">@(idiomaActual == "ES" ? "Soporte de Respaldo *" : "Supporting Document *")</h6>
+                                        <small class="text-muted d-block mb-2">Contrato laboral registrado o matrícula.</small>
+
+                                        @if (string.IsNullOrEmpty(docSoporteNombre))
+                                        {
+                                            <label class="btn btn-sm btn-outline-primary rounded-pill px-3 cursor-pointer">
+                                                <i class="bi bi-upload me-1"></i> Seleccionar Archivo
+                                                <InputFile OnChange="@(e => CargarArchivo(e, "Soporte"))" class="d-none" accept=".pdf,.jpg,.jpeg,.png" />
+                                            </label>
+                                        }
+                                        else
+                                        {
+                                            <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-light border">
+                                                <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 80%;">
+                                                    <i class="bi bi-file-earmark-check-fill text-success"></i>
+                                                    <span class="small fw-semibold text-truncate">@docSoporteNombre</span>
+                                                </div>
+                                                <button type="button" class="btn btn-sm text-danger p-0" @onclick='() => { docSoporteNombre = ""; docSoporteData = ""; }'>
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between pt-3 border-top">
+                        <button type="button" class="btn btn-outline-secondary rounded-pill px-4 py-2 fw-semibold" @onclick="() => pasoActual = 3">
+                            <i class="bi bi-arrow-left me-1"></i> @(idiomaActual == "ES" ? "Anterior" : "Back")
+                        </button>
+
+                        <button type="button" class="btn btn-success rounded-pill px-5 py-3 fw-bold shadow-sm"
+                                @onclick="FinalizarYRadicarExpediente" disabled="@guardando">
+                            @if (guardando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                <span>@(idiomaActual == "ES" ? "Radicando expediente..." : "Submitting file...")</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-send-check me-1"></i>
+                                <span>@(idiomaActual == "ES" ? "Finalizar y Radicar Solicitud" : "Submit Application")</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+                break;
+        }
+
+    </div>
+
 </div>
 
 <style>
-    .radicacion-externa-container {
-        min-height: 100vh;
+    .section-fade-in {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .step-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        opacity: 0.45;
+        font-weight: 500;
+        z-index: 2;
+    }
+
+        .step-indicator.active {
+            opacity: 1;
+            font-weight: 600;
+            color: #003876;
+        }
+
+        .step-indicator.completed {
+            opacity: 0.9;
+            color: #198754;
+        }
+
+    .step-num {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: #e2e8f0;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+
+    .step-indicator.active .step-num {
+        background-color: #003876;
+        color: #ffffff;
+    }
+
+    .step-indicator.completed .step-num {
+        background-color: #198754;
+        color: #ffffff;
+    }
+
+    .step-line {
+        flex-grow: 1;
+        height: 2px;
+        background-color: #e2e8f0;
+        margin: auto 0.75rem;
+    }
+
+        .step-line.active {
+            background-color: #003876;
+        }
+
+    .floating-group {
+        position: relative;
+    }
+
+    .floating-label {
+        position: absolute;
+        top: -11px;
+        left: 14px;
+        background-color: #ffffff;
+        padding: 0 6px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        color: #003876;
+        z-index: 5;
+        border-radius: 4px;
+    }
+
+    .custom-input {
+        height: 52px;
+        border-radius: 12px;
+        border: 1.5px solid #cbd5e1;
+        padding: 0.65rem 1rem;
+        font-size: 0.92rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+        .custom-input:focus {
+            border-color: #003876;
+            box-shadow: 0 0 0 0.25rem rgba(0, 56, 118, 0.12);
+        }
+
+    .toggle-pill-container {
+        display: flex;
         background-color: #f1f5f9;
-        font-family: 'Poppins', sans-serif;
+        border-radius: 50rem;
+        border: 1px solid #cbd5e1;
+        position: relative;
+        padding: 3px;
+        height: 48px;
+    }
+
+    .toggle-pill-btn {
+        flex: 1;
+        border: none;
+        background: transparent;
+        border-radius: 50rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #64748b;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .toggle-pill-btn.active {
+            background-color: #003876;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 56, 118, 0.25);
+        }
+
+    .document-upload-card {
+        border: 1.5px dashed #cbd5e1;
+        border-radius: 16px;
+        padding: 1.25rem;
+        background-color: #f8fafc;
+        transition: all 0.2s ease;
+    }
+
+        .document-upload-card:hover {
+            border-color: #003876;
+        }
+
+        .document-upload-card.has-file {
+            border-style: solid;
+            border-color: #198754;
+            background-color: #f0fdf4;
+        }
+
+    .doc-icon-box {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background-color: #e0f2fe;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .cursor-pointer {
+        cursor: pointer;
     }
 </style>
 
 @code {
-    private bool enviando = false;
+    private int pasoActual = 1;
+    private string idiomaActual = "ES";
     private string mensajeError = string.Empty;
-    private bool aceptoDeclaracion = false;
+    private bool guardando = false;
 
-    private CrearSolicitudDto solicitud = new()
+    private string docPasaporteNombre = string.Empty;
+    private string docPasaporteData = string.Empty;
+    private string docAntecedentesNombre = string.Empty;
+    private string docAntecedentesData = string.Empty;
+    private string docFotoNombre = string.Empty;
+    private string docFotoData = string.Empty;
+    private string docSoporteNombre = string.Empty;
+    private string docSoporteData = string.Empty;
+
+    private SolicitudModelo solicitud = new();
+
+    private List<string> ProvinciasDisponibles = new()
     {
-        Titulo = "Residencia Temporal por Trabajo (RT-3)"
+        "DISTRITO NACIONAL", "LA ALTAGRACIA", "LA ROMANA", "LA VEGA",
+        "SANTIAGO", "PUERTO PLATA", "SAN CRISTÓBAL", "DUARTE", "SAMANÁ"
     };
 
-    private string numeroPasaporte = "";
-    private string paisOrigen = "";
-    private string telefonoContacto = "";
-    private string direccionResidencia = "";
-
-    private IBrowserFile? archivoPasaporte;
-    private IBrowserFile? archivoRecord;
+    private List<string> MunicipiosDisponibles = new();
 
     protected override async Task OnInitializedAsync()
     {
-        var nombreGuardado = await JS.InvokeAsync<string>("sessionStorage.getItem", "nombreUsuario");
-        solicitud.Solicitante = !string.IsNullOrWhiteSpace(nombreGuardado) ? nombreGuardado : "";
-    }
-
-    private void SeleccionarPasaporte(InputFileChangeEventArgs e) => archivoPasaporte = e.File;
-    private void SeleccionarRecord(InputFileChangeEventArgs e) => archivoRecord = e.File;
-
-    private async Task RadicarYTransferirAlPanel()
-    {
-        if (string.IsNullOrWhiteSpace(solicitud.Solicitante))
-        {
-            mensajeError = "El nombre del solicitante es requerido.";
-            return;
-        }
-
-        enviando = true;
-        mensajeError = string.Empty;
-
         try
         {
-            // 1. Radicar Solicitud Oficial
-            var respuesta = await Http.PostAsJsonAsync("api/solicitud/radicar", solicitud);
-            if (respuesta.IsSuccessStatusCode)
+            var correo = await JS.InvokeAsync<string>("localStorage.getItem", "correoUsuario");
+            var nombre = await JS.InvokeAsync<string>("localStorage.getItem", "nombreUsuario");
+
+            if (!string.IsNullOrWhiteSpace(correo)) solicitud.Correo = correo;
+            if (!string.IsNullOrWhiteSpace(nombre)) solicitud.Nombres = nombre;
+        }
+        catch { }
+    }
+
+    private void IrAPaso2()
+    {
+        mensajeError = string.Empty;
+        if (string.IsNullOrWhiteSpace(solicitud.Nacionalidad) ||
+            string.IsNullOrWhiteSpace(solicitud.Nombres) ||
+            string.IsNullOrWhiteSpace(solicitud.Apellidos) ||
+            string.IsNullOrWhiteSpace(solicitud.NumeroPasaporte))
+        {
+            mensajeError = idiomaActual == "ES"
+                ? "Por favor complete la nacionalidad, nombres, apellidos y número de pasaporte antes de continuar."
+                : "Please complete nationality, given names, surnames, and passport number before continuing.";
+            return;
+        }
+        pasoActual = 2;
+    }
+
+    private void IrAPaso3()
+    {
+        mensajeError = string.Empty;
+        if (string.IsNullOrWhiteSpace(solicitud.Correo) ||
+            string.IsNullOrWhiteSpace(solicitud.Celular) ||
+            string.IsNullOrWhiteSpace(solicitud.Provincia))
+        {
+            mensajeError = idiomaActual == "ES"
+                ? "Por favor complete el correo, celular y provincia de residencia."
+                : "Please complete email, mobile phone, and residence province.";
+            return;
+        }
+        pasoActual = 3;
+    }
+
+    private void OnProvinciaChanged(ChangeEventArgs e)
+    {
+        solicitud.Provincia = e.Value?.ToString() ?? "";
+        MunicipiosDisponibles.Clear();
+
+        if (solicitud.Provincia == "LA ALTAGRACIA")
+        {
+            MunicipiosDisponibles.AddRange(new[] { "HIGÜEY", "SAN RAFAEL DEL YUMA", "PUNTA CANA / BÁVARO" });
+        }
+        else if (solicitud.Provincia == "DISTRITO NACIONAL")
+        {
+            MunicipiosDisponibles.AddRange(new[] { "SANTO DOMINGO DE GUZMÁN" });
+        }
+        else if (solicitud.Provincia == "SANTIAGO")
+        {
+            MunicipiosDisponibles.AddRange(new[] { "SANTIAGO DE LOS CABALLEROS", "VILLA BISONÓ", "TAMBORIL" });
+        }
+        else
+        {
+            MunicipiosDisponibles.Add("MUNICIPIO CABECERA");
+        }
+    }
+
+    private async Task CargarArchivo(InputFileChangeEventArgs e, string tipo)
+    {
+        var archivo = e.File;
+        if (archivo != null)
+        {
+            try
             {
-                var resultado = await respuesta.Content.ReadFromJsonAsync<RadicarRespuestaDto>();
-                int solicitudId = resultado?.Id ?? 0;
+                using var stream = archivo.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
 
-                // 2. Subir Pasaporte si fue adjuntado
-                if (solicitudId > 0 && archivoPasaporte != null)
+                var base64 = Convert.ToBase64String(ms.ToArray());
+                var dataUrl = $"data:{archivo.ContentType};base64,{base64}";
+                var esImg = archivo.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+
+                switch (tipo)
                 {
-                    await SubirArchivo(solicitudId, "Copia de Pasaporte", archivoPasaporte);
+                    case "Pasaporte":
+                        docPasaporteNombre = archivo.Name;
+                        docPasaporteData = dataUrl;
+                        StateService.DocPasaporteNombre = archivo.Name;
+                        StateService.DocPasaporteData = dataUrl;
+                        StateService.RegistrarDocumento("Página Biográfica del Pasaporte", archivo.Name, dataUrl, esImg, "bi-person-vcard");
+                        break;
+                    case "Foto":
+                        docFotoNombre = archivo.Name;
+                        docFotoData = dataUrl;
+                        StateService.DocFotoNombre = archivo.Name;
+                        StateService.DocFotoData = dataUrl;
+                        StateService.RegistrarDocumento("Fotografía Frontal 2x2", archivo.Name, dataUrl, esImg, "bi-person-bounding-box");
+                        break;
+                    case "Antecedentes":
+                        docAntecedentesNombre = archivo.Name;
+                        docAntecedentesData = dataUrl;
+                        StateService.DocAntecedentesNombre = archivo.Name;
+                        StateService.DocAntecedentesData = dataUrl;
+                        StateService.RegistrarDocumento("Certificado de No Antecedentes Penales", archivo.Name, dataUrl, esImg, "bi-shield-check");
+                        break;
+                    case "Soporte":
+                        docSoporteNombre = archivo.Name;
+                        docSoporteData = dataUrl;
+                        StateService.DocSoporteNombre = archivo.Name;
+                        StateService.DocSoporteData = dataUrl;
+                        StateService.RegistrarDocumento("Soporte de Actividad (Contrato Laboral)", archivo.Name, dataUrl, esImg, "bi-file-earmark-text");
+                        break;
                 }
-
-                // 3. Subir Récord Policial si fue adjuntado
-                if (solicitudId > 0 && archivoRecord != null)
-                {
-                    await SubirArchivo(solicitudId, "Récord Policial / Antecedentes", archivoRecord);
-                }
-
-                // 4. Redirigir al panel oficial del residente (con barra lateral y línea de tiempo activa)
-                Navigation.NavigateTo("mis-solicitudes");
             }
-            else
+            catch (Exception ex)
             {
-                mensajeError = "No se pudo procesar la radicación de la solicitud.";
+                mensajeError = $"Error al procesar '{archivo.Name}': {ex.Message}";
             }
+        }
+    }
+
+    private async Task FinalizarYRadicarExpediente()
+    {
+        mensajeError = string.Empty;
+        guardando = true;
+        try
+        {
+            bool sinDocumentos = string.IsNullOrEmpty(docPasaporteNombre) && string.IsNullOrEmpty(docFotoNombre) && string.IsNullOrEmpty(docAntecedentesNombre) && string.IsNullOrEmpty(docSoporteNombre);
+
+            StateService.SolicitudIniciada = true;
+            StateService.Titular = $"{solicitud.Nombres} {solicitud.Apellidos}";
+            StateService.Categoria = solicitud.CategoriaResidencia;
+            StateService.Pasaporte = solicitud.NumeroPasaporte;
+            StateService.Correo = solicitud.Correo;
+            StateService.Nacionalidad = solicitud.Nacionalidad;
+            StateService.EstadoGeneral = sinDocumentos ? "Sin Documentación" : "Pendiente";
+
+            StateService.DocPasaporteNombre = docPasaporteNombre;
+            StateService.DocPasaporteData = docPasaporteData;
+            StateService.DocFotoNombre = docFotoNombre;
+            StateService.DocFotoData = docFotoData;
+            StateService.DocAntecedentesNombre = docAntecedentesNombre;
+            StateService.DocAntecedentesData = docAntecedentesData;
+            StateService.DocSoporteNombre = docSoporteNombre;
+            StateService.DocSoporteData = docSoporteData;
+
+            int nuevoId = StateService.ListaExpedientes.Count + 1;
+            var nuevoExpediente = new ExpedienteDto
+            {
+                Id = nuevoId,
+                Radicado = $"#{nuevoId:D3}",
+                Titular = StateService.Titular,
+                Categoria = $"Residencia ({StateService.Categoria})",
+                Pasaporte = StateService.Pasaporte,
+                Nacionalidad = StateService.Nacionalidad,
+                Correo = StateService.Correo,
+                FechaRegistro = DateTime.Now.ToString("dd/MM/yyyy"),
+                Estado = StateService.EstadoGeneral,
+                DocPasaporteNombre = docPasaporteNombre,
+                DocPasaporteData = docPasaporteData,
+                DocFotoNombre = docFotoNombre,
+                DocFotoData = docFotoData,
+                DocAntecedentesNombre = docAntecedentesNombre,
+                DocAntecedentesData = docAntecedentesData,
+                DocSoporteNombre = docSoporteNombre,
+                DocSoporteData = docSoporteData
+            };
+
+            StateService.RegistrarExpediente(nuevoExpediente);
+
+            await JS.InvokeVoidAsync("localStorage.setItem", "solicitudIniciada", "true");
+            await JS.InvokeVoidAsync("localStorage.setItem", "expediente_titular", StateService.Titular);
+            await JS.InvokeVoidAsync("localStorage.setItem", "expediente_categoria", StateService.Categoria);
+            await JS.InvokeVoidAsync("localStorage.setItem", "expediente_pasaporte", StateService.Pasaporte);
+            await JS.InvokeVoidAsync("localStorage.setItem", "expediente_correo", StateService.Correo);
+            await JS.InvokeVoidAsync("localStorage.setItem", "expediente_nacionalidad", StateService.Nacionalidad);
+            await JS.InvokeVoidAsync("localStorage.setItem", "expediente_estado", StateService.EstadoGeneral);
+
+            await Task.Delay(500);
+            Navigation.NavigateTo("/mis-solicitudes");
         }
         catch (Exception ex)
         {
-            mensajeError = $"Error: {ex.Message}";
+            mensajeError = $"Error al radicar solicitud: {ex.Message}";
         }
         finally
         {
-            enviando = false;
+            guardando = false;
         }
     }
 
-    private async Task SubirArchivo(int solicitudId, string tipo, IBrowserFile archivo)
+    public class SolicitudModelo
     {
-        try
-        {
-            using var content = new MultipartFormDataContent();
-            content.Add(new StringContent(solicitudId.ToString()), "solicitudId");
-            content.Add(new StringContent(tipo), "tipoDocumento");
-
-            var fileContent = new StreamContent(archivo.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024));
-            fileContent.Headers.ContentType = new MediaTypeHeaderValue(archivo.ContentType);
-            content.Add(fileContent, "archivo", archivo.Name);
-
-            await Http.PostAsync("api/solicitud/subir-documento", content);
-        }
-        catch
-        {
-            // Se puede reintentar en el seguimiento
-        }
-    }
-
-    private void VolverAlPortal() => Navigation.NavigateTo("portal-residente");
-
-    public class RadicarRespuestaDto
-    {
-        public string Mensaje { get; set; } = string.Empty;
-        public int Id { get; set; }
+        public string Nacionalidad { get; set; } = string.Empty;
+        public string CategoriaResidencia { get; set; } = "Trabajo";
+        public string NumeroResidenciaPrevia { get; set; } = string.Empty;
+        public string Nombres { get; set; } = string.Empty;
+        public string Apellidos { get; set; } = string.Empty;
+        public string NumeroPasaporte { get; set; } = string.Empty;
+        public DateTime? FechaNacimiento { get; set; } = new DateTime(1996, 1, 1);
+        public string Sexo { get; set; } = "F";
+        public string Correo { get; set; } = string.Empty;
+        public string Telefono { get; set; } = string.Empty;
+        public string Celular { get; set; } = string.Empty;
+        public string Provincia { get; set; } = string.Empty;
+        public string Municipio { get; set; } = string.Empty;
+        public string Sector { get; set; } = string.Empty;
+        public string Calle { get; set; } = string.Empty;
+        public bool EsResidenteActual { get; set; } = false;
+        public bool PoseeDobleNacionalidad { get; set; } = false;
     }
 }
