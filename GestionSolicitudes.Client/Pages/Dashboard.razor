@@ -1,44 +1,78 @@
 ﻿@page "/dashboard"
 @page "/home"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Administrador")]
 @using System.Text.Json
+@using System.Net.Http.Json
 @using GestionSolicitudes.Client.Layout
 @inject HttpClient Http
-@inject IJSRuntime JS
-@inject GestionSolicitudes.Client.Services.ExpedienteStateService StateService
-<PageTitle>HOME - DGM</PageTitle>
+@inject GestionSolicitudes.Client.Services.IdiomaService Idioma
+@implements IDisposable
 
-<div class="portal-externo-container w-100" style="background-color: #f8fafc; font-family: 'Poppins', sans-serif;">
+<PageTitle>@(Idioma.EsEspanol ? "Panel de Control Institucional | DGM" : "Institutional Dashboard | DGM")</PageTitle>
 
-    <div class="container-fluid px-2 px-md-3 py-2">
+<div class="portal-externo-container w-100" style="position: relative; background-color: #f8fafc; font-family: 'Poppins', sans-serif; min-height: 90vh;">
+
+    <!-- ========================================================= -->
+    <!-- OVERLAY GENERAL DE CARGA INICIAL -->
+    <!-- ========================================================= -->
+    @if (cargandoGlobal)
+    {
+        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1050;
+                            display: flex; justify-content: center; align-items: flex-start;
+                            background-color: rgba(248, 250, 252, 0.3);
+                            backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);">
+            <div class="text-center bg-white rounded-4 shadow-sm px-4 py-3 border"
+                 style="position: sticky; top: 32vh; border-color: rgba(0, 56, 118, 0.1) !important;">
+                <div class="spinner-border text-primary" role="status"
+                     style="width: 2.2rem; height: 2.2rem; color: #003876 !important; border-width: 0.25rem;">
+                    <span class="visually-hidden">@(Idioma.EsEspanol ? "Cargando..." : "Loading...")</span>
+                </div>
+                <div class="fw-bold mt-2" style="color: #003876; font-size: 0.9rem;">
+                    @(Idioma.EsEspanol ? "Cargando métricas..." : "Loading metrics...")
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="container-fluid px-3 px-md-4 py-4">
 
         <!-- ========================================================= -->
-        <!-- 1. ENCABEZADO CON COMPONENTE DE FILTRO REUTILIZABLE       -->
+        <!-- 1. ENCABEZADO: TÍTULO (IZQUIERDA) + FILTRO (DERECHA) EN LA MISMA FILA -->
         <!-- ========================================================= -->
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-4 pt-2">
             <div>
-                <h4 class="fw-bold mb-1" style="color: #003876;">Panel de Control Institucional</h4>
-                <p class="small mb-0 text-dark">Resumen operativo y métricas estadísticas de trámites migratorios</p>
+                <h2 class="fw-bold mb-1" style="color: #003876; font-size: 1.85rem; line-height: 1.2;">
+                    @(Idioma.EsEspanol ? "Panel de Control Institucional" : "Institutional Dashboard")
+                </h2>
+                <p class="small mb-0 fs-6" style="color: #707070;">
+                    @(Idioma.EsEspanol
+                                        ? "Resumen operativo y métricas estadísticas de trámites migratorios"
+                                        : "Operational summary and statistical metrics of immigration procedures")
+                </p>
             </div>
 
-            <!-- COMPONENTE REUTILIZABLE DE FILTROS -->
-            <FiltroAvanzadoPanel FiltroFechaAplicado="filtroFechaAplicado"
-                                 FechaInicio="fechaInicio"
-                                 FechaFin="fechaFin"
-                                 FiltroEstado="filtroEstado"
-                                 FiltroTipoTramite="filtroTipoTramite"
-                                 OnAplicarFiltros="ManejarAplicarFiltros"
-                                 OnLimpiar="ManejarLimpiarFiltros" />
+            <div class="flex-shrink-0">
+                <FiltroAvanzadoPanel FiltroFechaAplicado="filtroFechaAplicado"
+                                     FechaInicio="fechaInicio"
+                                     FechaFin="fechaFin"
+                                     FiltroEstado="filtroEstado"
+                                     FiltroTipoTramite="filtroTipoTramite"
+                                     OnAplicarFiltros="ManejarAplicarFiltros"
+                                     OnLimpiar="ManejarLimpiarFiltros" />
+            </div>
         </div>
 
         <!-- ========================================================= -->
-        <!-- 2. TARJETAS KPI HORIZONTALES (ESTADOS OPERATIVOS)         -->
+        <!-- 2. TARJETAS KPI HORIZONTALES -->
         <!-- ========================================================= -->
-        <div class="row g-3 mb-3">
+        <div class="row g-3 mb-4">
             <div class="col-12 col-sm-6 col-xl-2">
                 <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #003876 !important;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">Total</span>
+                            <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">
+                                @(Idioma.EsEspanol ? "Total" : "Total")
+                            </span>
                             <h3 class="fw-bold mb-0 mt-1" style="color: #003876;">@totalSolicitudes</h3>
                         </div>
                         <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: rgba(0, 56, 118, 0.08); color: #003876;">
@@ -49,13 +83,15 @@
             </div>
 
             <div class="col-12 col-sm-6 col-xl-2">
-                <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #f59e0b !important;">
+                <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #FFBA00 !important;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">Pendientes</span>
-                            <h3 class="fw-bold mb-0 mt-1" style="color: #b45309;">@totalPendientes</h3>
+                            <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">
+                                @(Idioma.EsEspanol ? "Pendientes" : "Pending")
+                            </span>
+                            <h3 class="fw-bold mb-0 mt-1" style="color: #B37F00;">@totalPendientes</h3>
                         </div>
-                        <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: #fef3c7; color: #d97706;">
+                        <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: rgba(255, 186, 0, 0.16); color: #B37F00;">
                             <i class="bi bi-clock-history fs-5"></i>
                         </div>
                     </div>
@@ -63,13 +99,15 @@
             </div>
 
             <div class="col-12 col-sm-6 col-xl-2">
-                <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #0284c7 !important;">
+                <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #0087FF !important;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">En Proceso</span>
-                            <h3 class="fw-bold mb-0 mt-1" style="color: #0369a1;">@totalEnProceso</h3>
+                            <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">
+                                @(Idioma.EsEspanol ? "En Proceso" : "In Process")
+                            </span>
+                            <h3 class="fw-bold mb-0 mt-1" style="color: #0066C4;">@totalEnProceso</h3>
                         </div>
-                        <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: #e0f2fe; color: #0284c7;">
+                        <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: rgba(0, 135, 255, 0.12); color: #0087FF;">
                             <i class="bi bi-hourglass-split fs-5"></i>
                         </div>
                     </div>
@@ -77,13 +115,15 @@
             </div>
 
             <div class="col-12 col-sm-6 col-xl-2">
-                <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #10b981 !important;">
+                <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #2ECC71 !important;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">Aprobadas</span>
-                            <h3 class="fw-bold mb-0 mt-1" style="color: #047857;">@totalAprobadas</h3>
+                            <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">
+                                @(Idioma.EsEspanol ? "Aprobadas" : "Approved")
+                            </span>
+                            <h3 class="fw-bold mb-0 mt-1" style="color: #1E9E55;">@totalAprobadas</h3>
                         </div>
-                        <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: #d1fae5; color: #059669;">
+                        <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: rgba(46, 204, 113, 0.16); color: #1E9E55;">
                             <i class="bi bi-check2-circle fs-5"></i>
                         </div>
                     </div>
@@ -94,10 +134,12 @@
                 <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #EE2A24 !important;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">Rechazadas</span>
-                            <h3 class="fw-bold mb-0 mt-1" style="color: #b91c1c;">@totalRechazadas</h3>
+                            <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">
+                                @(Idioma.EsEspanol ? "Rechazadas" : "Rejected")
+                            </span>
+                            <h3 class="fw-bold mb-0 mt-1" style="color: #EE2A24;">@totalRechazadas</h3>
                         </div>
-                        <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: #fee2e2; color: #dc2626;">
+                        <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: rgba(238, 42, 36, 0.12); color: #EE2A24;">
                             <i class="bi bi-x-circle fs-5"></i>
                         </div>
                     </div>
@@ -105,13 +147,15 @@
             </div>
 
             <div class="col-12 col-sm-6 col-xl-2">
-                <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #64748b !important;">
+                <div class="card border-0 rounded-3 shadow-sm bg-white p-3 h-100" style="border-left: 4px solid #707070 !important;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">Canceladas</span>
-                            <h3 class="fw-bold mb-0 mt-1" style="color: #475569;">@totalCanceladas</h3>
+                            <span class="small fw-bold d-block text-uppercase text-dark" style="font-size: 0.7rem; letter-spacing: 0.5px;">
+                                @(Idioma.EsEspanol ? "Canceladas" : "Cancelled")
+                            </span>
+                            <h3 class="fw-bold mb-0 mt-1" style="color: #707070;">@totalCanceladas</h3>
                         </div>
-                        <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: #f1f5f9; color: #64748b;">
+                        <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: rgba(112, 112, 112, 0.12); color: #707070;">
                             <i class="bi bi-slash-circle fs-5"></i>
                         </div>
                     </div>
@@ -120,200 +164,258 @@
         </div>
 
         <!-- ========================================================= -->
-        <!-- 3. TARJETAS DE INVENTARIO POR CATEGORÍA (EFECTO CRISTAL)  -->
-        <!-- ========================================================= -->
-        <div class="row g-3 mb-4 mt-2">
-            <!-- Residencia de Estudiante -->
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="card rounded-3 shadow-xs px-3 py-2 h-100 text-center" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.18) 0%, rgba(59, 130, 246, 0.04) 100%); border: 1px solid rgba(59, 130, 246, 0.4) !important;">
-                    <span class="small fw-bold text-uppercase text-dark" style="font-size: 0.68rem; letter-spacing: 0.5px;">Residencia de Estudiante</span>
-                    <h3 class="fw-bold mb-0 mt-1" style="color: #1d4ed8;">@totalEstudiante</h3>
-                </div>
-            </div>
-
-            <!-- Residencia de Trabajo -->
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="card rounded-3 shadow-xs px-3 py-2 h-100 text-center" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(16, 185, 129, 0.04) 100%); border: 1px solid rgba(16, 185, 129, 0.4) !important;">
-                    <span class="small fw-bold text-uppercase text-dark" style="font-size: 0.68rem; letter-spacing: 0.5px;">Residencia de Trabajo</span>
-                    <h3 class="fw-bold mb-0 mt-1" style="color: #047857;">@totalTrabajo</h3>
-                </div>
-            </div>
-
-            <!-- Residencia por Familia -->
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="card rounded-3 shadow-xs px-3 py-2 h-100 text-center" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.18) 0%, rgba(168, 85, 247, 0.04) 100%); border: 1px solid rgba(168, 85, 247, 0.4) !important;">
-                    <span class="small fw-bold text-uppercase text-dark" style="font-size: 0.68rem; letter-spacing: 0.5px;">Residencia por Familia</span>
-                    <h3 class="fw-bold mb-0 mt-1" style="color: #7e22ce;">@totalFamilia</h3>
-                </div>
-            </div>
-
-            <!-- Residencia de Menores -->
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="card rounded-3 shadow-xs px-3 py-2 h-100 text-center" style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.18) 0%, rgba(234, 179, 8, 0.04) 100%); border: 1px solid rgba(234, 179, 8, 0.4) !important;">
-                    <span class="small fw-bold text-uppercase text-dark" style="font-size: 0.68rem; letter-spacing: 0.5px;">Residencia de Menores</span>
-                    <h3 class="fw-bold mb-0 mt-1" style="color: #b45309;">@totalMenores</h3>
-                </div>
-            </div>
-        </div>
-
-        <!-- ========================================================= -->
-        <!-- 4. FILA 1 DE GRÁFICAS (VOLUMEN Y DISTRIBUCIÓN POR ESTADO) -->
+        <!-- GRILLA DE 6 BLOQUES (TRES POR FILA EN ESCRITORIO) -->
         <!-- ========================================================= -->
         <div class="row g-3 mb-4">
-            <div class="col-lg-7">
+
+            <!-- 1. Tipos de Trámite -->
+            <div class="col-12 col-md-6 col-xl-4">
                 <div class="card shadow-sm border-0 rounded-3 h-100 bg-white">
                     <div class="card-header bg-transparent border-0 pt-3 px-4 pb-0">
-                        <h6 class="fw-bold mb-0" style="color: #003876;">Volumen Operativo por Estado</h6>
-                        <small class="text-dark">Distribución cuantitativa de expedientes</small>
+                        <h6 class="fw-bold mb-0" style="color: #003876;">
+                            @(Idioma.EsEspanol ? "Residencias por Tipos de Trámite" : "Residences by Procedure Types")
+                        </h6>
+                        <small class="text-dark">
+                            @(Idioma.EsEspanol ? "Distribución por modalidad migratoria" : "Distribution by migratory modality")
+                        </small>
                     </div>
-                    <div class="card-body px-4 pb-3 pt-2">
-                        <ApexChart @ref="miGrafico" TItem="DatoGrafico" Options="opcionesGraficoBarras">
-                            <ApexPointSeries TItem="DatoGrafico"
-                                             Items="datosDelGrafico"
-                                             Name="Cantidad"
-                                             SeriesType="SeriesType.Bar"
-                                             XValue="@(e => e.Estado)"
-                                             YValue="@(e => e.Cantidad)"
-                                             PointColor="@(e => ObtenerColorCristal(e.Estado))" />
-                        </ApexChart>
+                    <div class="card-body px-4 pb-4 pt-3 d-flex flex-column">
+                        @if (cargandoTipos)
+                        {
+                            <div class="d-flex justify-content-center align-items-center py-5">
+                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                <span class="text-muted small fw-semibold">@(Idioma.EsEspanol ? "Cargando datos..." : "Loading data...")</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="row g-2 flex-grow-1">
+                                <div class="col-6">
+                                    <div class="p-2 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center text-center" style="background: linear-gradient(135deg, rgba(0, 135, 255, 0.16) 0%, rgba(0, 135, 255, 0.03) 100%); border: 1px solid rgba(0, 135, 255, 0.4) !important; min-height: 78px;">
+                                        <span class="small fw-bold text-uppercase text-dark" style="font-size: 0.6rem; letter-spacing: 0.5px;">
+                                            @(Idioma.EsEspanol ? "Estudiante" : "Student")
+                                        </span>
+                                        <h5 class="fw-bold mb-0 mt-1" style="color: #0087FF;">@totalEstudiante</h5>
+                                    </div>
+                                </div>
+
+                                <div class="col-6">
+                                    <div class="p-2 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center text-center" style="background: linear-gradient(135deg, rgba(0, 56, 118, 0.16) 0%, rgba(0, 56, 118, 0.03) 100%); border: 1px solid rgba(0, 56, 118, 0.4) !important; min-height: 78px;">
+                                        <span class="small fw-bold text-uppercase text-dark" style="font-size: 0.6rem; letter-spacing: 0.5px;">
+                                            @(Idioma.EsEspanol ? "Trabajo" : "Work")
+                                        </span>
+                                        <h5 class="fw-bold mb-0 mt-1" style="color: #003876;">@totalTrabajo</h5>
+                                    </div>
+                                </div>
+
+                                <div class="col-6">
+                                    <div class="p-2 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center text-center" style="background: linear-gradient(135deg, rgba(255, 186, 0, 0.2) 0%, rgba(255, 186, 0, 0.04) 100%); border: 1px solid rgba(255, 186, 0, 0.5) !important; min-height: 78px;">
+                                        <span class="small fw-bold text-uppercase text-dark" style="font-size: 0.6rem; letter-spacing: 0.5px;">
+                                            @(Idioma.EsEspanol ? "Familia" : "Family")
+                                        </span>
+                                        <h5 class="fw-bold mb-0 mt-1" style="color: #B37F00;">@totalFamilia</h5>
+                                    </div>
+                                </div>
+
+                                <div class="col-6">
+                                    <div class="p-2 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center text-center" style="background: linear-gradient(135deg, rgba(46, 204, 113, 0.18) 0%, rgba(46, 204, 113, 0.04) 100%); border: 1px solid rgba(46, 204, 113, 0.45) !important; min-height: 78px;">
+                                        <span class="small fw-bold text-uppercase text-dark" style="font-size: 0.6rem; letter-spacing: 0.5px;">
+                                            @(Idioma.EsEspanol ? "Inversionista" : "Investor")
+                                        </span>
+                                        <h5 class="fw-bold mb-0 mt-1" style="color: #1E9E55;">@totalInversionista</h5>
+                                    </div>
+                                </div>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
 
-            <div class="col-lg-5">
+            <!-- 2. Gráfica Circular / Donut - Distribución Porcentual -->
+            <div class="col-12 col-md-6 col-xl-4">
                 <div class="card shadow-sm border-0 rounded-3 h-100 bg-white">
                     <div class="card-header bg-transparent border-0 pt-3 px-4 pb-0">
-                        <h6 class="fw-bold mb-0" style="color: #003876;">Distribución Porcentual</h6>
-                        <small class="text-dark">Proporción relativa de trámites</small>
+                        <h6 class="fw-bold mb-0" style="color: #003876;">
+                            @(Idioma.EsEspanol ? "Distribución Porcentual" : "Percentage Distribution")
+                        </h6>
+                        <small class="text-dark">
+                            @(Idioma.EsEspanol ? "Proporción relativa de trámites" : "Relative proportion of procedures")
+                        </small>
                     </div>
                     <div class="card-body px-3 pb-3 pt-2 text-center">
-                        <ApexChart @ref="miGraficoCircular" TItem="DatoGrafico" Options="opcionesGraficoCircular">
-                            <ApexPointSeries TItem="DatoGrafico"
-                                             Items="datosDelGrafico"
-                                             Name="Solicitudes"
-                                             SeriesType="SeriesType.Donut"
-                                             XValue="@(e => e.Estado)"
-                                             YValue="@(e => e.Cantidad)"
-                                             PointColor="@(e => ObtenerColorCristal(e.Estado))" />
-                        </ApexChart>
+                        @if (cargandoCircular)
+                        {
+                            <div class="d-flex justify-content-center align-items-center py-5" style="height: 250px;">
+                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                <span class="text-muted small fw-semibold">@(Idioma.EsEspanol ? "Cargando datos..." : "Loading data...")</span>
+                            </div>
+                        }
+                        else if (datosDelGrafico.Any())
+                        {
+                            <ApexChart TItem="DatoGrafico" Options="opcionesGraficoCircular">
+                                <ApexPointSeries TItem="DatoGrafico"
+                                                 Items="datosDelGrafico"
+                                                 Name="@(Idioma.EsEspanol ? "Solicitudes" : "Applications")"
+                                                 SeriesType="SeriesType.Donut"
+                                                 XValue="@(e => TraducirEtiqueta(e.Estado))"
+                                                 YValue="@(e => e.Cantidad)"
+                                                 PointColor="@(e => ObtenerColorCristal(e.Estado))" />
+                            </ApexChart>
+                        }
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- ========================================================= -->
-        <!-- 5. FILA 2 DE GRÁFICAS (INVENTARIO POR CATEGORÍA Y FRECUENTES)-->
-        <!-- ========================================================= -->
-        <div class="row g-3 mb-4">
-            <!-- Gráfica de Categorías Oficiales -->
-            <div class="col-lg-6">
+            <!-- 3. Gráfica de Barras - Volumen Operativo por Estado -->
+            <div class="col-12 col-md-6 col-xl-4">
                 <div class="card shadow-sm border-0 rounded-3 h-100 bg-white">
-                    <div class="card-header bg-transparent border-0 pt-3 px-4 pb-0 d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="fw-bold mb-0" style="color: #003876;">Inventario por Categoría Oficial</h6>
-                            <small class="text-dark">Volumen según modalidad de residencia</small>
-                        </div>
-                        <i class="bi bi-pie-chart fs-5" style="color: #003876;"></i>
+                    <div class="card-header bg-transparent border-0 pt-3 px-4 pb-0">
+                        <h6 class="fw-bold mb-0" style="color: #003876;">
+                            @(Idioma.EsEspanol ? "Volumen Operativo por Estado" : "Operational Volume by Status")
+                        </h6>
+                        <small class="text-dark">
+                            @(Idioma.EsEspanol ? "Distribución cuantitativa de expedientes" : "Quantitative distribution of files")
+                        </small>
+                    </div>
+                    <div class="card-body px-3 pb-3 pt-2">
+                        @if (cargandoBarras)
+                        {
+                            <div class="d-flex justify-content-center align-items-center py-5" style="height: 250px;">
+                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                <span class="text-muted small fw-semibold">@(Idioma.EsEspanol ? "Cargando datos..." : "Loading data...")</span>
+                            </div>
+                        }
+                        else if (datosDelGrafico.Any())
+                        {
+                            <ApexChart TItem="DatoGrafico" Options="opcionesGraficoBarras">
+                                <ApexPointSeries TItem="DatoGrafico"
+                                                 Items="datosDelGrafico"
+                                                 Name="@(Idioma.EsEspanol ? "Cantidad" : "Count")"
+                                                 SeriesType="SeriesType.Bar"
+                                                 XValue="@(e => TraducirEtiqueta(e.Estado))"
+                                                 YValue="@(e => e.Cantidad)"
+                                                 PointColor="@(e => ObtenerColorCristal(e.Estado))" />
+                            </ApexChart>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Gráfica Donut - Inventario por Categoría Oficial -->
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="card shadow-sm border-0 rounded-3 h-100 bg-white">
+                    <div class="card-header bg-transparent border-0 pt-3 px-4 pb-0">
+                        <h6 class="fw-bold mb-0" style="color: #003876;">
+                            @(Idioma.EsEspanol ? "Inventario por Categoría Oficial" : "Inventory by Official Category")
+                        </h6>
+                        <small class="text-dark">
+                            @(Idioma.EsEspanol ? "Volumen según modalidad" : "Volume by modality")
+                        </small>
                     </div>
                     <div class="card-body px-3 pb-3 pt-2 text-center">
-                        <ApexChart @ref="miGraficoCategorias" TItem="DatoGrafico" Options="opcionesGraficoCategorias">
-                            <ApexPointSeries TItem="DatoGrafico"
-                                             Items="datosCategorias"
-                                             Name="Expedientes"
-                                             SeriesType="SeriesType.Donut"
-                                             XValue="@(e => e.Estado)"
-                                             YValue="@(e => e.Cantidad)"
-                                             PointColor="@(e => ObtenerColorCristalCategoria(e.Estado))" />
-                        </ApexChart>
+                        @if (cargandoCategorias)
+                        {
+                            <div class="d-flex justify-content-center align-items-center py-5" style="height: 250px;">
+                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                <span class="text-muted small fw-semibold">@(Idioma.EsEspanol ? "Cargando datos..." : "Loading data...")</span>
+                            </div>
+                        }
+                        else if (datosCategorias.Any())
+                        {
+                            <ApexChart TItem="DatoGrafico" Options="opcionesGraficoCategorias">
+                                <ApexPointSeries TItem="DatoGrafico"
+                                                 Items="datosCategorias"
+                                                 Name="@(Idioma.EsEspanol ? "Expedientes" : "Files")"
+                                                 SeriesType="SeriesType.Donut"
+                                                 XValue="@(e => TraducirCategoria(e.Estado))"
+                                                 YValue="@(e => e.Cantidad)"
+                                                 PointColor="@(e => ObtenerColorCristalCategoria(e.Estado))" />
+                            </ApexChart>
+                        }
                     </div>
                 </div>
             </div>
 
-            <!-- Trámites más Frecuentes -->
-            <div class="col-lg-6">
+            <!-- 5. Gráfica de Barras Horizontales - Trámites más Frecuentes -->
+            <div class="col-12 col-md-6 col-xl-4">
                 <div class="card shadow-sm border-0 rounded-3 h-100 bg-white">
-                    <div class="card-header bg-transparent border-0 pt-3 px-4 pb-0 d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="fw-bold mb-0" style="color: #003876;">Trámites más Frecuentes</h6>
-                            <small class="text-dark">Demanda por tipo de servicio migratorio</small>
-                        </div>
-                        <i class="bi bi-bar-chart-steps fs-5" style="color: #003876;"></i>
+                    <div class="card-header bg-transparent border-0 pt-3 px-4 pb-0">
+                        <h6 class="fw-bold mb-0" style="color: #003876;">
+                            @(Idioma.EsEspanol ? "Trámites más Frecuentes" : "Most Frequent Procedures")
+                        </h6>
+                        <small class="text-dark">
+                            @(Idioma.EsEspanol ? "Demanda por tipo de servicio" : "Demand by service type")
+                        </small>
                     </div>
-                    <div class="card-body px-4 pb-3 pt-2">
-                        <ApexChart @ref="miGraficoTipos" TItem="DatoGrafico" Options="opcionesGraficoTipos">
-                            <ApexPointSeries TItem="DatoGrafico"
-                                             Items="datosCategorias"
-                                             Name="Solicitudes"
-                                             SeriesType="SeriesType.Bar"
-                                             XValue="@(e => e.Estado)"
-                                             YValue="@(e => e.Cantidad)"
-                                             PointColor="@(e => ObtenerColorCristalCategoria(e.Estado))" />
-                        </ApexChart>
+                    <div class="card-body px-3 pb-3 pt-2">
+                        @if (cargandoTiposGrafico)
+                        {
+                            <div class="d-flex justify-content-center align-items-center py-5" style="height: 250px;">
+                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                <span class="text-muted small fw-semibold">@(Idioma.EsEspanol ? "Cargando datos..." : "Loading data...")</span>
+                            </div>
+                        }
+                        else if (datosCategorias.Any())
+                        {
+                            <ApexChart TItem="DatoGrafico" Options="opcionesGraficoTipos">
+                                <ApexPointSeries TItem="DatoGrafico"
+                                                 Items="datosCategorias"
+                                                 Name="@(Idioma.EsEspanol ? "Solicitudes" : "Applications")"
+                                                 SeriesType="SeriesType.Bar"
+                                                 XValue="@(e => TraducirCategoria(e.Estado))"
+                                                 YValue="@(e => e.Cantidad)"
+                                                 PointColor="@(e => ObtenerColorCristalCategoria(e.Estado))" />
+                            </ApexChart>
+                        }
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- ========================================================= -->
-        <!-- 6. FILA 3 DE GRÁFICAS (EVOLUCIÓN DE REGISTRO / TENDENCIA)   -->
-        <!-- ========================================================= -->
-        <div class="row g-3 mb-3">
-            <div class="col-12">
-                <div class="card shadow-sm border-0 rounded-3 bg-white">
-                    <div class="card-header bg-transparent border-0 pt-3 px-4 pb-0 d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="fw-bold mb-0" style="color: #003876;">Evolución de Registro</h6>
-                            <small class="text-dark">Ingreso cronológico de solicitudes</small>
-                        </div>
-                        <i class="bi bi-graph-up-arrow fs-5" style="color: #003876;"></i>
+            <!-- 6. Gráfica de Área - Evolución de Registro -->
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="card shadow-sm border-0 rounded-3 h-100 bg-white">
+                    <div class="card-header bg-transparent border-0 pt-3 px-4 pb-0">
+                        <h6 class="fw-bold mb-0" style="color: #003876;">
+                            @(Idioma.EsEspanol ? "Evolución de Registro" : "Registration Trend")
+                        </h6>
+                        <small class="text-dark">
+                            @(Idioma.EsEspanol ? "Ingreso cronológico" : "Chronological entry")
+                        </small>
                     </div>
-                    <div class="card-body px-4 pb-3 pt-2">
-                        <ApexChart @ref="miGraficoTendencia" TItem="DatoGrafico" Options="opcionesGraficoTendencia">
-                            <ApexPointSeries TItem="DatoGrafico"
-                                             Items="datosTendencia"
-                                             Name="Solicitudes"
-                                             SeriesType="SeriesType.Area"
-                                             XValue="@(e => e.Estado)"
-                                             YValue="@(e => e.Cantidad)" />
-                        </ApexChart>
+                    <div class="card-body px-3 pb-3 pt-2">
+                        @if (cargandoTendencia)
+                        {
+                            <div class="d-flex justify-content-center align-items-center py-5" style="height: 250px;">
+                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                <span class="text-muted small fw-semibold">@(Idioma.EsEspanol ? "Cargando datos..." : "Loading data...")</span>
+                            </div>
+                        }
+                        else if (datosTendencia.Any())
+                        {
+                            <ApexChart TItem="DatoGrafico" Options="opcionesGraficoTendencia">
+                                <ApexPointSeries TItem="DatoGrafico"
+                                                 Items="datosTendencia"
+                                                 Name="@(Idioma.EsEspanol ? "Solicitudes" : "Applications")"
+                                                 SeriesType="SeriesType.Area"
+                                                 XValue="@(e => e.Estado)"
+                                                 YValue="@(e => e.Cantidad)" />
+                            </ApexChart>
+                        }
                     </div>
                 </div>
             </div>
+
         </div>
 
     </div>
 </div>
 
 @code {
-    public class EstadisticaItemDto
-    {
-        public string Etiqueta { get; set; } = string.Empty;
-        public int Cantidad { get; set; }
-    }
-
-    public class DashboardDto
-    {
-        public int TotalSolicitudes { get; set; }
-        public int Aprobadas { get; set; }
-        public int EnProceso { get; set; }
-        public int Pendientes { get; set; }
-        public int Canceladas { get; set; }
-        public int Rechazadas { get; set; }
-        public List<EstadisticaItemDto> PorTipoTramite { get; set; } = new();
-        public List<EstadisticaItemDto> TendenciaMensual { get; set; } = new();
-    }
-
     public class DatoGrafico
     {
-        public string? Estado { get; set; }
+        public string Estado { get; set; } = string.Empty;
         public int Cantidad { get; set; }
     }
-
-    private ApexChart<DatoGrafico>? miGrafico;
-    private ApexChart<DatoGrafico>? miGraficoCircular;
-    private ApexChart<DatoGrafico>? miGraficoCategorias;
-    private ApexChart<DatoGrafico>? miGraficoTipos;
-    private ApexChart<DatoGrafico>? miGraficoTendencia;
 
     private ApexChartOptions<DatoGrafico> opcionesGraficoBarras = new();
     private ApexChartOptions<DatoGrafico> opcionesGraficoCircular = new();
@@ -323,11 +425,19 @@
 
     private List<DatoGrafico> datosDelGrafico = new();
     private List<DatoGrafico> datosCategorias = new();
-    private List<DatoGrafico> datosPorTipo = new();
     private List<DatoGrafico> datosTendencia = new();
 
+    private bool cargandoGlobal = true;
+    private bool cargandoTipos = true;
+    private bool cargandoCircular = true;
+    private bool cargandoBarras = true;
+    private bool cargandoCategorias = true;
+    private bool cargandoTiposGrafico = true;
+    private bool cargandoTendencia = true;
+    private bool cargaInicial = true;
+
     private bool filtroFechaAplicado = false;
-    private DateTime fechaInicio = DateTime.Today;
+    private DateTime fechaInicio = DateTime.Today.AddMonths(-1);
     private DateTime fechaFin = DateTime.Today;
     private string filtroEstado = string.Empty;
     private string filtroTipoTramite = string.Empty;
@@ -342,99 +452,52 @@
     private int totalEstudiante = 0;
     private int totalTrabajo = 0;
     private int totalFamilia = 0;
-    private int totalMenores = 0;
+    private int totalInversionista = 0;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        opcionesGraficoBarras.Chart = new Chart { Height = 280, Toolbar = new Toolbar { Show = false } };
-        opcionesGraficoBarras.PlotOptions = new PlotOptions
-        {
-            Bar = new PlotOptionsBar
-            {
-                BorderRadius = 6,
-                ColumnWidth = "42%"
-            }
-        };
+        Idioma.OnIdiomaCambiado += RefrescarPorIdioma;
+
+        opcionesGraficoBarras.Chart = new Chart { Height = 250, Toolbar = new Toolbar { Show = false } };
+        opcionesGraficoBarras.PlotOptions = new PlotOptions { Bar = new PlotOptionsBar { BorderRadius = 6, ColumnWidth = "42%" } };
+        opcionesGraficoBarras.Yaxis = new List<YAxis> { new YAxis { TickAmount = 3, Min = 0, Labels = new YAxisLabels { Formatter = "function (val) { return Math.floor(val); }" } } };
 
         opcionesGraficoCircular = new ApexChartOptions<DatoGrafico>
         {
-            Chart = new Chart { Height = 300, Toolbar = new Toolbar { Show = false } },
-            Legend = new Legend { Position = LegendPosition.Bottom, HorizontalAlign = Align.Center, FontSize = "12px" },
-            PlotOptions = new PlotOptions
-            {
-                Pie = new PlotOptionsPie
-                {
-                    CustomScale = 1.0,
-                    Donut = new PlotOptionsDonut { Size = "65%" }
-                }
-            }
+            Chart = new Chart { Height = 250, Toolbar = new Toolbar { Show = false } },
+            Legend = new Legend { Position = LegendPosition.Bottom, HorizontalAlign = Align.Center, FontSize = "11px" },
+            PlotOptions = new PlotOptions { Pie = new PlotOptionsPie { CustomScale = 1.0, Donut = new PlotOptionsDonut { Size = "65%" } } }
         };
 
         opcionesGraficoCategorias = new ApexChartOptions<DatoGrafico>
         {
-            Chart = new Chart { Height = 300, Toolbar = new Toolbar { Show = false } },
-            Legend = new Legend { Position = LegendPosition.Bottom, HorizontalAlign = Align.Center, FontSize = "12px" },
-            PlotOptions = new PlotOptions
-            {
-                Pie = new PlotOptionsPie
-                {
-                    CustomScale = 1.0,
-                    Donut = new PlotOptionsDonut { Size = "65%" }
-                }
-            }
+            Chart = new Chart { Height = 250, Toolbar = new Toolbar { Show = false } },
+            Legend = new Legend { Position = LegendPosition.Bottom, HorizontalAlign = Align.Center, FontSize = "11px" },
+            PlotOptions = new PlotOptions { Pie = new PlotOptionsPie { CustomScale = 1.0, Donut = new PlotOptionsDonut { Size = "65%" } } }
         };
 
         opcionesGraficoTipos = new ApexChartOptions<DatoGrafico>
         {
-            Chart = new Chart { Height = 300, Toolbar = new Toolbar { Show = false } },
-            PlotOptions = new PlotOptions
-            {
-                Bar = new PlotOptionsBar
-                {
-                    Horizontal = true,
-                    BorderRadius = 5,
-                    BarHeight = "48%"
-                }
-            }
+            Chart = new Chart { Height = 250, Toolbar = new Toolbar { Show = false } },
+            PlotOptions = new PlotOptions { Bar = new PlotOptionsBar { Horizontal = true, BorderRadius = 5, BarHeight = "48%" } },
+            Xaxis = new XAxis { TickAmount = 3, Min = 0, Labels = new XAxisLabels { Formatter = "function (val) { return Math.floor(val); }" } }
         };
 
         opcionesGraficoTendencia = new ApexChartOptions<DatoGrafico>
         {
-            Chart = new Chart { Height = 260, Toolbar = new Toolbar { Show = false } },
-            Colors = new List<string> { "#0284C7" },
+            Chart = new Chart { Height = 250, Toolbar = new Toolbar { Show = false } },
+            Colors = new List<string> { "#0087FF" },
             Stroke = new Stroke { Curve = Curve.Smooth, Width = 3 },
-            Fill = new Fill { Type = new List<FillType> { FillType.Gradient }, Gradient = new FillGradient { ShadeIntensity = 1, OpacityFrom = 0.45, OpacityTo = 0.05 } }
+            Fill = new Fill { Type = new List<FillType> { FillType.Gradient }, Gradient = new FillGradient { ShadeIntensity = 1, OpacityFrom = 0.45, OpacityTo = 0.05 } },
+            Yaxis = new List<YAxis> { new YAxis { TickAmount = 3, Min = 0, Labels = new YAxisLabels { Formatter = "function (val) { return Math.floor(val); }" } } }
         };
+
+        await CargarDatosDashboard();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private void RefrescarPorIdioma()
     {
-        if (firstRender)
-        {
-            await RestaurarEstadoDesdeStorage();
-            await CargarDatosDashboard();
-        }
-    }
-
-    private async Task RestaurarEstadoDesdeStorage()
-    {
-        try
-        {
-            var json = await JS.InvokeAsync<string>("sessionStorage.getItem", "dashboard_filtros");
-            if (!string.IsNullOrWhiteSpace(json))
-            {
-                var estado = JsonSerializer.Deserialize<FiltroAvanzadoPanel.FiltroDataModel>(json);
-                if (estado != null)
-                {
-                    filtroFechaAplicado = estado.FiltroFechaAplicado;
-                    fechaInicio = estado.FechaInicio;
-                    fechaFin = estado.FechaFin;
-                    filtroEstado = estado.FiltroEstado;
-                    filtroTipoTramite = estado.FiltroTipoTramite;
-                }
-            }
-        }
-        catch { }
+        InvokeAsync(StateHasChanged);
     }
 
     private async Task ManejarAplicarFiltros(FiltroAvanzadoPanel.FiltroDataModel modelo)
@@ -445,35 +508,31 @@
         filtroEstado = modelo.FiltroEstado;
         filtroTipoTramite = modelo.FiltroTipoTramite;
 
-        try
-        {
-            var json = JsonSerializer.Serialize(modelo);
-            await JS.InvokeVoidAsync("sessionStorage.setItem", "dashboard_filtros", json);
-        }
-        catch { }
-
         await CargarDatosDashboard();
     }
 
-  private async Task ManejarLimpiarFiltros()
+    private async Task ManejarLimpiarFiltros()
     {
         filtroFechaAplicado = false;
         filtroEstado = string.Empty;
         filtroTipoTramite = string.Empty;
-        fechaInicio = DateTime.Today;
+        fechaInicio = DateTime.Today.AddMonths(-1);
         fechaFin = DateTime.Today;
-
-        try
-        {
-            await JS.InvokeVoidAsync("sessionStorage.removeItem", "dashboard_filtros");
-        }
-        catch { }
 
         await CargarDatosDashboard();
     }
 
     private async Task CargarDatosDashboard()
     {
+        cargandoGlobal = true;
+        cargandoTipos = true;
+        cargandoCircular = true;
+        cargandoBarras = true;
+        cargandoCategorias = true;
+        cargandoTiposGrafico = true;
+        cargandoTendencia = true;
+        await InvokeAsync(StateHasChanged);
+
         try
         {
             var queryParams = new List<string>();
@@ -485,16 +544,22 @@
             }
 
             if (!string.IsNullOrWhiteSpace(filtroEstado))
+            {
                 queryParams.Add($"estado={Uri.EscapeDataString(filtroEstado)}");
+            }
+
             if (!string.IsNullOrWhiteSpace(filtroTipoTramite))
+            {
                 queryParams.Add($"tipoTramite={Uri.EscapeDataString(filtroTipoTramite)}");
+            }
 
             string url = "api/solicitud/dashboard";
             if (queryParams.Any())
+            {
                 url += "?" + string.Join("&", queryParams);
+            }
 
-            var resumen = await Http.GetFromJsonAsync<DashboardDto>(url);
-
+            var resumen = await Http.GetFromJsonAsync<DashboardRespuestaDto>(url);
             if (resumen != null)
             {
                 totalSolicitudes = resumen.TotalSolicitudes;
@@ -504,97 +569,133 @@
                 totalRechazadas = resumen.Rechazadas;
                 totalCanceladas = resumen.Canceladas;
 
-                totalEstudiante = resumen.PorTipoTramite.Where(t => t.Etiqueta.Contains("Estudiante", StringComparison.OrdinalIgnoreCase)).Sum(t => t.Cantidad);
-                totalTrabajo = resumen.PorTipoTramite.Where(t => t.Etiqueta.Contains("Trabajo", StringComparison.OrdinalIgnoreCase)).Sum(t => t.Cantidad);
-                totalFamilia = resumen.PorTipoTramite.Where(t => t.Etiqueta.Contains("Familia", StringComparison.OrdinalIgnoreCase)).Sum(t => t.Cantidad);
-                totalMenores = resumen.PorTipoTramite.Where(t => t.Etiqueta.Contains("Menores", StringComparison.OrdinalIgnoreCase)).Sum(t => t.Cantidad);
-
-                // Integrar expediente local si existe
-                var titularGuardado = !string.IsNullOrWhiteSpace(StateService.Titular)
-                    ? StateService.Titular
-                    : await JS.InvokeAsync<string>("localStorage.getItem", "expediente_titular");
-
-                if (!string.IsNullOrWhiteSpace(titularGuardado))
-                {
-                    totalSolicitudes += 1;
-                    var estadoActual = !string.IsNullOrWhiteSpace(StateService.EstadoGeneral)
-                        ? StateService.EstadoGeneral
-                        : (await JS.InvokeAsync<string>("localStorage.getItem", "expediente_estado") ?? "Pendiente");
-
-                    if (estadoActual == "Aprobado") totalAprobadas += 1;
-                    else if (estadoActual == "Rechazado") totalRechazadas += 1;
-                    else totalPendientes += 1;
-
-                    var catLocal = !string.IsNullOrWhiteSpace(StateService.Categoria)
-                        ? StateService.Categoria
-                        : (await JS.InvokeAsync<string>("localStorage.getItem", "expediente_categoria") ?? "Residencia de Estudiante");
-
-                    if (catLocal.Contains("Estudiante", StringComparison.OrdinalIgnoreCase)) totalEstudiante += 1;
-                    else if (catLocal.Contains("Trabajo", StringComparison.OrdinalIgnoreCase)) totalTrabajo += 1;
-                    else if (catLocal.Contains("Familia", StringComparison.OrdinalIgnoreCase)) totalFamilia += 1;
-                    else if (catLocal.Contains("Menores", StringComparison.OrdinalIgnoreCase)) totalMenores += 1;
-                }
-
                 datosDelGrafico = new List<DatoGrafico>
                 {
-                    new DatoGrafico { Estado = "Pendientes", Cantidad = totalPendientes },
-                    new DatoGrafico { Estado = "En Proceso", Cantidad = totalEnProceso },
-                    new DatoGrafico { Estado = "Aprobadas", Cantidad = totalAprobadas },
-                    new DatoGrafico { Estado = "Rechazadas", Cantidad = totalRechazadas },
-                    new DatoGrafico { Estado = "Canceladas", Cantidad = totalCanceladas }
+                    new() { Estado = "Pendientes", Cantidad = totalPendientes },
+                    new() { Estado = "En Proceso", Cantidad = totalEnProceso },
+                    new() { Estado = "Aprobadas", Cantidad = totalAprobadas },
+                    new() { Estado = "Rechazadas", Cantidad = totalRechazadas },
+                    new() { Estado = "Canceladas", Cantidad = totalCanceladas }
                 };
+                cargandoCircular = false;
+                cargandoBarras = false;
+                StateHasChanged();
 
-                datosCategorias = new List<DatoGrafico>
+                if (resumen.PorTipoTramite != null && resumen.PorTipoTramite.Any())
                 {
-                    new DatoGrafico { Estado = "Residencia de Estudiante", Cantidad = totalEstudiante },
-                    new DatoGrafico { Estado = "Residencia de Trabajo", Cantidad = totalTrabajo },
-                    new DatoGrafico { Estado = "Residencia por Familia", Cantidad = totalFamilia },
-                    new DatoGrafico { Estado = "Residencia de Menores", Cantidad = totalMenores }
-                };
+                    datosCategorias = resumen.PorTipoTramite.Select(t => new DatoGrafico
+                    {
+                        Estado = t.Etiqueta,
+                        Cantidad = t.Cantidad
+                    }).ToList();
 
-                datosTendencia = resumen.TendenciaMensual.Select(m => new DatoGrafico
+                    totalEstudiante = resumen.PorTipoTramite.FirstOrDefault(t => t.Etiqueta.Contains("Estudiante", StringComparison.OrdinalIgnoreCase))?.Cantidad ?? 0;
+                    totalTrabajo = resumen.PorTipoTramite.FirstOrDefault(t => t.Etiqueta.Contains("Trabajo", StringComparison.OrdinalIgnoreCase))?.Cantidad ?? 0;
+                    totalFamilia = resumen.PorTipoTramite.FirstOrDefault(t => t.Etiqueta.Contains("Familia", StringComparison.OrdinalIgnoreCase))?.Cantidad ?? 0;
+                    totalInversionista = resumen.PorTipoTramite.FirstOrDefault(t => t.Etiqueta.Contains("Inversionista", StringComparison.OrdinalIgnoreCase) || t.Etiqueta.Contains("Menor", StringComparison.OrdinalIgnoreCase))?.Cantidad ?? 0;
+                }
+                cargandoTipos = false;
+                cargandoCategorias = false;
+                cargandoTiposGrafico = false;
+                StateHasChanged();
+
+                if (resumen.TendenciaMensual != null && resumen.TendenciaMensual.Any())
                 {
-                    Estado = m.Etiqueta,
-                    Cantidad = m.Cantidad
-                }).ToList();
+                    datosTendencia = resumen.TendenciaMensual.Select(t => new DatoGrafico
+                    {
+                        Estado = t.Etiqueta,
+                        Cantidad = t.Cantidad
+                    }).ToList();
+                }
+                cargandoTendencia = false;
+                StateHasChanged();
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error de conexión: {ex.Message}");
+            Console.WriteLine($"Error al sincronizar dashboard con la API: {ex.Message}");
+        }
+        finally
+        {
+            cargandoGlobal = false;
+            cargandoTipos = false;
+            cargandoCircular = false;
+            cargandoBarras = false;
+            cargandoCategorias = false;
+            cargandoTiposGrafico = false;
+            cargandoTendencia = false;
+            cargaInicial = false;
         }
 
         await InvokeAsync(StateHasChanged);
-
-        if (miGrafico != null) await miGrafico.RenderAsync();
-        if (miGraficoCircular != null) await miGraficoCircular.RenderAsync();
-        if (miGraficoCategorias != null) await miGraficoCategorias.RenderAsync();
-        if (miGraficoTipos != null) await miGraficoTipos.RenderAsync();
-        if (miGraficoTendencia != null) await miGraficoTendencia.RenderAsync();
     }
 
-    private string ObtenerColorCristal(string? estado)
+    private string TraducirEtiqueta(string estado)
     {
+        if (Idioma.EsEspanol) return estado;
         return estado switch
         {
-            "Pendientes" => "#fde047",
-            "En Proceso" => "#38bdf8",
-            "Aprobadas" => "#4ade80",
-            "Rechazadas" => "#f87171",
-            "Canceladas" => "#94a3b8",
-            _ => "#003876"
+            "Pendientes" => "Pending",
+            "En Proceso" => "In Process",
+            "Aprobadas" => "Approved",
+            "Rechazadas" => "Rejected",
+            "Canceladas" => "Cancelled",
+            _ => estado
         };
     }
 
-    private string ObtenerColorCristalCategoria(string? categoria)
+    private string TraducirCategoria(string categoria)
     {
-        return categoria switch
-        {
-            "Residencia de Estudiante" => "#93c5fd",
-            "Residencia de Trabajo" => "#86efac",
-            "Residencia por Familia" => "#d8b4fe",
-            "Residencia de Menores" => "#fde047",
-            _ => "#003876"
-        };
+        if (Idioma.EsEspanol) return categoria;
+        if (categoria.Contains("Estudiante", StringComparison.OrdinalIgnoreCase)) return "Student Residence";
+        if (categoria.Contains("Trabajo", StringComparison.OrdinalIgnoreCase)) return "Work Residence";
+        if (categoria.Contains("Familia", StringComparison.OrdinalIgnoreCase)) return "Family Residence";
+        if (categoria.Contains("Inversionista", StringComparison.OrdinalIgnoreCase)) return "Investor Residence";
+        return categoria;
+    }
+
+    // Colores del Kit Visual: advertencia, información, éxito, error y gris de texto desactivado
+    private string ObtenerColorCristal(string? estado) => estado switch
+    {
+        "Pendientes" => "#FFBA00",
+        "En Proceso" => "#0087FF",
+        "Aprobadas" => "#2ECC71",
+        "Rechazadas" => "#EE2A24",
+        "Canceladas" => "#707070",
+        _ => "#003876"
+    };
+
+    // Estudiante = azul información, Trabajo = azul primario, Familia = amarillo, Inversionista = verde
+    private string ObtenerColorCristalContainer(string? categoria) => categoria switch
+    {
+        var c when c != null && c.Contains("Estudiante", StringComparison.OrdinalIgnoreCase) => "#0087FF",
+        var c when c != null && c.Contains("Trabajo", StringComparison.OrdinalIgnoreCase) => "#003876",
+        var c when c != null && c.Contains("Familia", StringComparison.OrdinalIgnoreCase) => "#FFBA00",
+        _ => "#2ECC71"
+    };
+
+    private string ObtenerColorCristalCategoria(string? categoria) => ObtenerColorCristalContainer(categoria);
+
+    public void Dispose()
+    {
+        Idioma.OnIdiomaCambiado -= RefrescarPorIdioma;
+    }
+
+    public class DashboardRespuestaDto
+    {
+        public int TotalSolicitudes { get; set; }
+        public int Pendientes { get; set; }
+        public int EnProceso { get; set; }
+        public int Aprobadas { get; set; }
+        public int Rechazadas { get; set; }
+        public int Canceladas { get; set; }
+        public List<EstadisticaItemModel> PorTipoTramite { get; set; } = new();
+        public List<EstadisticaItemModel> TendenciaMensual { get; set; } = new();
+    }
+
+    public class EstadisticaItemModel
+    {
+        public string Etiqueta { get; set; } = string.Empty;
+        public int Cantidad { get; set; }
     }
 }

@@ -1,11 +1,14 @@
 ﻿@inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject GestionSolicitudes.Client.Services.IdiomaService Idioma
+@implements IDisposable
 
-<header class="portal-header d-flex justify-content-between align-items-center px-4 px-md-5 bg-white w-100" style="height: 65px; border-bottom: none !important; box-shadow: none !important;">
-    <!-- Cúpula Institucional y Encabezado Oficial -->
+<header class="portal-header d-flex justify-content-between align-items-center px-3 px-md-5 bg-white w-100" style="height: 65px; border-bottom: none !important; box-shadow: none !important;">
+    <!-- Logotipo Institucional Vectorial (SVG Oficial) -->
     <div class="d-flex align-items-center gap-3" style="cursor: pointer;" @onclick="IrAlInicio">
-        <!-- Cúpula Vectorial Oficial -->
-        <svg viewBox="10 20 215 195" width="38" height="38" fill="#003876" xmlns="http://www.w3.org/2000/svg" class="flex-shrink-0">
+
+        <!-- Logotipo Vectorial de la Cúpula DGM -->
+        <svg viewBox="10 20 215 195" width="40" height="40" fill="#003876" xmlns="http://www.w3.org/2000/svg" class="flex-shrink-0">
             <path d="M119.6 40.8v-2h4.2v-2.7H122v1.7h-2.5v-4.4h.4v-2.6h-1.8v2.6h.4v4.5H116v-1.7h-1.7v2.7h4.2v2c-7.9.3-14 6.9-13.9 14.7h28.6c.3-7.9-5.8-14.4-13.6-14.8z"></path>
             <path d="M101 60.5h36.1c.3 0 .6-.3.6-.6v-2.2c0-.3-.2-.6-.6-.6H101c-.3 0-.6.3-.6.6v2.2c0 .4.3.6.6.6z"></path>
             <path d="M101 87.8h36.1c.3 0 .6-.3.6-.6V85c0-.3-.2-.6-.6-.6H101c-.3 0-.6.3-.6.6v2.2c0 .4.3.6.6.6z"></path>
@@ -30,17 +33,54 @@
         <div class="vr d-none d-sm-block my-1" style="height: 24px; opacity: 0.25;"></div>
 
         <span class="fw-bold d-none d-sm-inline tracking-wide" style="color: #003876; font-size: 0.95rem; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">
-            DIRECCIÓN GENERAL DE MIGRACIÓN
+            @Idioma.T("DGM_TITULO")
         </span>
     </div>
 
-    <!-- Componente de Usuario / Píldora / Selector de Perfiles -->
-    <PanelUsuarioHeader />
+    <!-- Zona Derecha: Selector Plegable de Idioma + Panel de Usuario -->
+    <div class="d-flex align-items-center gap-2 gap-md-3">
+
+        <!-- Desplegable simple y estilizado de idioma -->
+        <div class="position-relative">
+            <select class="form-select form-select-sm border-0 bg-light fw-semibold text-secondary rounded-pill px-3 py-1 cursor-pointer"
+                    style="font-size: 0.85rem; height: 36px; min-width: 115px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);"
+                    value="@Idioma.IdiomaActual"
+                    @onchange="CambiarIdiomaSeleccionado">
+                <option value="ES">Español</option>
+                <option value="EN">English</option>
+            </select>
+        </div>
+
+        <!-- Componente de Usuario / Píldora / Selector de Perfiles -->
+        <PanelUsuarioHeader />
+    </div>
 </header>
 
 @code {
+    protected override async Task OnInitializedAsync()
+    {
+        Idioma.OnIdiomaCambiado += RefrescarEstado;
+        await Idioma.InicializarAsync();
+    }
+
+    private void RefrescarEstado()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CambiarIdiomaSeleccionado(ChangeEventArgs e)
+    {
+        var nuevo = e.Value?.ToString() ?? "ES";
+        await Idioma.CambiarIdiomaAsync(nuevo);
+    }
+
     private void IrAlInicio()
     {
         Navigation.NavigateTo("/");
+    }
+
+    public void Dispose()
+    {
+        Idioma.OnIdiomaCambiado -= RefrescarEstado;
     }
 }

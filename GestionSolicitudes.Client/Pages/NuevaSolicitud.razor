@@ -1,10 +1,11 @@
 ﻿@page "/nueva-solicitud"
 @page "/gestion-solicitud"
 @layout MainLayout
+@using System.Net.Http.Headers
+@using System.Net.Http.Json
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject HttpClient Http
-@inject GestionSolicitudes.Client.Services.ExpedienteStateService StateService
 
 <PageTitle>Solicitud de Residencia | DGM</PageTitle>
 
@@ -340,156 +341,76 @@
                     </div>
                     <p class="text-muted small mb-4">
                         @(idiomaActual == "ES"
-                                        ? "Adjunte archivos legibles en formato PDF, PNG o JPG (máximo 5 MB por documento). Estos recaudos serán evaluados por el departamento legal en el visor de auditoría."
-                                        : "Attach legible files in PDF, PNG or JPG format (maximum 5 MB per document). These will be audited by the legal department in the viewer.")
+                                        ? "Adjunte archivos legibles en formato PDF, PNG o JPG (máximo 5 MB por documento). Los cuatro documentos son obligatorios y serán evaluados por el departamento legal."
+                                        : "Attach legible files in PDF, PNG or JPG format (maximum 5 MB per document). All four documents are required and will be audited by the legal department.")
             </p>
 
                     <div class="row g-4 mb-4">
-                        <!-- Doc 1: Pasaporte -->
-                        <div class="col-12 col-md-6">
-                            <div class="document-upload-card @(!string.IsNullOrEmpty(docPasaporteNombre) ? "has-file" : "")">
-                                <div class="d-flex align-items-start gap-3">
-                                    <div class="doc-icon-box">
-                                        <i class="bi bi-person-vcard fs-3 text-primary"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <h6 class="fw-bold mb-1">@(idiomaActual == "ES" ? "Página Biográfica del Pasaporte *" : "Passport Biographical Page *")</h6>
-                                        <small class="text-muted d-block mb-2">Vigencia mínima exigida de 6 meses.</small>
+                @foreach (var slot in slots)
+                        {
+                            <div class="col-12 col-md-6">
+                                <div class="document-upload-card @(slot.Bytes != null ? "has-file" : "") @(!string.IsNullOrEmpty(slot.Error) ? "has-error" : "")">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <div class="doc-icon-box">
+                                            <i class="bi @slot.Icono fs-3 text-primary"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="fw-bold mb-1">@(idiomaActual == "ES" ? slot.TituloEs : slot.TituloEn)</h6>
+                                            <small class="text-muted d-block mb-2">@slot.Nota</small>
 
-                                @if (string.IsNullOrEmpty(docPasaporteNombre))
-                                        {
-                                            <label class="btn btn-sm btn-outline-primary rounded-pill px-3 cursor-pointer">
-                                                <i class="bi bi-upload me-1"></i> Seleccionar Archivo
-                                                <InputFile OnChange="@(e => CargarArchivo(e, "Pasaporte"))" class="d-none" accept=".pdf,.jpg,.jpeg,.png" />
-                                            </label>
-                                        }
-                                        else
-                                        {
-                                            <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-light border">
-                                                <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 80%;">
-                                                    <i class="bi bi-file-earmark-check-fill text-success"></i>
-                                                    <span class="small fw-semibold text-truncate">@docPasaporteNombre</span>
+                                            @if (slot.Bytes == null)
+                                            {
+                                                <label class="btn btn-sm btn-outline-primary rounded-pill px-3 cursor-pointer">
+                                                    <i class="bi bi-upload me-1"></i> @(idiomaActual == "ES" ? "Seleccionar Archivo" : "Select File")
+                                                    <InputFile OnChange="@(e => CargarArchivo(e, slot))" class="d-none" accept=".pdf,.jpg,.jpeg,.png" />
+                                                </label>
+                                            }
+                                            else
+                                            {
+                                                <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-light border">
+                                                    <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 80%;">
+                                                        <i class="bi @(slot.Subido ? "bi-cloud-check-fill" : "bi-file-earmark-check-fill") text-success"></i>
+                                                        <span class="small fw-semibold text-truncate">@slot.Nombre</span>
+                                                    </div>
+                                                    @if (!slot.Subido && !guardando)
+                                                    {
+                                                        <button type="button" class="btn btn-sm text-danger p-0" @onclick="() => QuitarArchivo(slot)">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    }
                                                 </div>
-                                                <button type="button" class="btn btn-sm text-danger p-0" @onclick='() => { docPasaporteNombre = ""; docPasaporteData = ""; }'>
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                        }
+                                                @if (slot.Subido)
+                                                {
+                                                    <small class="text-success d-block mt-1">
+                                                        <i class="bi bi-check-circle me-1"></i>@(idiomaActual == "ES" ? "Enviado correctamente" : "Sent successfully")
+                                                    </small>
+                                                }
+                                            }
+
+                                            @if (!string.IsNullOrEmpty(slot.Error))
+                                            {
+                                                <small class="text-danger d-block mt-1">
+                                                    <i class="bi bi-exclamation-circle me-1"></i>@slot.Error
+                                                </small>
+                                            }
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Doc 2: Certificado de Antecedentes -->
-                        <div class="col-12 col-md-6">
-                            <div class="document-upload-card @(!string.IsNullOrEmpty(docAntecedentesNombre) ? "has-file" : "")">
-                                <div class="d-flex align-items-start gap-3">
-                                    <div class="doc-icon-box">
-                                        <i class="bi bi-shield-check fs-3 text-primary"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <h6 class="fw-bold mb-1">@(idiomaActual == "ES" ? "Certificado de No Antecedentes *" : "Police Clearance Certificate *")</h6>
-                                        <small class="text-muted d-block mb-2">Legalizado o apostillado oficialmente.</small>
-
-                                        @if (string.IsNullOrEmpty(docAntecedentesNombre))
-                                        {
-                                            <label class="btn btn-sm btn-outline-primary rounded-pill px-3 cursor-pointer">
-                                                <i class="bi bi-upload me-1"></i> Seleccionar Archivo
-                                                <InputFile OnChange="@(e => CargarArchivo(e, "Antecedentes"))" class="d-none" accept=".pdf,.jpg,.jpeg,.png" />
-                                            </label>
-                                        }
-                                        else
-                                        {
-                                            <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-light border">
-                                                <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 80%;">
-                                                    <i class="bi bi-file-earmark-check-fill text-success"></i>
-                                                    <span class="small fw-semibold text-truncate">@docAntecedentesNombre</span>
-                                                </div>
-                                                <button type="button" class="btn btn-sm text-danger p-0" @onclick='() => { docAntecedentesNombre = ""; docAntecedentesData = ""; }'>
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Doc 3: Fotografía Frontal 2x2 -->
-                        <div class="col-12 col-md-6">
-                            <div class="document-upload-card @(!string.IsNullOrEmpty(docFotoNombre) ? "has-file" : "")">
-                                <div class="d-flex align-items-start gap-3">
-                                    <div class="doc-icon-box">
-                                        <i class="bi bi-person-bounding-box fs-3 text-primary"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <h6 class="fw-bold mb-1">@(idiomaActual == "ES" ? "Fotografía Tipo Carnet (2x2) *" : "Passport Photo (2x2) *")</h6>
-                                        <small class="text-muted d-block mb-2">Fondo blanco, vista frontal sin accesorios.</small>
-
-                                        @if (string.IsNullOrEmpty(docFotoNombre))
-                                        {
-                                            <label class="btn btn-sm btn-outline-primary rounded-pill px-3 cursor-pointer">
-                                                <i class="bi bi-upload me-1"></i> Seleccionar Foto
-                                                <InputFile OnChange="@(e => CargarArchivo(e, "Foto"))" class="d-none" accept=".pdf,.jpg,.jpeg,.png" />
-                                            </label>
-                                        }
-                                        else
-                                        {
-                                            <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-light border">
-                                                <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 80%;">
-                                                    <i class="bi bi-image text-success"></i>
-                                                    <span class="small fw-semibold text-truncate">@docFotoNombre</span>
-                                                </div>
-                                                <button type="button" class="btn btn-sm text-danger p-0" @onclick='() => { docFotoNombre = ""; docFotoData = ""; }'>
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Doc 4: Soporte de Actividad -->
-                        <div class="col-12 col-md-6">
-                            <div class="document-upload-card @(!string.IsNullOrEmpty(docSoporteNombre) ? "has-file" : "")">
-                                <div class="d-flex align-items-start gap-3">
-                                    <div class="doc-icon-box">
-                                        <i class="bi bi-file-earmark-text fs-3 text-primary"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <h6 class="fw-bold mb-1">@(idiomaActual == "ES" ? "Soporte de Respaldo *" : "Supporting Document *")</h6>
-                                        <small class="text-muted d-block mb-2">Contrato laboral registrado o matrícula.</small>
-
-                                        @if (string.IsNullOrEmpty(docSoporteNombre))
-                                        {
-                                            <label class="btn btn-sm btn-outline-primary rounded-pill px-3 cursor-pointer">
-                                                <i class="bi bi-upload me-1"></i> Seleccionar Archivo
-                                                <InputFile OnChange="@(e => CargarArchivo(e, "Soporte"))" class="d-none" accept=".pdf,.jpg,.jpeg,.png" />
-                                            </label>
-                                        }
-                                        else
-                                        {
-                                            <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-light border">
-                                                <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 80%;">
-                                                    <i class="bi bi-file-earmark-check-fill text-success"></i>
-                                                    <span class="small fw-semibold text-truncate">@docSoporteNombre</span>
-                                                </div>
-                                                <button type="button" class="btn btn-sm text-danger p-0" @onclick='() => { docSoporteNombre = ""; docSoporteData = ""; }'>
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        }
                     </div>
 
                     <div class="d-flex justify-content-between pt-3 border-top">
-                        <button type="button" class="btn btn-outline-secondary rounded-pill px-4 py-2 fw-semibold" @onclick="() => pasoActual = 3">
-                            <i class="bi bi-arrow-left me-1"></i> @(idiomaActual == "ES" ? "Anterior" : "Back")
-                        </button>
+                        @if (idCreado == 0)
+                        {
+                            <button type="button" class="btn btn-outline-secondary rounded-pill px-4 py-2 fw-semibold" @onclick="() => pasoActual = 3" disabled="@guardando">
+                                <i class="bi bi-arrow-left me-1"></i> @(idiomaActual == "ES" ? "Anterior" : "Back")
+                            </button>
+                        }
+                        else
+                        {
+                            <span></span>
+                        }
 
                         <button type="button" class="btn btn-success rounded-pill px-5 py-3 fw-bold shadow-sm"
                                 @onclick="FinalizarYRadicarExpediente" disabled="@guardando">
@@ -497,6 +418,11 @@
                             {
                                 <span class="spinner-border spinner-border-sm me-2"></span>
                                 <span>@(idiomaActual == "ES" ? "Radicando expediente..." : "Submitting file...")</span>
+                            }
+                            else if (idCreado > 0)
+                            {
+                                <i class="bi bi-arrow-repeat me-1"></i>
+                                <span>@(idiomaActual == "ES" ? "Reintentar envío de documentos" : "Retry document upload")</span>
                             }
                             else
                             {
@@ -662,6 +588,12 @@
             background-color: #f0fdf4;
         }
 
+        .document-upload-card.has-error {
+            border-style: solid;
+            border-color: #EE2A24;
+            background-color: #fff5f5;
+        }
+
     .doc-icon-box {
         width: 48px;
         height: 48px;
@@ -683,17 +615,17 @@
     private string idiomaActual = "ES";
     private string mensajeError = string.Empty;
     private bool guardando = false;
-
-    private string docPasaporteNombre = string.Empty;
-    private string docPasaporteData = string.Empty;
-    private string docAntecedentesNombre = string.Empty;
-    private string docAntecedentesData = string.Empty;
-    private string docFotoNombre = string.Empty;
-    private string docFotoData = string.Empty;
-    private string docSoporteNombre = string.Empty;
-    private string docSoporteData = string.Empty;
+    private int idCreado = 0;
 
     private SolicitudModelo solicitud = new();
+
+    private List<DocSlot> slots = new()
+    {
+        new DocSlot { Tipo = "Página Biográfica del Pasaporte", TituloEs = "Página Biográfica del Pasaporte *", TituloEn = "Passport Biographical Page *", Nota = "Vigencia mínima exigida de 6 meses.", Icono = "bi-person-vcard" },
+        new DocSlot { Tipo = "Certificado de Antecedentes Penales", TituloEs = "Certificado de No Antecedentes *", TituloEn = "Police Clearance Certificate *", Nota = "Legalizado o apostillado oficialmente.", Icono = "bi-shield-check" },
+        new DocSlot { Tipo = "Fotografía Tipo Carnet (2x2)", TituloEs = "Fotografía Tipo Carnet (2x2) *", TituloEn = "Passport Photo (2x2) *", Nota = "Fondo blanco, vista frontal sin accesorios.", Icono = "bi-person-bounding-box" },
+        new DocSlot { Tipo = "Soporte de Respaldo / Contrato", TituloEs = "Soporte de Respaldo *", TituloEn = "Supporting Document *", Nota = "Contrato laboral registrado o matrícula.", Icono = "bi-file-earmark-text" }
+    };
 
     private List<string> ProvinciasDisponibles = new()
     {
@@ -703,8 +635,12 @@
 
     private List<string> MunicipiosDisponibles = new();
 
+    private string T(string es, string en) => idiomaActual == "ES" ? es : en;
+
     protected override async Task OnInitializedAsync()
     {
+        await ConfigurarHeaderAuth();
+
         try
         {
             var correo = await JS.InvokeAsync<string>("localStorage.getItem", "correoUsuario");
@@ -716,19 +652,43 @@
         catch { }
     }
 
+    // Envía el token para que la solicitud quede asociada al usuario que la radica
+    private async Task ConfigurarHeaderAuth()
+    {
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            }
+        }
+        catch { }
+    }
+
     private void IrAPaso2()
     {
         mensajeError = string.Empty;
+
         if (string.IsNullOrWhiteSpace(solicitud.Nacionalidad) ||
             string.IsNullOrWhiteSpace(solicitud.Nombres) ||
             string.IsNullOrWhiteSpace(solicitud.Apellidos) ||
             string.IsNullOrWhiteSpace(solicitud.NumeroPasaporte))
         {
-            mensajeError = idiomaActual == "ES"
-                ? "Por favor complete la nacionalidad, nombres, apellidos y número de pasaporte antes de continuar."
-                : "Please complete nationality, given names, surnames, and passport number before continuing.";
+            mensajeError = T(
+                "Por favor complete la nacionalidad, nombres, apellidos y número de pasaporte antes de continuar.",
+                "Please complete nationality, given names, surnames, and passport number before continuing.");
             return;
         }
+
+        if (solicitud.FechaNacimiento == null || solicitud.FechaNacimiento.Value.Date >= DateTime.Today)
+        {
+            mensajeError = T(
+                "Indique una fecha de nacimiento válida.",
+                "Please enter a valid date of birth.");
+            return;
+        }
+
         pasoActual = 2;
     }
 
@@ -739,9 +699,9 @@
             string.IsNullOrWhiteSpace(solicitud.Celular) ||
             string.IsNullOrWhiteSpace(solicitud.Provincia))
         {
-            mensajeError = idiomaActual == "ES"
-                ? "Por favor complete el correo, celular y provincia de residencia."
-                : "Please complete email, mobile phone, and residence province.";
+            mensajeError = T(
+                "Por favor complete el correo, celular y provincia de residencia.",
+                "Please complete email, mobile phone, and residence province.");
             return;
         }
         pasoActual = 3;
@@ -770,128 +730,245 @@
         }
     }
 
-    private async Task CargarArchivo(InputFileChangeEventArgs e, string tipo)
+    // ---------- Documentos ----------
+    private async Task CargarArchivo(InputFileChangeEventArgs e, DocSlot slot)
     {
+        mensajeError = string.Empty;
         var archivo = e.File;
-        if (archivo != null)
+        if (archivo == null) return;
+
+        var ext = Path.GetExtension(archivo.Name).ToLowerInvariant();
+        if (ext is not (".pdf" or ".jpg" or ".jpeg" or ".png"))
         {
-            try
-            {
-                using var stream = archivo.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-                using var ms = new MemoryStream();
-                await stream.CopyToAsync(ms);
+            mensajeError = T(
+                $"'{archivo.Name}' no es un formato permitido. Use PDF, JPG o PNG.",
+                $"'{archivo.Name}' is not an allowed format. Use PDF, JPG or PNG.");
+            return;
+        }
 
-                var base64 = Convert.ToBase64String(ms.ToArray());
-                var dataUrl = $"data:{archivo.ContentType};base64,{base64}";
-                var esImg = archivo.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+        if (archivo.Size > MaxBytes)
+        {
+            mensajeError = T(
+                $"'{archivo.Name}' supera el máximo de 5 MB.",
+                $"'{archivo.Name}' exceeds the 5 MB limit.");
+            return;
+        }
 
-                switch (tipo)
-                {
-                    case "Pasaporte":
-                        docPasaporteNombre = archivo.Name;
-                        docPasaporteData = dataUrl;
-                        StateService.DocPasaporteNombre = archivo.Name;
-                        StateService.DocPasaporteData = dataUrl;
-                        StateService.RegistrarDocumento("Página Biográfica del Pasaporte", archivo.Name, dataUrl, esImg, "bi-person-vcard");
-                        break;
-                    case "Foto":
-                        docFotoNombre = archivo.Name;
-                        docFotoData = dataUrl;
-                        StateService.DocFotoNombre = archivo.Name;
-                        StateService.DocFotoData = dataUrl;
-                        StateService.RegistrarDocumento("Fotografía Frontal 2x2", archivo.Name, dataUrl, esImg, "bi-person-bounding-box");
-                        break;
-                    case "Antecedentes":
-                        docAntecedentesNombre = archivo.Name;
-                        docAntecedentesData = dataUrl;
-                        StateService.DocAntecedentesNombre = archivo.Name;
-                        StateService.DocAntecedentesData = dataUrl;
-                        StateService.RegistrarDocumento("Certificado de No Antecedentes Penales", archivo.Name, dataUrl, esImg, "bi-shield-check");
-                        break;
-                    case "Soporte":
-                        docSoporteNombre = archivo.Name;
-                        docSoporteData = dataUrl;
-                        StateService.DocSoporteNombre = archivo.Name;
-                        StateService.DocSoporteData = dataUrl;
-                        StateService.RegistrarDocumento("Soporte de Actividad (Contrato Laboral)", archivo.Name, dataUrl, esImg, "bi-file-earmark-text");
-                        break;
-                }
-            }
-            catch (Exception ex)
-            {
-                mensajeError = $"Error al procesar '{archivo.Name}': {ex.Message}";
-            }
+        try
+        {
+            using var stream = archivo.OpenReadStream(maxAllowedSize: MaxBytes);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+
+            slot.Bytes = ms.ToArray();
+            slot.Nombre = archivo.Name;
+            slot.Subido = false;
+            slot.Error = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            mensajeError = T(
+                $"Error al procesar '{archivo.Name}': {ex.Message}",
+                $"Error processing '{archivo.Name}': {ex.Message}");
         }
     }
 
+    private void QuitarArchivo(DocSlot slot)
+    {
+        slot.Bytes = null;
+        slot.Nombre = string.Empty;
+        slot.Subido = false;
+        slot.Error = string.Empty;
+    }
+
+    // ---------- Radicación ----------
     private async Task FinalizarYRadicarExpediente()
     {
+        if (guardando) return;
         mensajeError = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(solicitud.Nombres) || string.IsNullOrWhiteSpace(solicitud.Apellidos))
+        {
+            mensajeError = T("El nombre y apellido del solicitante son obligatorios.", "Given names and surnames are required.");
+            return;
+        }
+
+        var faltantes = slots.Where(s => s.Bytes == null).ToList();
+        if (faltantes.Any())
+        {
+            var lista = string.Join(", ", faltantes.Select(s => s.Tipo));
+            mensajeError = T(
+                $"Debe adjuntar todos los documentos requeridos. Faltan: {lista}.",
+                $"You must attach all required documents. Missing: {lista}.");
+            return;
+        }
+
         guardando = true;
+
         try
         {
-            bool sinDocumentos = string.IsNullOrEmpty(docPasaporteNombre) && string.IsNullOrEmpty(docFotoNombre) && string.IsNullOrEmpty(docAntecedentesNombre) && string.IsNullOrEmpty(docSoporteNombre);
+            await ConfigurarHeaderAuth();
 
-            StateService.SolicitudIniciada = true;
-            StateService.Titular = $"{solicitud.Nombres} {solicitud.Apellidos}";
-            StateService.Categoria = solicitud.CategoriaResidencia;
-            StateService.Pasaporte = solicitud.NumeroPasaporte;
-            StateService.Correo = solicitud.Correo;
-            StateService.Nacionalidad = solicitud.Nacionalidad;
-            StateService.EstadoGeneral = sinDocumentos ? "Sin Documentación" : "Pendiente";
-
-            StateService.DocPasaporteNombre = docPasaporteNombre;
-            StateService.DocPasaporteData = docPasaporteData;
-            StateService.DocFotoNombre = docFotoNombre;
-            StateService.DocFotoData = docFotoData;
-            StateService.DocAntecedentesNombre = docAntecedentesNombre;
-            StateService.DocAntecedentesData = docAntecedentesData;
-            StateService.DocSoporteNombre = docSoporteNombre;
-            StateService.DocSoporteData = docSoporteData;
-
-            int nuevoId = StateService.ListaExpedientes.Count + 1;
-            var nuevoExpediente = new ExpedienteDto
+            // 1) Crear la solicitud (solo una vez, aunque se reintente la subida)
+            if (idCreado == 0)
             {
-                Id = nuevoId,
-                Radicado = $"#{nuevoId:D3}",
-                Titular = StateService.Titular,
-                Categoria = $"Residencia ({StateService.Categoria})",
-                Pasaporte = StateService.Pasaporte,
-                Nacionalidad = StateService.Nacionalidad,
-                Correo = StateService.Correo,
-                FechaRegistro = DateTime.Now.ToString("dd/MM/yyyy"),
-                Estado = StateService.EstadoGeneral,
-                DocPasaporteNombre = docPasaporteNombre,
-                DocPasaporteData = docPasaporteData,
-                DocFotoNombre = docFotoNombre,
-                DocFotoData = docFotoData,
-                DocAntecedentesNombre = docAntecedentesNombre,
-                DocAntecedentesData = docAntecedentesData,
-                DocSoporteNombre = docSoporteNombre,
-                DocSoporteData = docSoporteData
-            };
+                int categoriaInt = solicitud.CategoriaResidencia switch
+                {
+                    "Estudiante" => 2,
+                    "Familiar" => 3,
+                    "Inversionista" => 4,
+                    _ => 1
+                };
 
-            StateService.RegistrarExpediente(nuevoExpediente);
+                var dto = new
+                {
+                    Titulo = $"Residencia Temporal ({solicitud.CategoriaResidencia})",
+                    Solicitante = $"{solicitud.Nombres} {solicitud.Apellidos}".Trim(),
+                    Descripcion = $"Trámite de residencia radicado por {solicitud.Nombres} {solicitud.Apellidos}.",
+                    Tipo = 1, // TipoSolicitud.Nueva
+                    Categoria = categoriaInt,
+                    Nombres = solicitud.Nombres.Trim(),
+                    Apellidos = solicitud.Apellidos.Trim(),
+                    NumeroPasaporte = solicitud.NumeroPasaporte.Trim(),
+                    Nacionalidad = solicitud.Nacionalidad,
+                    FechaNacimiento = solicitud.FechaNacimiento,
+                    Sexo = solicitud.Sexo,
+                    Correo = solicitud.Correo.Trim(),
+                    Telefono = solicitud.Telefono.Trim(),
+                    Celular = solicitud.Celular.Trim(),
+                    Provincia = solicitud.Provincia,
+                    Municipio = solicitud.Municipio,
+                    Sector = solicitud.Sector.Trim(),
+                    Calle = solicitud.Calle.Trim(),
+                    EsResidenteActual = solicitud.EsResidenteActual,
+                    PoseeDobleNacionalidad = solicitud.PoseeDobleNacionalidad,
+                    NumeroResidenciaPrevia = solicitud.NumeroResidenciaPrevia.Trim()
+                };
 
-            await JS.InvokeVoidAsync("localStorage.setItem", "solicitudIniciada", "true");
-            await JS.InvokeVoidAsync("localStorage.setItem", "expediente_titular", StateService.Titular);
-            await JS.InvokeVoidAsync("localStorage.setItem", "expediente_categoria", StateService.Categoria);
-            await JS.InvokeVoidAsync("localStorage.setItem", "expediente_pasaporte", StateService.Pasaporte);
-            await JS.InvokeVoidAsync("localStorage.setItem", "expediente_correo", StateService.Correo);
-            await JS.InvokeVoidAsync("localStorage.setItem", "expediente_nacionalidad", StateService.Nacionalidad);
-            await JS.InvokeVoidAsync("localStorage.setItem", "expediente_estado", StateService.EstadoGeneral);
+                var response = await Http.PostAsJsonAsync("api/solicitud/radicar", dto);
 
-            await Task.Delay(500);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContenido = await response.Content.ReadAsStringAsync();
+                    mensajeError = T(
+                        $"Error al radicar en el servidor: {Resumir(errorContenido)}",
+                        $"Error submitting to the server: {Resumir(errorContenido)}");
+                    return;
+                }
+
+                var radicadoResult = await response.Content.ReadFromJsonAsync<RadicarRespuestaDto>();
+                idCreado = radicadoResult?.Id ?? 0;
+
+                if (idCreado <= 0)
+                {
+                    mensajeError = T(
+                        "El servidor no devolvió el número de la solicitud. Intente nuevamente.",
+                        "The server did not return the application number. Please try again.");
+                    return;
+                }
+            }
+
+            // 2) Subir los documentos pendientes y verificar cada respuesta
+            var fallidos = new List<string>();
+
+            foreach (var slot in slots.Where(s => !s.Subido))
+            {
+                var error = await SubirArchivoReal(idCreado, slot);
+                if (error == null)
+                {
+                    slot.Subido = true;
+                    slot.Error = string.Empty;
+                }
+                else
+                {
+                    slot.Error = error;
+                    fallidos.Add(slot.Tipo);
+                }
+            }
+
+            if (fallidos.Any())
+            {
+                mensajeError = T(
+                    $"Su solicitud fue radicada, pero no se pudieron enviar estos documentos: {string.Join(", ", fallidos)}. Presione \"Reintentar envío de documentos\".",
+                    $"Your application was submitted, but these documents could not be sent: {string.Join(", ", fallidos)}. Press \"Retry document upload\".");
+                return;
+            }
+
+            await Task.Delay(400);
             Navigation.NavigateTo("/mis-solicitudes");
         }
         catch (Exception ex)
         {
-            mensajeError = $"Error al radicar solicitud: {ex.Message}";
+            mensajeError = T(
+                $"Error de conexión con el servidor: {ex.Message}",
+                $"Connection error with the server: {ex.Message}");
         }
         finally
         {
             guardando = false;
         }
+    }
+
+    // Devuelve null si se subió bien, o el mensaje de error
+    private async Task<string?> SubirArchivoReal(int solicitudId, DocSlot slot)
+    {
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            content.Add(new StringContent(solicitudId.ToString()), "solicitudId");
+            content.Add(new StringContent(slot.Tipo), "tipoDocumento");
+
+            var fileContent = new ByteArrayContent(slot.Bytes!);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(ObtenerMimeType(slot.Nombre));
+            content.Add(fileContent, "archivo", slot.Nombre);
+
+            var response = await Http.PostAsync("api/solicitud/subir-documento", content);
+            if (response.IsSuccessStatusCode) return null;
+
+            var detalle = await response.Content.ReadAsStringAsync();
+            return T(
+                $"No se pudo enviar (código {(int)response.StatusCode}). {Resumir(detalle)}",
+                $"Could not be sent (code {(int)response.StatusCode}). {Resumir(detalle)}");
+        }
+        catch (Exception ex)
+        {
+            return ex.Message;
+        }
+    }
+
+    private static string Resumir(string texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto)) return string.Empty;
+        texto = texto.Trim();
+        return texto.Length > 120 ? texto.Substring(0, 120) + "..." : texto;
+    }
+
+    private string ObtenerMimeType(string fileName)
+    {
+        var ext = Path.GetExtension(fileName).ToLower();
+        return ext switch
+        {
+            ".pdf" => "application/pdf",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            _ => "application/octet-stream"
+        };
+    }
+
+    private const int MaxBytes = 5 * 1024 * 1024;
+
+    // ---------- Modelos ----------
+    private class DocSlot
+    {
+        public string Tipo { get; set; } = string.Empty;
+        public string TituloEs { get; set; } = string.Empty;
+        public string TituloEn { get; set; } = string.Empty;
+        public string Nota { get; set; } = string.Empty;
+        public string Icono { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public byte[]? Bytes { get; set; }
+        public bool Subido { get; set; }
+        public string Error { get; set; } = string.Empty;
     }
 
     public class SolicitudModelo
@@ -902,7 +979,7 @@
         public string Nombres { get; set; } = string.Empty;
         public string Apellidos { get; set; } = string.Empty;
         public string NumeroPasaporte { get; set; } = string.Empty;
-        public DateTime? FechaNacimiento { get; set; } = new DateTime(1996, 1, 1);
+        public DateTime? FechaNacimiento { get; set; }
         public string Sexo { get; set; } = "F";
         public string Correo { get; set; } = string.Empty;
         public string Telefono { get; set; } = string.Empty;
@@ -913,5 +990,11 @@
         public string Calle { get; set; } = string.Empty;
         public bool EsResidenteActual { get; set; } = false;
         public bool PoseeDobleNacionalidad { get; set; } = false;
+    }
+
+    public class RadicarRespuestaDto
+    {
+        public string Mensaje { get; set; } = string.Empty;
+        public int Id { get; set; }
     }
 }

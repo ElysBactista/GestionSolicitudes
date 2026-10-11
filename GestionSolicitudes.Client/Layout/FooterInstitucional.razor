@@ -1,4 +1,7 @@
-﻿<footer class="footer-dgm text-white py-5 m-0">
+﻿@inject GestionSolicitudes.Client.Services.IdiomaService Idioma
+@implements IDisposable
+
+<footer class="footer-dgm text-white py-5 m-0">
     <div class="container-fluid px-4 px-lg-5">
         <div class="row align-items-center gy-4">
 
@@ -39,15 +42,15 @@
 
             <!-- 2. Sección: CONÓCENOS -->
             <div class="col-6 col-md-2 text-start ps-md-4">
-                <h6 class="text-uppercase fw-bold mb-3 footer-heading">CONÓCENOS</h6>
+                <h6 class="text-uppercase fw-bold mb-3 footer-heading">@(Idioma.EsEspanol ? "CONÓCENOS" : "ABOUT US")</h6>
                 <p class="small text-white-50 mb-0 lh-sm">
-                    Dirección General de Migración
+                    @(Idioma.EsEspanol ? "Dirección General de Migración" : "General Directorate of Migration")
                 </p>
             </div>
 
             <!-- 3. Sección: CONTÁCTANOS -->
             <div class="col-6 col-md-2 text-start">
-                <h6 class="text-uppercase fw-bold mb-3 footer-heading">CONTÁCTANOS</h6>
+                <h6 class="text-uppercase fw-bold mb-3 footer-heading">@(Idioma.EsEspanol ? "CONTÁCTANOS" : "CONTACT US")</h6>
                 <p class="small text-white-50 mb-1 lh-sm">Tel.: 809-508-2555</p>
                 <a href="mailto:info@migracion.gob.do" class="small text-white text-decoration-none d-block">
                     info@migracion.gob.do
@@ -56,19 +59,21 @@
 
             <!-- 4. Sección: BÚSCANOS -->
             <div class="col-6 col-md-3 text-start">
-                <h6 class="text-uppercase fw-bold mb-3 footer-heading">BÚSCANOS</h6>
+                <h6 class="text-uppercase fw-bold mb-3 footer-heading">@(Idioma.EsEspanol ? "BÚSCANOS" : "LOCATION")</h6>
                 <p class="small text-white-50 mb-0 lh-sm">
-                    Autopista 30 de Mayo, Esquina Héroes De Luperon, Santo Domingo República Dominicana
+                    @(Idioma.EsEspanol
+                                        ? "Autopista 30 de Mayo, Esquina Héroes De Luperon, Santo Domingo República Dominicana"
+                                        : "Autopista 30 de Mayo, Corner Héroes De Luperón, Santo Domingo, Dominican Republic")
                 </p>
             </div>
 
             <!-- 5. Sección: INFÓRMATE -->
             <div class="col-6 col-md-2 text-start">
-                <h6 class="text-uppercase fw-bold mb-3 footer-heading">INFÓRMATE</h6>
+                <h6 class="text-uppercase fw-bold mb-3 footer-heading">@(Idioma.EsEspanol ? "INFÓRMATE" : "INFORMATION")</h6>
                 <ul class="list-unstyled small mb-0 d-flex flex-column gap-1">
-                    <li><a href="#" class="text-white-50 text-decoration-none footer-link">Términos de Uso</a></li>
-                    <li><a href="#" class="text-white-50 text-decoration-none footer-link">Políticas de Privacidad</a></li>
-                    <li><a href="#" class="text-white-50 text-decoration-none footer-link">Preguntas Frecuentes</a></li>
+                    <li><a href="#" class="text-white-50 text-decoration-none footer-link">@(Idioma.EsEspanol ? "Términos de Uso" : "Terms of Use")</a></li>
+                    <li><a href="#" class="text-white-50 text-decoration-none footer-link">@(Idioma.EsEspanol ? "Políticas de Privacidad" : "Privacy Policy")</a></li>
+                    <li><a href="#" class="text-white-50 text-decoration-none footer-link">@(Idioma.EsEspanol ? "Preguntas Frecuentes" : "Frequently Asked Questions")</a></li>
                 </ul>
             </div>
 
@@ -110,3 +115,20 @@
             text-decoration: underline !important;
         }
 </style>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Idioma.OnIdiomaCambiado += RefrescarPorIdioma;
+    }
+
+    private void RefrescarPorIdioma()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Idioma.OnIdiomaCambiado -= RefrescarPorIdioma;
+    }
+}

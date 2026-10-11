@@ -1,121 +1,81 @@
 ﻿@inject NavigationManager Navigation
-@inject IJSRuntime JS
+@inject GestionSolicitudes.Client.Services.IdiomaService Idioma
+@implements IDisposable
 
-<div class="d-flex flex-column justify-content-start h-100 py-3" style="background-color: #003876;">
+<div class="d-flex flex-column justify-content-between h-100 py-3" style="background-color: #003876;">
 
     <!-- Zona Superior: Marca y Menú de Navegación -->
     <div>
-        <!-- Encabezado de la barra lateral dinámico -->
         <div class="d-flex align-items-center @(Colapsado ? "justify-content-center" : "justify-content-end") px-3 mb-4 w-100">
             <button class="btn btn-sm text-white border-0 p-1" @onclick="Toggle" title="Alternar menú">
                 <i class="bi @(Colapsado ? "bi-chevron-right" : "bi-chevron-left") fs-5"></i>
             </button>
         </div>
 
-        <!-- Enlaces de Navegación Institucional según el Rol -->
         <nav class="nav flex-column gap-1 px-2">
+            <AuthorizeView Roles="Administrador">
+                <Authorized>
+                    <!-- 1. Dashboard -->
+                    <NavLink class="nav-link text-white text-decoration-none d-flex align-items-center gap-3 py-2 px-3 rounded-3 custom-nav-link" href="dashboard" Match="NavLinkMatch.All">
+                        <i class="bi bi-grid-fill fs-5 flex-shrink-0"></i>
+                        @if (!Colapsado)
+                        {
+                            <span>@(Idioma.EsEspanol ? "Dashboard" : "Dashboard")</span>
+                        }
+                    </NavLink>
 
-            @if (esAdmin)
-            {
-                <!-- ================= MENÚ ADMINISTRADOR ================= -->
-                <!-- 1. Home / Dashboard -->
-                <NavLink class="nav-link text-white text-decoration-none d-flex align-items-center gap-3 py-2 px-3 rounded-3 custom-nav-link" href="dashboard" Match="NavLinkMatch.All">
-                    <i class="bi bi-grid-fill fs-5 flex-shrink-0"></i>
-                    @if (!Colapsado)
-                    {
-                        <span>Home</span>
-                    }
-                </NavLink>
+                    <!-- 2. Gestión Solicitudes -->
+                    <NavLink class="nav-link text-white text-decoration-none d-flex align-items-center gap-3 py-2 px-3 rounded-3 custom-nav-link" href="solicitudes">
+                        <i class="bi bi-folder2-open fs-5 flex-shrink-0"></i>
+                        @if (!Colapsado)
+                        {
+                            <span>@(Idioma.EsEspanol ? "Gestión Solicitudes" : "Applications")</span>
+                        }
+                    </NavLink>
 
-                <!-- 2. Gestión de Solicitudes -->
-                <NavLink class="nav-link text-white text-decoration-none d-flex align-items-center gap-3 py-2 px-3 rounded-3 custom-nav-link" href="solicitudes">
-                    <i class="bi bi-folder2-open fs-5 flex-shrink-0"></i>
-                    @if (!Colapsado)
-                    {
-                        <span>Gestión Solicitudes</span>
-                    }
-                </NavLink>
-
-                <!-- 3. Revisión Operativa -->
-                <NavLink class="nav-link text-white text-decoration-none d-flex align-items-center gap-3 py-2 px-3 rounded-3 custom-nav-link" href="revision">
-                    <i class="bi bi-check2-square fs-5 flex-shrink-0"></i>
-                    @if (!Colapsado)
-                    {
-                        <span>Revisión</span>
-                    }
-                </NavLink>
-
-                <!-- 4. Reportes y Estadísticas -->
-                <NavLink class="nav-link text-white text-decoration-none d-flex align-items-center gap-3 py-2 px-3 rounded-3 custom-nav-link" href="reportes">
-                    <i class="bi bi-bar-chart-fill fs-5 flex-shrink-0"></i>
-                    @if (!Colapsado)
-                    {
-                        <span>Reportes</span>
-                    }
-                </NavLink>
-
-                <!-- 5. Usuarios -->
-                <NavLink class="nav-link text-white text-decoration-none d-flex align-items-center gap-3 py-2 px-3 rounded-3 custom-nav-link" href="usuarios">
-                    <i class="bi bi-people-fill fs-5 flex-shrink-0"></i>
-                    @if (!Colapsado)
-                    {
-                        <span>Usuarios</span>
-                    }
-                </NavLink>
-
-                <!-- 6. Configuración -->
-                <NavLink class="nav-link text-white text-decoration-none d-flex align-items-center gap-3 py-2 px-3 rounded-3 custom-nav-link" href="configuracion">
-                    <i class="bi bi-gear-fill fs-5 flex-shrink-0"></i>
-                    @if (!Colapsado)
-                    {
-                        <span>Configuración</span>
-                    }
-                </NavLink>
-            }
-            else
-            {
-                <!-- ================= MENÚ RESIDENTE ================= -->
-                <!-- 1. Mi Expediente / Seguimiento -->
-                <NavLink class="nav-link text-white text-decoration-none d-flex align-items-center gap-3 py-2 px-3 rounded-3 custom-nav-link" href="mis-solicitudes" Match="NavLinkMatch.All">
-                    <i class="bi bi-card-checklist fs-5 flex-shrink-0"></i>
-                    @if (!Colapsado)
-                    {
-                        <span>Mi Expediente</span>
-                    }
-                </NavLink>
-
-                <!-- 2. Radicación de Nueva Solicitud -->
-                <NavLink class="nav-link text-white text-decoration-none d-flex align-items-center gap-3 py-2 px-3 rounded-3 custom-nav-link" href="gestion-solicitud">
-                    <i class="bi bi-file-earmark-plus fs-5 flex-shrink-0"></i>
-                    @if (!Colapsado)
-                    {
-                        <span>Nueva Solicitud</span>
-                    }
-                </NavLink>
-
-                <!-- 3. Portal General -->
-                <NavLink class="nav-link text-white text-decoration-none d-flex align-items-center gap-3 py-2 px-3 rounded-3 custom-nav-link" href="portal-residente">
-                    <i class="bi bi-house-door fs-5 flex-shrink-0"></i>
-                    @if (!Colapsado)
-                    {
-                        <span>Portal General</span>
-                    }
-                </NavLink>
-            }
-
+                    <!-- 3. Revisión -->
+                    <NavLink class="nav-link text-white text-decoration-none d-flex align-items-center gap-3 py-2 px-3 rounded-3 custom-nav-link" href="revision">
+                        <i class="bi bi-check2-square fs-5 flex-shrink-0"></i>
+                        @if (!Colapsado)
+                        {
+                            <span>@(Idioma.EsEspanol ? "Revisión" : "Review")</span>
+                        }
+                    </NavLink>
+                </Authorized>
+                <NotAuthorized>
+                    <NavLink class="nav-link text-white text-decoration-none d-flex align-items-center gap-3 py-2 px-3 rounded-3 custom-nav-link" href="mis-solicitudes" Match="NavLinkMatch.All">
+                        <i class="bi bi-card-checklist fs-5 flex-shrink-0"></i>
+                        @if (!Colapsado)
+                        {
+                            <span>@(Idioma.EsEspanol ? "Mi Expediente" : "My File")</span>
+                        }
+                    </NavLink>
+                    <NavLink class="nav-link text-white text-decoration-none d-flex align-items-center gap-3 py-2 px-3 rounded-3 custom-nav-link" href="nueva-solicitud">
+                        <i class="bi bi-file-earmark-plus fs-5 flex-shrink-0"></i>
+                        @if (!Colapsado)
+                        {
+                            <span>@(Idioma.EsEspanol ? "Nueva Solicitud" : "New Application")</span>
+                        }
+                    </NavLink>
+                </NotAuthorized>
+            </AuthorizeView>
         </nav>
+    </div>
+
+    <!-- Zona Inferior -->
+    <div class="px-2 pt-3 border-top border-white border-opacity-10">
+        <NavLink class="nav-link text-white-50 text-decoration-none d-flex align-items-center gap-3 py-2 px-3 rounded-3 custom-nav-link-portal" href="" Match="NavLinkMatch.All">
+            <i class="bi bi-arrow-left-circle fs-5 flex-shrink-0 text-white"></i>
+            @if (!Colapsado)
+            {
+                <span class="text-white small fw-semibold">@(Idioma.EsEspanol ? "Portal Residente" : "Resident Portal")</span>
+            }
+        </NavLink>
     </div>
 
 </div>
 
 <style>
-    .custom-nav-link,
-    .custom-nav-link:hover,
-    .custom-nav-link:focus,
-    .custom-nav-link.active {
-        text-decoration: none !important;
-    }
-
     .custom-nav-link {
         transition: all 0.2s ease-in-out;
         opacity: 0.85;
@@ -133,47 +93,16 @@
             background-color: rgba(255, 255, 255, 0.22) !important;
             font-weight: 600;
             opacity: 1;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
             color: #ffffff !important;
         }
 </style>
 
 @code {
     [Parameter] public bool Colapsado { get; set; } = false;
-    [Parameter]
-    public EventCallback OnToggleSidebar { get; set; }
+    [Parameter] public EventCallback OnToggleSidebar { get; set; }
 
-    private bool esAdmin = false;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await VerificarRol();
-    }
-
-    private async Task VerificarRol()
-    {
-        try
-        {
-            var rol = await JS.InvokeAsync<string>("localStorage.getItem", "rolUsuario");
-            var correo = await JS.InvokeAsync<string>("localStorage.getItem", "correoUsuario");
-
-            if (string.IsNullOrWhiteSpace(rol))
-            {
-                rol = await JS.InvokeAsync<string>("sessionStorage.getItem", "rolUsuario");
-                correo = await JS.InvokeAsync<string>("sessionStorage.getItem", "correoUsuario");
-            }
-
-            esAdmin = (!string.IsNullOrWhiteSpace(rol) && rol.Equals("Administrador", StringComparison.OrdinalIgnoreCase)) ||
-                      (!string.IsNullOrWhiteSpace(correo) && correo.Contains("admin", StringComparison.OrdinalIgnoreCase));
-        }
-        catch
-        {
-            esAdmin = false;
-        }
-    }
-
-    private async Task Toggle()
-    {
-        await OnToggleSidebar.InvokeAsync();
-    }
+    protected override void OnInitialized() => Idioma.OnIdiomaCambiado += RefrescarPorIdioma;
+    private void RefrescarPorIdioma() => InvokeAsync(StateHasChanged);
+    private async Task Toggle() => await OnToggleSidebar.InvokeAsync();
+    public void Dispose() => Idioma.OnIdiomaCambiado -= RefrescarPorIdioma;
 }

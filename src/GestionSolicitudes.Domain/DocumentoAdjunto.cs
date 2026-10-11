@@ -1,7 +1,15 @@
-﻿using System.Text.Json.Serialization;
+﻿using System;
+using System.Text.Json.Serialization;
 
 namespace GestionSolicitudes.Domain
 {
+    public enum EstadoDocumento
+    {
+        EnRevision = 1,
+        Aprobado = 2,
+        Rechazado = 3
+    }
+
     public class DocumentoAdjunto
     {
         public int Id { get; set; }
@@ -11,7 +19,10 @@ namespace GestionSolicitudes.Domain
         public string RutaAlmacenamiento { get; set; } = string.Empty;
         public string Extension { get; set; } = string.Empty;
         public long TamanoBytes { get; set; }
-        public string Estado { get; set; } = "En Revisión";
+
+        public EstadoDocumento Estado { get; set; } = EstadoDocumento.EnRevision;
+        public string? ComentarioRevision { get; set; }
+
         public DateTime FechaSubida { get; set; } = DateTime.UtcNow;
 
         [JsonIgnore]

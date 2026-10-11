@@ -13,7 +13,12 @@ public class CustomAuthenticationStateProvider(IJSRuntime jsRuntime, HttpClient 
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
+        // Unificación K6: Lee 'authToken' o 'token' por retrocompatibilidad
         var token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+        if (string.IsNullOrEmpty(token))
+        {
+            token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "token");
+        }
 
         if (string.IsNullOrEmpty(token))
         {
@@ -33,6 +38,8 @@ public class CustomAuthenticationStateProvider(IJSRuntime jsRuntime, HttpClient 
     public async Task MarkUserAsAuthenticated(string token)
     {
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "authToken", token);
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
         var claims = ParseClaimsFromJwt(token);
         var identity = new ClaimsIdentity(claims, "jwt");
         var user = new ClaimsPrincipal(identity);
@@ -43,6 +50,7 @@ public class CustomAuthenticationStateProvider(IJSRuntime jsRuntime, HttpClient 
     public async Task MarkUserAsLoggedOut()
     {
         await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken");
+        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "token");
         _httpClient.DefaultRequestHeaders.Authorization = null;
 
         var identity = new ClaimsIdentity();
@@ -54,23 +62,34 @@ public class CustomAuthenticationStateProvider(IJSRuntime jsRuntime, HttpClient 
     private IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
     {
         var claims = new List<Claim>();
-        var payload = jwt.Split('.')[1];
+        var partes = jwt.Split('.');
+        if (partes.Length < 2) return claims;
+
+        var payload = partes[1];
         var jsonBytes = ParseBase64WithoutPadding(payload);
         var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
 
         if (keyValuePairs != null)
         {
-            keyValuePairs.TryGetValue(ClaimTypes.Role, out object? roles);
+            // Solución K8: Extraer roles tanto si vienen como "role" o como URI ClaimTypes.Role
+            object? roles = null;
+            if (keyValuePairs.TryGetValue("role", out var rSimple))
+            {
+                roles = rSimple;
+                keyValuePairs.Remove("role");
+            }
+            else if (keyValuePairs.TryGetValue(ClaimTypes.Role, out var rUri))
+            {
+                roles = rUri;
+                keyValuePairs.Remove(ClaimTypes.Role);
+            }
 
             if (roles != null)
             {
-                if (!roles.ToString()!.StartsWith("["))
+                var rolStr = roles.ToString()!;
+                if (rolStr.StartsWith("["))
                 {
-                    claims.Add(new Claim(ClaimTypes.Role, roles.ToString()!));
-                }
-                else
-                {
-                    var parsedRoles = JsonSerializer.Deserialize<string[]>(roles.ToString()!);
+                    var parsedRoles = JsonSerializer.Deserialize<string[]>(rolStr);
                     if (parsedRoles != null)
                     {
                         foreach (var parsedRole in parsedRoles)
@@ -79,11 +98,16 @@ public class CustomAuthenticationStateProvider(IJSRuntime jsRuntime, HttpClient 
                         }
                     }
                 }
-
-                keyValuePairs.Remove(ClaimTypes.Role);
+                else
+                {
+                    claims.Add(new Claim(ClaimTypes.Role, rolStr));
+                }
             }
 
-            claims.AddRange(keyValuePairs.Select(kvp => new Claim(kvp.Key, kvp.Value.ToString() ?? "")));
+            foreach (var kvp in keyValuePairs)
+            {
+                claims.Add(new Claim(kvp.Key, kvp.Value?.ToString() ?? string.Empty));
+            }
         }
 
         return claims;

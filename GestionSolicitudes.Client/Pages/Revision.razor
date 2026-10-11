@@ -1,630 +1,1441 @@
-﻿@page "/revision"
-@page "/revision/{Id:int}"
-@layout MainLayout
-@inject NavigationManager Navigation
-@using GestionSolicitudes.Client.DTOs
-@inject IJSRuntime JS
-@inject GestionSolicitudes.Client.Services.ExpedienteStateService StateService
-<PageTitle>Módulo de Revisión y Validación Documental | DGM</PageTitle>
+﻿ @page "/revision"
 
-@if (!autorizado)
+@page "/revision/{Id:int}"
+
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Administrador")]
+
+@layout MainLayout
+
+@inject NavigationManager Navigation
+
+@inject IJSRuntime JS
+
+@inject HttpClient Http
+
+@inject GestionSolicitudes.Client.Services.IdiomaService Idioma
+
+@using GestionSolicitudes.Client.DTOs
+
+@implements IDisposable
+
+
+
+<PageTitle>@(Idioma.EsEspanol ? "Módulo de Revisión y Validación Documental | DGM" : "Document Review and Validation Module | DGM")</PageTitle>
+
+
+
+@if (cargando)
+
 {
+
     <div class="d-flex flex-column align-items-center justify-content-center py-5 my-5">
+
         <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
-        <h5 class="fw-bold text-dark">Validando Credenciales Oficiales...</h5>
-        <p class="text-muted small">Verificando permisos de auditoría administrativa.</p>
+
+        <h5 class="fw-bold text-dark">@(Idioma.EsEspanol ? "Cargando Expediente Oficial..." : "Loading Official File...")</h5>
+
+        <p class="text-muted small">@(Idioma.EsEspanol ? "Consultando recaudos e información legal en la base de datos." : "Retrieving documents and legal information from the database.")</p>
+
     </div>
+
 }
-else
+
+else if (expediente == null)
+
 {
-    <!-- CONTENEDOR PRINCIPAL AMPLIO (ESTILO DASHBOARD INSTITUCIONAL) -->
+
+    <div class="card border-0 shadow-sm rounded-4 bg-white p-5 text-center my-5 mx-auto" style="max-width: 600px;">
+
+        <i class="bi bi-file-earmark-x text-danger fs-1 mb-3"></i>
+
+        <h4 class="fw-bold text-dark">@(Idioma.EsEspanol ? "Expediente no encontrado" : "File Not Found")</h4>
+
+        <p class="text-muted small mb-4">@(Idioma.EsEspanol ? "No se localizó el registro solicitado o la lista de expedientes se encuentra vacía." : "The requested record could not be found or the file list is empty.")</p>
+
+        <div>
+
+            <button class="btn text-white rounded-pill px-4 py-2" style="background-color: #003876;" @onclick="IrALista">
+
+                <i class="bi bi-arrow-left me-1"></i> @(Idioma.EsEspanol ? "Volver a Gestión" : "Back to Management")
+
+            </button>
+
+        </div>
+
+    </div>
+
+}
+
+else
+
+{
+
     <div class="container-fluid py-4 px-3 px-md-4 animate__animated animate__fadeIn" style="max-width: 1400px; margin: 0 auto;">
 
-        <!-- CABECERA INSTITUCIONAL CON NAVEGACIÓN FILTRADA ANTERIOR / SIGUIENTE -->
-        <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
-            <div>
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <span class="badge bg-primary-subtle text-primary fw-bold px-3 py-1 rounded-pill">Auditoría Operativa</span>
-                    <span class="text-muted small">Expediente @expediente.Radicado (Mostrando @indiceActual de @listaFiltrada.Count)</span>
-                </div>
-                <h2 class="fw-bold mb-1 text-dark" style="color: #003876 !important;">Revisión y Validación Documental</h2>
-                <p class="text-muted small mb-0">Inspección de recaudos depositados y resolución legal de expedientes institucionales.</p>
-            </div>
 
-            <!-- Botones de Navegación Profesional con control de límites -->
-            <div class="d-flex align-items-center gap-2 bg-white p-2 rounded-4 shadow-sm border">
-                <button class="btn btn-outline-primary btn-sm rounded-pill px-3 py-1 fw-semibold" @onclick="IrExpedienteAnterior" disabled="@(!TieneAnterior())">
-                    <i class="bi bi-chevron-left me-1"></i> Anterior
-                </button>
-                <span class="small fw-bold text-dark px-2">@expediente.Radicado - @expediente.NombreTitular</span>
-                <button class="btn btn-outline-primary btn-sm rounded-pill px-3 py-1 fw-semibold" @onclick="IrExpedienteSiguiente" disabled="@(!TieneSiguiente())">
-                    Siguiente <i class="bi bi-chevron-right ms-1"></i>
-                </button>
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 ms-2" @onclick='() => Navigation.NavigateTo("/solicitudes")'>
-                    <i class="bi bi-list-ul me-1"></i> Lista
-                </button>
-            </div>
+
+        <!-- CABECERA LIMPIA -->
+
+        <div class="mb-4 pb-3 border-bottom">
+
+            <h2 class="fw-bold mb-1 text-dark" style="color: #003876 !important;">
+
+                @(Idioma.EsEspanol ? "Revisión y Validación Documental" : "Document Review and Validation")
+
+            </h2>
+
+            <p class="text-muted small mb-0">
+
+                @(Idioma.EsEspanol ? "Inspección de recaudos depositados y resolución legal de expedientes institucionales." : "Inspection of filed documents and legal resolution of institutional records.")
+
+            </p>
+
         </div>
 
+
+
         @if (!string.IsNullOrWhiteSpace(notificacionAccion))
+
         {
+
             <div class="alert alert-success alert-dismissible fade show rounded-4 border-0 shadow-sm d-flex align-items-center gap-2 mb-4" role="alert">
+
                 <i class="bi bi-check-circle-fill fs-5 text-success"></i>
+
                 <div>@notificacionAccion</div>
+
                 <button type="button" class="btn-close" @onclick='() => notificacionAccion = ""'></button>
+
             </div>
+
         }
 
-        <!-- DISEÑO EN CUADRÍCULA (GRID) ESTILO DASHBOARD -->
+
+
         <div class="row g-4">
 
-            <!-- COLUMNA IZQUIERDA: INFORMACIÓN Y DICTAMEN LEGAL -->
+            <!-- COLUMNA IZQUIERDA: INFORMACIÓN Y DICTAMEN -->
+
             <div class="col-12 col-lg-5 d-flex flex-column gap-4">
 
-                <!-- TARJETA DE INFORMACIÓN DEL SOLICITANTE -->
                 <div class="card border-0 shadow-sm rounded-4 p-4 bg-white flex-grow-1">
+
                     <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3">
+
                         <div>
+
                             <span class="badge bg-light text-dark border px-2 py-1 mb-1 fw-bold" style="font-size: 0.75rem;">@expediente.Radicado</span>
+
                             <h4 class="fw-bold mb-0 text-dark">@expediente.NombreTitular</h4>
+
                             <span class="text-muted small">@expediente.CategoriaResidencia</span>
+
                         </div>
+
                         <span class="badge @ObtenerBadgeEstado(expediente.EstadoGeneral) px-3 py-2 rounded-pill fs-6 fw-semibold shadow-xs">
-                            @expediente.EstadoGeneral
+
+                            @FormatearEstado(expediente.EstadoGeneral)
+
                         </span>
+
                     </div>
+
+
 
                     <div class="row g-3 small">
+
                         <div class="col-6">
-                            <span class="text-muted d-block">No. Pasaporte:</span>
+
+                            <span class="text-muted d-block">@(Idioma.EsEspanol ? "No. Pasaporte:" : "Passport No.:")</span>
+
                             <strong class="text-dark fs-6">@expediente.NumeroPasaporte</strong>
+
                         </div>
+
                         <div class="col-6">
-                            <span class="text-muted d-block">Nacionalidad:</span>
+
+                            <span class="text-muted d-block">@(Idioma.EsEspanol ? "Nacionalidad:" : "Nationality:")</span>
+
                             <strong class="text-dark fs-6">@expediente.Nacionalidad</strong>
+
                         </div>
+
                         <div class="col-12">
-                            <span class="text-muted d-block">Correo Registrado:</span>
+
+                            <span class="text-muted d-block">@(Idioma.EsEspanol ? "Correo Registrado:" : "Registered Email:")</span>
+
                             <strong class="text-dark fs-6">@expediente.Correo</strong>
+
                         </div>
+
                         <div class="col-12">
-                            <span class="text-muted d-block">Fecha de Radicación:</span>
+
+                            <span class="text-muted d-block">@(Idioma.EsEspanol ? "Fecha de Radicación:" : "Submission Date:")</span>
+
                             <strong class="text-dark fs-6">@expediente.FechaRegistro</strong>
+
                         </div>
+
                     </div>
+
                 </div>
 
-                <!-- DICTAMEN LEGAL DEFINITIVO -->
+
+
                 <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
-                    <h5 class="fw-bold text-dark mb-1" style="color: #003876 !important;">Dictamen Legal</h5>
-                    <p class="text-muted small mb-3">Emitir la resolución definitiva una vez auditados todos los documentos.</p>
+
+                    <h5 class="fw-bold text-dark mb-1" style="color: #003876 !important;">
+
+                        @(Idioma.EsEspanol ? "Dictamen Legal" : "Legal Ruling")
+
+                    </h5>
+
+                    <p class="text-muted small mb-3">
+
+                        @(Idioma.EsEspanol ? "Emitir la resolución definitiva una vez auditados todos los documentos." : "Issue the final decision after auditing all submitted records.")
+
+                    </p>
+
+
+
+                    <!-- BOTONES DE DICTAMEN DINÁMICOS (SIN RELLENO A MENOS QUE SE SELECCIONEN) -->
 
                     <div class="d-flex flex-column gap-2">
-                        <button class="btn btn-success rounded-pill fw-bold py-2 px-4 shadow-sm w-100" @onclick="AprobarExpedienteCompleto">
-                            <i class="bi bi-patch-check-fill me-1"></i> Aprobar Expediente y Emitir Resolución
+
+                        <button class="btn @(EsEstadoAprobado() ? "btn-success shadow-sm fw-bold" : "btn-outline-success fw-semibold") rounded-pill py-2 px-4 w-100"
+
+                                @onclick="AprobarExpedienteCompleto" disabled="@procesandoDictamen">
+
+                            <i class="bi bi-patch-check-fill me-1"></i> @(Idioma.EsEspanol ? "Aprobar Expediente y Emitir Resolución" : "Approve File and Issue Resolution")
+
                         </button>
-                        <button class="btn btn-outline-warning text-dark rounded-pill fw-semibold py-2 px-4 w-100" @onclick="SolicitarSubsanacionGeneral">
-                            <i class="bi bi-envelope-exclamation-fill me-1"></i> Notificar Requerimientos al Residente
+
+
+
+                        <button class="btn @(EsEstadoSubsanacion() ? "btn-warning text-dark shadow-sm fw-bold" : "btn-outline-warning text-dark fw-semibold") rounded-pill py-2 px-4 w-100"
+
+                                @onclick="SolicitarSubsanacionGeneral" disabled="@procesandoDictamen">
+
+                            <i class="bi bi-envelope-exclamation-fill me-1"></i> @(Idioma.EsEspanol ? "Notificar Requerimientos al Residente" : "Notify Requirements to Resident")
+
                         </button>
-                        <button class="btn btn-outline-danger rounded-pill fw-semibold py-2 px-4 w-100" @onclick="RechazarExpediente">
-                            <i class="bi bi-x-circle-fill me-1"></i> Rechazar Expediente por Incumplimiento
+
+
+
+                        <button class="btn @(EsEstadoRechazado() ? "btn-danger shadow-sm fw-bold" : "btn-outline-danger fw-semibold") rounded-pill py-2 px-4 w-100"
+
+                                @onclick="RechazarExpediente" disabled="@procesandoDictamen">
+
+                            <i class="bi bi-x-circle-fill me-1"></i> @(Idioma.EsEspanol ? "Rechazar Expediente por Incumplimiento" : "Reject File Due to Non-Compliance")
+
                         </button>
+
                     </div>
+
                 </div>
 
             </div>
 
+
+
             <!-- COLUMNA DERECHA: RECAUDOS PRESENTADOS -->
+
             <div class="col-12 col-lg-7">
+
                 <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+
                     <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-3">
+
                         <h5 class="fw-bold text-dark mb-0" style="color: #003876 !important;">
-                            <i class="bi bi-folder2-open me-2"></i> Recaudos Presentados
+
+                            @(Idioma.EsEspanol ? "Recaudos Presentados" : "Submitted Documents")
+
                         </h5>
-                        <span class="text-muted small">Haga clic en "Ver" para abrir el visor flotante</span>
+
+                        <span class="text-muted small">
+
+                            @(Idioma.EsEspanol ? "Haga clic en \"Ver\" para abrir el visor integrado" : "Click \"View\" to open the built-in viewer")
+
+                        </span>
+
                     </div>
+
+
 
                     <div class="d-flex flex-column gap-3">
-                        @foreach (var doc in expediente.Documentos)
+
+                        @if (expediente.Documentos.Count == 0)
+
                         {
-                            <div class="doc-item-row p-3 rounded-4 border d-flex align-items-center justify-content-between bg-light">
-                                <div class="d-flex align-items-center gap-3 text-truncate">
-                                    <div class="doc-icon-square @ObtenerClaseIcono(doc.Estado)">
-                                        <i class="bi @doc.Icono fs-5"></i>
+
+                            <div class="text-center py-5 text-muted small">
+
+                                <i class="bi bi-folder2-open fs-2 d-block mb-2"></i>
+
+                                @(Idioma.EsEspanol ? "No se registran documentos adjuntos para este expediente." : "No documents attached to this file.")
+
+                            </div>
+
+                        }
+
+                        else
+
+                        {
+
+                            @foreach (var doc in expediente.Documentos)
+
+                            {
+
+                                <div class="doc-item-row p-3 rounded-4 border d-flex align-items-center justify-content-between bg-light">
+
+                                    <div class="d-flex align-items-center gap-3 text-truncate">
+
+                                        <div class="doc-icon-square @ObtenerClaseIcono(doc.Estado)">
+
+                                            <i class="bi @doc.Icono fs-5"></i>
+
+                                        </div>
+
+                                        <div class="text-truncate">
+
+                                            <strong class="d-block text-dark text-truncate">@doc.TipoDocumento</strong>
+
+                                            <small class="text-muted text-truncate d-block" style="font-size: 0.75rem;">@doc.NombreArchivo</small>
+
+                                        </div>
+
                                     </div>
-                                    <div class="text-truncate">
-                                        <strong class="d-block text-dark text-truncate">@doc.TipoDocumento</strong>
-                                        <small class="text-muted text-truncate d-block" style="font-size: 0.75rem;">@doc.NombreArchivo</small>
+
+
+
+                                    <div class="d-flex align-items-center gap-3">
+
+                                        <span class="badge @ObtenerBadgeEstado(doc.Estado) px-3 py-1 rounded-pill" style="font-size: 0.75rem;">
+
+                                            @FormatearEstadoDoc(doc.Estado)
+
+                                        </span>
+
+                                        <button class="btn btn-sm btn-primary rounded-pill px-4 py-1 fw-semibold shadow-xs d-flex align-items-center gap-1"
+
+                                                @onclick="() => AbrirModalDocumento(doc)" style="background-color: #003876; border-color: #003876;">
+
+                                            <i class="bi bi-eye"></i> @(Idioma.EsEspanol ? "Ver" : "View")
+
+                                        </button>
+
                                     </div>
+
                                 </div>
 
-                                <div class="d-flex align-items-center gap-3">
-                                    <span class="badge @ObtenerBadgeEstado(doc.Estado) px-3 py-1 rounded-pill" style="font-size: 0.75rem;">
-                                        @doc.Estado
-                                    </span>
-                                    <button class="btn btn-sm btn-primary rounded-pill px-4 py-1 fw-semibold shadow-xs d-flex align-items-center gap-1"
-                                            @onclick="() => AbrirModalDocumento(doc)" style="background-color: #003876; border-color: #003876;">
-                                        <i class="bi bi-eye"></i> Ver
-                                    </button>
-                                </div>
-                            </div>
+                            }
+
                         }
+
                     </div>
+
                 </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ========================================================= -->
+
+        <!-- 4. BARRA DE NAVEGACIÓN UBICADA AL FINAL DE LA VISTA       -->
+
+        <!-- ========================================================= -->
+
+        <div class="card border-0 shadow-sm rounded-4 bg-white p-3 mt-4">
+
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+
+                <button class="btn btn-outline-secondary rounded-pill px-4 py-2 fw-semibold"
+
+                        @onclick="IrExpedienteAnterior" disabled="@(!TieneAnterior())">
+
+                    <i class="bi bi-arrow-left me-1"></i> @(Idioma.EsEspanol ? "Anterior" : "Previous")
+
+                </button>
+
+
+
+                <div class="d-flex align-items-center gap-2">
+
+                    <select class="form-select form-select-sm rounded-pill px-3 border" @onchange="SeleccionarExpedientePorSelect">
+
+                        @for (int i = 0; i < listaExpedientes.Count; i++)
+
+                        {
+
+                            var item = listaExpedientes[i];
+
+                            <option value="@item.Id" selected="@(i == indiceActual)">
+
+                                @item.NumeroExpediente - @item.NombreCompleto
+
+                            </option>
+
+                        }
+
+                    </select>
+
+                </div>
+
+
+
+                <div class="d-flex align-items-center gap-2">
+
+                    <button class="btn text-white rounded-pill px-4 py-2 fw-semibold shadow-sm"
+
+                            style="background-color: #003876;"
+
+                            @onclick="IrExpedienteSiguiente" disabled="@(!TieneSiguiente())">
+
+                        @(Idioma.EsEspanol ? "Siguiente" : "Next") <i class="bi bi-arrow-right ms-1"></i>
+
+                    </button>
+
+                    <button class="btn btn-outline-primary rounded-pill px-3 py-2 fw-semibold"
+
+                            @onclick="IrALista">
+
+                        <i class="bi bi-list-ul me-1"></i> @(Idioma.EsEspanol ? "Lista" : "List")
+
+                    </button>
+
+                </div>
+
             </div>
 
         </div>
 
     </div>
 
-    <!-- ========================================================= -->
-    <!-- VENTANA EMERGENTE (MODAL FLOTANTE) CON VISOR BLINDADO     -->
-    <!-- ========================================================= -->
+
+
+    <!-- MODAL VISOR INTEGRADO DE RECAUDOS -->
+
     @if (mostrarModalDoc && docSeleccionado != null)
+
     {
+
         <div class="modal-backdrop-custom fade show"></div>
+
         <div class="modal fade show d-block" tabindex="-1" role="dialog">
-            <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+
+            <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
+
                 <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden bg-white">
 
-                    <!-- Cabecera del Modal -->
                     <div class="modal-header bg-light border-bottom px-4 py-3">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-file-earmark-richtext text-primary fs-5"></i>
-                            <h5 class="modal-title fw-bold text-dark mb-0" style="font-size: 1rem;">@docSeleccionado.TipoDocumento</h5>
+
+                        <div class="d-flex align-items-center gap-2 text-truncate">
+
+                            <i class="bi @(docSeleccionado.EsImagen ? "bi-image" : "bi-file-earmark-pdf-fill text-danger") fs-5"></i>
+
+                            <h5 class="modal-title fw-bold text-dark mb-0 text-truncate" style="font-size: 1rem;">@docSeleccionado.TipoDocumento - @docSeleccionado.NombreArchivo</h5>
+
                         </div>
+
                         <button type="button" class="btn-close" @onclick="CerrarModalDoc"></button>
+
                     </div>
 
-                    <!-- Cuerpo con el Visor Documental Inteligente (Soporta PDF o Imágenes en cualquier campo) -->
-                    <div class="modal-body p-4 bg-dark bg-opacity-10 text-center" style="min-height: 450px; max-height: 580px; overflow-y: auto;">
+
+
+                    <div class="modal-body p-3 bg-dark bg-opacity-10 text-center" style="min-height: 520px; max-height: 75vh; overflow-y: auto;">
+
                         @if (!string.IsNullOrEmpty(docSeleccionado.UrlPreview))
+
                         {
-                            @if (docSeleccionado.UrlPreview.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase) ||
-                                            docSeleccionado.UrlPreview.StartsWith("http", StringComparison.OrdinalIgnoreCase) ||
-                                            docSeleccionado.EsImagen && !docSeleccionado.UrlPreview.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+
+                            @if (docSeleccionado.EsImagen)
+
                             {
-                                <img src="@docSeleccionado.UrlPreview" alt="Documento" class="img-fluid rounded-3 shadow border bg-white" style="max-height: 500px; object-fit: contain;" />
+
+                                <img src="@docSeleccionado.UrlPreview" alt="Documento" class="img-fluid rounded-3 shadow border bg-white" style="max-height: 68vh; object-fit: contain;" />
+
                             }
+
                             else
+
                             {
-                                <div class="py-4 text-center bg-white rounded-3 shadow-sm border p-4">
-                                    <div class="mb-3">
-                                        <i class="bi bi-file-earmark-pdf fs-1 text-danger"></i>
-                                        <h5 class="fw-bold text-dark mt-2">@docSeleccionado.NombreArchivo</h5>
-                                        <span class="badge bg-danger-subtle text-danger border px-3 py-1 rounded-pill small">Documento PDF Oficial</span>
-                                    </div>
-                                    <p class="text-muted small mb-4">
-                                        El archivo PDF se encuentra depositado en el expediente y listo para auditoría legal.
-                                    </p>
-                                    <div class="d-flex justify-content-center gap-3">
-                                        <button class="btn btn-outline-primary rounded-pill px-4 fw-semibold shadow-xs" @onclick="() => AbrirPdfEnNuevaPestaña(docSeleccionado.UrlPreview)">
-                                            <i class="bi bi-box-arrow-up-right me-1"></i> Abrir en Nueva Pestaña
-                                        </button>
-                                        <a href="@docSeleccionado.UrlPreview" download="@docSeleccionado.NombreArchivo" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-xs" style="background-color: #003876; border-color: #003876;">
-                                            <i class="bi bi-download me-1"></i> Descargar Archivo
-                                        </a>
-                                    </div>
-                                </div>
+
+                                <iframe src="@docSeleccionado.UrlPreview" class="w-100 rounded-3 shadow-sm border bg-white" style="height: 68vh; min-height: 500px;" frameborder="0"></iframe>
+
                             }
+
                         }
+
                         else
+
                         {
+
                             <div class="text-muted py-5">
+
                                 <i class="bi bi-file-earmark-x fs-1"></i>
-                                <p class="small mt-2">No hay archivo adjunto para previsualizar.</p>
+
+                                <p class="small mt-2">@(Idioma.EsEspanol ? "No hay archivo adjunto para previsualizar." : "No attached file to preview.")</p>
+
                             </div>
+
                         }
+
                     </div>
 
-                    <!-- Pie del Modal -->
+
+
                     <div class="modal-footer px-4 py-3 bg-white border-top d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+
                         <div>
-                            <span class="small text-muted d-block">Estatus del Recaudo:</span>
-                            <strong class="text-dark">@docSeleccionado.Estado</strong>
-                            @if (!string.IsNullOrEmpty(docSeleccionado.MotivoObservacion))
-                            {
-                                <small class="d-block text-danger mt-1" style="font-size: 0.75rem;"><i class="bi bi-info-circle"></i> @docSeleccionado.MotivoObservacion</small>
-                            }
+
+                            <span class="small text-muted d-block">@(Idioma.EsEspanol ? "Estatus del Recaudo:" : "Document Status:")</span>
+
+                            <span class="badge @ObtenerBadgeEstado(docSeleccionado.Estado) px-3 py-1 rounded-pill">
+
+                                @FormatearEstadoDoc(docSeleccionado.Estado)
+
+                            </span>
+
                         </div>
+
+
 
                         <div class="d-flex flex-wrap gap-2">
+
                             @if (!string.IsNullOrEmpty(docSeleccionado.UrlPreview))
+
                             {
-                                <a href="@docSeleccionado.UrlPreview" download="@docSeleccionado.NombreArchivo" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold">
-                                    <i class="bi bi-download me-1"></i> Descargar
+
+                                <a href="@docSeleccionado.UrlPreview" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold">
+
+                                    <i class="bi bi-box-arrow-up-right me-1"></i> @(Idioma.EsEspanol ? "Abrir Pestaña" : "Open Tab")
+
                                 </a>
+
+                                <a href="@docSeleccionado.UrlPreview" download="@docSeleccionado.NombreArchivo" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold">
+
+                                    <i class="bi bi-download me-1"></i> @(Idioma.EsEspanol ? "Descargar" : "Download")
+
+                                </a>
+
                             }
+
                             <button class="btn btn-sm btn-success rounded-pill px-3 fw-semibold" @onclick="AprobarDocumentoActual">
-                                <i class="bi bi-check2-circle me-1"></i> Aprobar
+
+                                <i class="bi bi-check2-circle me-1"></i> @(Idioma.EsEspanol ? "Aprobar" : "Approve")
+
                             </button>
+
                             <button class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3 fw-semibold" @onclick="PedirNuevaFoto">
-                                <i class="bi bi-camera-fill me-1"></i> Solicitar Reemplazo
+
+                                <i class="bi bi-camera-fill me-1"></i> @(Idioma.EsEspanol ? "Solicitar Reemplazo" : "Request Replacement")
+
                             </button>
+
                             <button class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-semibold" @onclick="MarcarNoVigente">
-                                <i class="bi bi-calendar-x me-1"></i> No Vigente
+
+                                <i class="bi bi-calendar-x me-1"></i> @(Idioma.EsEspanol ? "No Vigente" : "Invalid")
+
                             </button>
+
                         </div>
+
                     </div>
 
                 </div>
+
             </div>
+
         </div>
+
     }
+
 }
+
+
 
 <style>
+
     .doc-item-row {
+
         transition: all 0.2s ease;
+
     }
+
+
 
         .doc-item-row:hover {
+
             background-color: #f1f5f9 !important;
+
             border-color: #003876 !important;
+
         }
+
+
 
     .doc-icon-square {
+
         width: 42px;
+
         height: 42px;
+
         min-width: 42px;
+
         border-radius: 12px;
+
         display: flex;
+
         align-items: center;
+
         justify-content: center;
+
     }
+
+
 
     .icon-pending {
+
         background-color: #fef3c7;
+
         color: #d97706;
+
     }
+
+
 
     .icon-approved {
+
         background-color: #dcfce7;
+
         color: #15803d;
+
     }
+
+
 
     .icon-rejected {
+
         background-color: #fee2e2;
+
         color: #b91c1c;
+
     }
+
+
 
     .icon-warning {
+
         background-color: #ffedd5;
+
         color: #c2410c;
+
     }
+
+
 
     .modal-backdrop-custom {
+
         position: fixed;
+
         top: 0;
+
         left: 0;
+
         width: 100vw;
+
         height: 100vh;
+
         background-color: rgba(0, 0, 0, 0.55);
+
         z-index: 1050;
-        animation: fadeInBackdrop 0.2s ease;
+
     }
 
-    @@keyframes fadeInBackdrop {
-        from {
-            opacity: 0;
-        }
-
-        to {
-            opacity: 1;
-        }
-    }
 </style>
 
+
+
 @code {
+
     [Parameter] public int? Id { get; set; }
+
     [SupplyParameterFromQuery(Name = "filtro")] public string? FiltroEstado { get; set; }
 
-    private bool autorizado = false;
+
+
+    private bool cargando = true;
+
+    private bool procesandoDictamen = false;
+
     private bool mostrarModalDoc = false;
+
     private string notificacionAccion = string.Empty;
 
-    private ExpedienteRevisionDto expediente = new();
+
+
+    private ExpedienteRevisionDto? expediente;
+
     private DocumentoItemDto? docSeleccionado;
-    private List<ExpedienteDto> listaFiltrada = new();
+
+    private List<SolicitudItemDtoExtendido> listaExpedientes = new();
+
     private int indiceActual = 0;
 
+
+
+    protected override void OnInitialized()
+
+    {
+
+        Idioma.OnIdiomaCambiado += RefrescarPorIdioma;
+
+    }
+
+
+
+    private void RefrescarPorIdioma()
+
+    {
+
+        InvokeAsync(StateHasChanged);
+
+    }
+
+
+
     protected override async Task OnParametersSetAsync()
+
     {
-        await StateService.InicializarAsync(); // Carga los expedientes guardados en localStorage
-        await ValidarPermisoAdministrador();
-        if (autorizado)
-        {
-            ActualizarListaFiltrada();
-            await CargarExpedientePorId(Id ?? (listaFiltrada.FirstOrDefault()?.Id ?? 1));
-        }
+
+        await CargarListaYNavegar();
+
     }
 
-    private void ActualizarListaFiltrada()
-    {
-        if (!string.IsNullOrWhiteSpace(FiltroEstado))
-        {
-            listaFiltrada = StateService.ListaExpedientes
-                .Where(e => e.Estado.Equals(FiltroEstado, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-        }
 
-        if (listaFiltrada == null || listaFiltrada.Count == 0)
-        {
-            listaFiltrada = StateService.ListaExpedientes;
-        }
-    }
 
-    private async Task ValidarPermisoAdministrador()
+    private async Task CargarListaYNavegar()
+
     {
+
+        cargando = true;
+
         try
+
         {
-            var rol = await JS.InvokeAsync<string>("localStorage.getItem", "rolUsuario");
-            var correo = await JS.InvokeAsync<string>("localStorage.getItem", "correoUsuario");
 
-            if (string.IsNullOrWhiteSpace(rol))
+            var res = await Http.GetFromJsonAsync<List<SolicitudItemDtoExtendido>>("api/solicitud/filtradas");
+
+            listaExpedientes = res ?? new();
+
+
+
+            if (!string.IsNullOrWhiteSpace(FiltroEstado))
+
             {
-                rol = await JS.InvokeAsync<string>("sessionStorage.getItem", "rolUsuario");
-                correo = await JS.InvokeAsync<string>("sessionStorage.getItem", "correoUsuario");
+
+                listaExpedientes = listaExpedientes
+
+                    .Where(e => e.Estado.Equals(FiltroEstado, StringComparison.OrdinalIgnoreCase))
+
+                    .ToList();
+
             }
 
-            bool esAdmin = (!string.IsNullOrWhiteSpace(rol) && rol.Equals("Administrador", StringComparison.OrdinalIgnoreCase)) ||
-                           (!string.IsNullOrWhiteSpace(correo) && correo.Contains("admin", StringComparison.OrdinalIgnoreCase));
 
-            if (!esAdmin)
+
+            int idObjetivo = Id ?? (listaExpedientes.FirstOrDefault()?.Id ?? 0);
+
+            if (idObjetivo > 0)
+
             {
-                Navigation.NavigateTo("/mis-solicitudes", true);
-                return;
+
+                await CargarExpedientePorId(idObjetivo);
+
             }
 
-            autorizado = true;
+            else
+
+            {
+
+                expediente = null;
+
+            }
+
         }
+
         catch
+
         {
-            Navigation.NavigateTo("/portal-residente", true);
+
+            expediente = null;
+
         }
-    }
 
-    private bool TieneAnterior()
-    {
-        indiceActual = listaFiltrada.FindIndex(e => e.Id == (Id ?? expediente.Id));
-        return indiceActual > 0;
-    }
+        finally
 
-    private bool TieneSiguiente()
-    {
-        indiceActual = listaFiltrada.FindIndex(e => e.Id == (Id ?? expediente.Id));
-        return indiceActual >= 0 && indiceActual < listaFiltrada.Count - 1;
-    }
-
-    private void IrExpedienteAnterior()
-    {
-        indiceActual = listaFiltrada.FindIndex(e => e.Id == (Id ?? expediente.Id));
-        if (indiceActual > 0)
         {
-            var anterior = listaFiltrada[indiceActual - 1];
-            Navigation.NavigateTo($"/revision/{anterior.Id}" + (!string.IsNullOrEmpty(FiltroEstado) ? $"?filtro={FiltroEstado}" : ""));
+
+            cargando = false;
+
         }
+
     }
 
-    private void IrExpedienteSiguiente()
-    {
-        indiceActual = listaFiltrada.FindIndex(e => e.Id == (Id ?? expediente.Id));
-        if (indiceActual >= 0 && indiceActual < listaFiltrada.Count - 1)
-        {
-            var siguiente = listaFiltrada[indiceActual + 1];
-            Navigation.NavigateTo($"/revision/{siguiente.Id}" + (!string.IsNullOrEmpty(FiltroEstado) ? $"?filtro={FiltroEstado}" : ""));
-        }
-    }
+
 
     private async Task CargarExpedientePorId(int expedienteId)
+
     {
+
         try
+
         {
-            var item = StateService.ListaExpedientes.FirstOrDefault(e => e.Id == expedienteId);
-            if (item != null)
+
+            indiceActual = listaExpedientes.FindIndex(e => e.Id == expedienteId);
+
+            if (indiceActual < 0) indiceActual = 0;
+
+
+
+            var itemLista = listaExpedientes.FirstOrDefault(e => e.Id == expedienteId);
+
+            var sol = await Http.GetFromJsonAsync<SolicitudDtoModel>($"api/solicitud/{expedienteId}");
+
+
+
+            if (sol != null)
+
             {
+
+                string pasaporteReal = !string.IsNullOrWhiteSpace(sol.NumeroPasaporte)
+
+                    ? sol.NumeroPasaporte
+
+                    : (!string.IsNullOrWhiteSpace(itemLista?.NumeroPasaporte) ? itemLista.NumeroPasaporte : (Idioma.EsEspanol ? "En trámite" : "In process"));
+
+
+
+                string nacionalidadReal = !string.IsNullOrWhiteSpace(sol.Nacionalidad)
+
+                    ? sol.Nacionalidad
+
+                    : (!string.IsNullOrWhiteSpace(sol.PaisOrigen) ? sol.PaisOrigen : (Idioma.EsEspanol ? "Registrada" : "Registered"));
+
+
+
+                string correoReal = !string.IsNullOrWhiteSpace(sol.Correo)
+
+                    ? sol.Correo
+
+                    : (!string.IsNullOrWhiteSpace(sol.Email) ? sol.Email : (!string.IsNullOrWhiteSpace(itemLista?.Email) ? itemLista.Email : (Idioma.EsEspanol ? "Sin registrar" : "Unregistered")));
+
+
+
                 expediente = new ExpedienteRevisionDto
+
                 {
-                    Id = item.Id,
-                    Radicado = item.Radicado,
-                    NombreTitular = item.Titular,
-                    CategoriaResidencia = item.Categoria,
-                    NumeroPasaporte = item.Pasaporte,
-                    Nacionalidad = item.Nacionalidad,
-                    Correo = item.Correo,
-                    FechaRegistro = item.FechaRegistro,
-                    EstadoGeneral = item.Estado
+
+                    Id = sol.Id,
+
+                    Radicado = !string.IsNullOrWhiteSpace(sol.Codigo) ? sol.Codigo : (!string.IsNullOrWhiteSpace(sol.NumeroExpediente) ? sol.NumeroExpediente : $"EXP-{sol.FechaCreacion.Year}-{sol.Id:D4}"),
+
+                    NombreTitular = !string.IsNullOrWhiteSpace(sol.Solicitante) ? sol.Solicitante : (itemLista?.NombreCompleto ?? (Idioma.EsEspanol ? "Residente" : "Resident")),
+
+                    CategoriaResidencia = !string.IsNullOrWhiteSpace(sol.Titulo) ? sol.Titulo : (itemLista?.TipoTramite ?? (Idioma.EsEspanol ? "Residencia Temporal" : "Temporary Residence")),
+
+                    NumeroPasaporte = pasaporteReal,
+
+                    Nacionalidad = nacionalidadReal,
+
+                    Correo = correoReal,
+
+                    FechaRegistro = sol.FechaCreacion.ToString("dd/MM/yyyy HH:mm"),
+
+                    EstadoGeneral = sol.Estado?.ToString() ?? "Pendiente"
+
                 };
 
-                // Asignamos estrictamente los archivos reales que subió el solicitante en esta instancia
-                expediente.Documentos = new List<DocumentoItemDto>
+
+
+                try
+
                 {
-                    new DocumentoItemDto
+
+                    var docs = await Http.GetFromJsonAsync<List<DocumentoApiModel>>($"api/solicitud/{expedienteId}/documentos");
+
+                    if (docs != null)
+
                     {
-                        Id = 1,
-                        TipoDocumento = "Página Biográfica del Pasaporte",
-                        NombreArchivo = !string.IsNullOrEmpty(item.DocPasaporteNombre) ? item.DocPasaporteNombre : "Sin documento adjunto",
-                        UrlPreview = item.DocPasaporteData ?? "",
-                        EsImagen = !string.IsNullOrEmpty(item.DocPasaporteData) && item.DocPasaporteData.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase),
-                        Icono = "bi-person-vcard",
-                        Estado = item.Estado == "Aprobado" ? "Aprobado" : "Pendiente"
-                    },
-                    new DocumentoItemDto
-                    {
-                        Id = 2,
-                        TipoDocumento = "Fotografía Frontal 2x2",
-                        NombreArchivo = !string.IsNullOrEmpty(item.DocFotoNombre) ? item.DocFotoNombre : "Sin documento adjunto",
-                        UrlPreview = item.DocFotoData ?? "",
-                        EsImagen = !string.IsNullOrEmpty(item.DocFotoData) && item.DocFotoData.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase),
-                        Icono = "bi-person-bounding-box",
-                        Estado = item.Estado == "Aprobado" ? "Aprobado" : "Pendiente"
-                    },
-                    new DocumentoItemDto
-                    {
-                        Id = 3,
-                        TipoDocumento = "Certificado de No Antecedentes Penales",
-                        NombreArchivo = !string.IsNullOrEmpty(item.DocAntecedentesNombre) ? item.DocAntecedentesNombre : "Sin documento adjunto",
-                        UrlPreview = item.DocAntecedentesData ?? "",
-                        EsImagen = !string.IsNullOrEmpty(item.DocAntecedentesData) && item.DocAntecedentesData.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase),
-                        Icono = "bi-shield-check",
-                        Estado = item.Estado == "Aprobado" ? "Aprobado" : "Pendiente"
-                    },
-                    new DocumentoItemDto
-                    {
-                        Id = 4,
-                        TipoDocumento = "Soporte de Actividad (Contrato Laboral)",
-                        NombreArchivo = !string.IsNullOrEmpty(item.DocSoporteNombre) ? item.DocSoporteNombre : "Sin documento adjunto",
-                        UrlPreview = item.DocSoporteData ?? "",
-                        EsImagen = !string.IsNullOrEmpty(item.DocSoporteData) && item.DocSoporteData.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase),
-                        Icono = "bi-file-earmark-text",
-                        Estado = item.Estado == "Aprobado" ? "Aprobado" : "Pendiente"
+
+                        expediente.Documentos = docs.Select(d => new DocumentoItemDto
+
+                        {
+
+                            Id = d.Id,
+
+                            TipoDocumento = d.Nombre,
+
+                            NombreArchivo = Path.GetFileName(d.UrlDescarga),
+
+                            Estado = d.Estado,
+
+                            EsImagen = d.Icono.Contains("image") || d.UrlDescarga.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || d.UrlDescarga.EndsWith(".png", StringComparison.OrdinalIgnoreCase),
+
+                            Icono = d.Icono,
+
+                            UrlPreview = d.UrlDescarga
+
+                        }).ToList();
+
                     }
-                };
+
+                }
+
+                catch { }
+
             }
+
         }
-        catch { }
+
+        catch
+
+        {
+
+            expediente = null;
+
+        }
+
     }
+
+
+
+    private bool TieneAnterior() => indiceActual > 0;
+
+    private bool TieneSiguiente() => indiceActual >= 0 && indiceActual < listaExpedientes.Count - 1;
+
+
+
+    private void IrExpedienteAnterior()
+
+    {
+
+        if (TieneAnterior())
+
+        {
+
+            Navigation.NavigateTo($"/revision/{listaExpedientes[indiceActual - 1].Id}");
+
+        }
+
+    }
+
+
+
+    private void IrExpedienteSiguiente()
+
+    {
+
+        if (TieneSiguiente())
+
+        {
+
+            Navigation.NavigateTo($"/revision/{listaExpedientes[indiceActual + 1].Id}");
+
+        }
+
+    }
+
+
+
+    private void SeleccionarExpedientePorSelect(ChangeEventArgs e)
+
+    {
+
+        if (int.TryParse(e.Value?.ToString(), out int id))
+
+        {
+
+            Navigation.NavigateTo($"/revision/{id}");
+
+        }
+
+    }
+
+
+
+    private void IrALista()
+
+    {
+
+        Navigation.NavigateTo("/solicitudes");
+
+    }
+
+
 
     private void AbrirModalDocumento(DocumentoItemDto doc)
+
     {
+
         docSeleccionado = doc;
+
         mostrarModalDoc = true;
+
     }
+
+
 
     private void CerrarModalDoc()
+
     {
+
         mostrarModalDoc = false;
+
         docSeleccionado = null;
+
     }
 
-    private async Task AbrirPdfEnNuevaPestaña(string dataUrl)
-    {
-        try
-        {
-            await JS.InvokeVoidAsync("eval", $@"
-                (async () => {{
-                    try {{
-                        const res = await fetch('{dataUrl}');
-                        const blob = await res.blob();
-                        const blobUrl = URL.createObjectURL(blob);
-                        window.open(blobUrl, '_blank');
-                    }} catch (err) {{
-                        var win = window.open();
-                        win.document.write('<iframe src=""{dataUrl}"" frameborder=""0"" style=""border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;""></iframe>');
-                    }}
-                }})();
-            ");
-        }
-        catch
-        {
-            Navigation.NavigateTo(dataUrl, true);
-        }
-    }
 
-    private Task AprobarDocumentoActual()
+
+    private async Task AprobarDocumentoActual()
+
     {
+
         if (docSeleccionado != null)
+
         {
+
+            await CambiarEstadoDocApi(docSeleccionado.Id, "Aprobado");
+
             docSeleccionado.Estado = "Aprobado";
-            docSeleccionado.MotivoObservacion = "";
-            notificacionAccion = $"Documento '{docSeleccionado.TipoDocumento}' validado y aprobado legalmente.";
+
+            notificacionAccion = Idioma.EsEspanol
+
+                ? $"Documento '{docSeleccionado.TipoDocumento}' validado y aprobado legalmente."
+
+                : $"Document '{docSeleccionado.TipoDocumento}' officially validated and approved.";
+
         }
-        return Task.CompletedTask;
+
     }
 
-    private Task PedirNuevaFoto()
+
+
+    private async Task PedirNuevaFoto()
+
     {
+
         if (docSeleccionado != null)
+
         {
-            docSeleccionado.Estado = "Requiere Subsanación";
-            docSeleccionado.MotivoObservacion = "El documento no cumple con los estándares exigidos. Se solicita reemplazo.";
-            notificacionAccion = $"Se ha generado requerimiento de subsanación para '{docSeleccionado.TipoDocumento}'.";
+
+            await CambiarEstadoDocApi(docSeleccionado.Id, "EnRevision");
+
+            docSeleccionado.Estado = "En Revisión";
+
+            notificacionAccion = Idioma.EsEspanol
+
+                ? $"Se ha generado requerimiento de reemplazo para '{docSeleccionado.TipoDocumento}'."
+
+                : $"Replacement requirement generated for '{docSeleccionado.TipoDocumento}'.";
+
         }
-        return Task.CompletedTask;
+
     }
 
-    private Task MarcarNoVigente()
+
+
+    private async Task MarcarNoVigente()
+
     {
+
         if (docSeleccionado != null)
+
         {
-            docSeleccionado.Estado = "No Vigente";
-            docSeleccionado.MotivoObservacion = "El documento presentado ha expirado o no cuenta con la vigencia requerida.";
-            notificacionAccion = $"Documento '{docSeleccionado.TipoDocumento}' marcado como no vigente.";
+
+            await CambiarEstadoDocApi(docSeleccionado.Id, "Rechazado");
+
+            docSeleccionado.Estado = "Rechazado";
+
+            notificacionAccion = Idioma.EsEspanol
+
+                ? $"Documento '{docSeleccionado.TipoDocumento}' marcado como no vigente/rechazado."
+
+                : $"Document '{docSeleccionado.TipoDocumento}' marked as invalid/rejected.";
+
         }
-        return Task.CompletedTask;
+
     }
 
-    private Task AprobarExpedienteCompleto()
+
+
+    private async Task CambiarEstadoDocApi(int docId, string nuevoEstado)
+
     {
-        expediente.EstadoGeneral = "Aprobado";
-        var item = StateService.ListaExpedientes.FirstOrDefault(e => e.Id == expediente.Id);
-        if (item != null) item.Estado = "Aprobado";
-        foreach (var d in expediente.Documentos) d.Estado = "Aprobado";
-        notificacionAccion = $"Expediente {expediente.Radicado} APROBADO satisfactoriamente.";
-        return Task.CompletedTask;
+
+        try
+
+        {
+
+            await Http.PatchAsJsonAsync($"api/solicitud/documento/{docId}/estado", new { nuevoEstado });
+
+        }
+
+        catch { }
+
     }
 
-    private Task SolicitarSubsanacionGeneral()
+
+
+    private bool EsEstadoAprobado() => expediente != null && (expediente.EstadoGeneral == "3" || expediente.EstadoGeneral.Equals("Aprobada", StringComparison.OrdinalIgnoreCase) || expediente.EstadoGeneral.Equals("Aprobado", StringComparison.OrdinalIgnoreCase));
+
+    private bool EsEstadoSubsanacion() => expediente != null && (expediente.EstadoGeneral == "6" || expediente.EstadoGeneral.Equals("RequiereCorreccion", StringComparison.OrdinalIgnoreCase));
+
+    private bool EsEstadoRechazado() => expediente != null && (expediente.EstadoGeneral == "4" || expediente.EstadoGeneral.Equals("Rechazada", StringComparison.OrdinalIgnoreCase) || expediente.EstadoGeneral.Equals("Rechazado", StringComparison.OrdinalIgnoreCase));
+
+
+
+    private async Task AprobarExpedienteCompleto()
+
     {
-        expediente.EstadoGeneral = "Subsanación Requerida";
-        var item = StateService.ListaExpedientes.FirstOrDefault(e => e.Id == expediente.Id);
-        if (item != null) item.Estado = "Subsanación Requerida";
-        notificacionAccion = "Notificación enviada al residente para corrección de recaudos.";
-        return Task.CompletedTask;
+
+        if (expediente == null) return;
+
+        procesandoDictamen = true;
+
+        try
+
+        {
+
+            var nombreAdmin = await JS.InvokeAsync<string>("localStorage.getItem", "nombreUsuario") ?? "Administrador DGM";
+
+            await JS.InvokeVoidAsync("localStorage.setItem", "ultimoAdminRevisor", nombreAdmin);
+
+
+
+            var res = await Http.PatchAsJsonAsync($"api/solicitud/{expediente.Id}/estado", new { nuevoEstado = 3 });
+
+            if (res.IsSuccessStatusCode)
+
+            {
+
+                expediente.EstadoGeneral = "Aprobada";
+
+                notificacionAccion = Idioma.EsEspanol
+
+                    ? $"Expediente {expediente.Radicado} APROBADO por {nombreAdmin}."
+
+                    : $"File {expediente.Radicado} APPROVED by {nombreAdmin}.";
+
+            }
+
+        }
+
+        catch { }
+
+        finally { procesandoDictamen = false; }
+
     }
 
-    private Task RechazarExpediente()
+
+
+    private async Task SolicitarSubsanacionGeneral()
+
     {
-        expediente.EstadoGeneral = "Rechazado";
-        var item = StateService.ListaExpedientes.FirstOrDefault(e => e.Id == expediente.Id);
-        if (item != null) item.Estado = "Rechazado";
-        notificacionAccion = "Expediente marcado como RECHAZADO.";
-        return Task.CompletedTask;
+
+        if (expediente == null) return;
+
+        procesandoDictamen = true;
+
+        try
+
+        {
+
+            var res = await Http.PatchAsJsonAsync($"api/solicitud/{expediente.Id}/estado", new { nuevoEstado = 6 });
+
+            if (res.IsSuccessStatusCode)
+
+            {
+
+                expediente.EstadoGeneral = "RequiereCorreccion";
+
+                notificacionAccion = Idioma.EsEspanol
+
+                    ? "Se ha notificado al solicitante que el expediente REQUIERE CORRECCIÓN."
+
+                    : "The applicant has been notified that the file REQUIRES CORRECTION.";
+
+            }
+
+        }
+
+        catch { }
+
+        finally { procesandoDictamen = false; }
+
     }
+
+
+
+    private async Task RechazarExpediente()
+
+    {
+
+        if (expediente == null) return;
+
+        procesandoDictamen = true;
+
+        try
+
+        {
+
+            var res = await Http.PatchAsJsonAsync($"api/solicitud/{expediente.Id}/estado", new { nuevoEstado = 4 });
+
+            if (res.IsSuccessStatusCode)
+
+            {
+
+                expediente.EstadoGeneral = "Rechazada";
+
+                notificacionAccion = Idioma.EsEspanol
+
+                    ? "Expediente dictaminado como RECHAZADO."
+
+                    : "File officially resolved as REJECTED.";
+
+            }
+
+        }
+
+        catch { }
+
+        finally { procesandoDictamen = false; }
+
+    }
+
+
+
+    private string FormatearEstado(string estado)
+
+    {
+
+        bool esEs = Idioma.EsEspanol;
+
+        return estado switch
+
+        {
+
+            "1" or "Pendiente" => esEs ? "Pendiente" : "Pending",
+
+            "2" or "EnProceso" or "En Proceso" => esEs ? "En Proceso" : "In Process",
+
+            "3" or "Aprobada" or "Aprobado" => esEs ? "Aprobada" : "Approved",
+
+            "4" or "Rechazada" or "Rechazado" => esEs ? "Rechazada" : "Rejected",
+
+            "5" or "Cancelada" or "Cancelado" => esEs ? "Cancelada" : "Cancelled",
+
+            "6" or "RequiereCorreccion" => esEs ? "Requiere Corrección" : "Requires Correction",
+
+            _ => estado
+
+        };
+
+    }
+
+
+
+    private string FormatearEstadoDoc(string estado)
+
+    {
+
+        bool esEs = Idioma.EsEspanol;
+
+        return estado switch
+
+        {
+
+            "Aprobado" or "Aprobada" => esEs ? "Aprobado" : "Approved",
+
+            "Rechazado" or "Rechazada" => esEs ? "Rechazado" : "Rejected",
+
+            "EnRevision" or "En Revisión" => esEs ? "En Revisión" : "Under Review",
+
+            _ => esEs ? "Pendiente" : "Pending"
+
+        };
+
+    }
+
+
 
     private string ObtenerBadgeEstado(string estado) => estado switch
+
     {
-        "Aprobado" => "bg-success text-white",
-        "En Revisión" => "bg-primary text-white",
-        "Subsanación Requerida" => "bg-warning text-dark",
-        "Requiere Subsanación" => "bg-warning text-dark",
-        "No Vigente" => "bg-danger text-white",
-        "Rechazado" => "bg-danger text-white",
-        "Sin Documentación" => "bg-dark text-white",
+
+        "3" or "Aprobada" or "Aprobado" => "bg-success text-white",
+
+        "2" or "EnProceso" or "En Proceso" or "En Revisión" => "bg-primary text-white",
+
+        "6" or "RequiereCorreccion" or "Requiere Corrección" or "Subsanación Requerida" or "Requiere Subsanación" => "bg-warning text-dark",
+
+        "4" or "Rechazada" or "Rechazado" or "No Vigente" => "bg-danger text-white",
+
         _ => "bg-secondary text-white"
+
     };
+
+
 
     private string ObtenerClaseIcono(string estado) => estado switch
+
     {
-        "Aprobado" => "icon-approved",
-        "Requiere Subsanación" => "icon-warning",
-        "No Vigente" => "icon-rejected",
+
+        "Aprobado" or "Aprobada" => "icon-approved",
+
+        "Requiere Corrección" or "Requiere Subsanación" or "En Revisión" => "icon-warning",
+
+        "Rechazado" or "Rechazada" or "No Vigente" => "icon-rejected",
+
         _ => "icon-pending"
+
     };
 
-    public class ExpedienteRevisionDto
+
+
+    public void Dispose()
+
     {
-        public int Id { get; set; }
-        public string Radicado { get; set; } = string.Empty;
-        public string NombreTitular { get; set; } = string.Empty;
-        public string CategoriaResidencia { get; set; } = string.Empty;
-        public string NumeroPasaporte { get; set; } = string.Empty;
-        public string Nacionalidad { get; set; } = string.Empty;
-        public string Correo { get; set; } = string.Empty;
-        public string FechaRegistro { get; set; } = "17/09/2026";
-        public string EstadoGeneral { get; set; } = "Pendiente";
-        public List<DocumentoItemDto> Documentos { get; set; } = new();
+
+        Idioma.OnIdiomaCambiado -= RefrescarPorIdioma;
+
     }
 
-    public class DocumentoItemDto
+
+
+    public class ExpedienteRevisionDto
+
     {
+
         public int Id { get; set; }
-        public string TipoDocumento { get; set; } = string.Empty;
-        public string NombreArchivo { get; set; } = string.Empty;
-        public string Estado { get; set; } = "Pendiente";
-        public string MotivoObservacion { get; set; } = string.Empty;
-        public bool EsImagen { get; set; } = true;
-        public string Icono { get; set; } = "bi-file-earmark";
-        public string UrlPreview { get; set; } = string.Empty;
+
+        public string Radicado { get; set; } = string.Empty;
+
+        public string NombreTitular { get; set; } = string.Empty;
+
+        public string CategoriaResidencia { get; set; } = string.Empty;
+
+        public string NumeroPasaporte { get; set; } = string.Empty;
+
+        public string Nacionalidad { get; set; } = string.Empty;
+
+        public string Correo { get; set; } = string.Empty;
+
+        public string FechaRegistro { get; set; } = string.Empty;
+
+        public string EstadoGeneral { get; set; } = "Pendiente";
+
+        public List<DocumentoItemDto> Documentos { get; set; } = new();
+
     }
-}
+
+
+
+    public class DocumentoItemDto
+
+    {
+
+        public int Id { get; set; }
+
+        public string TipoDocumento { get; set; } = string.Empty;
+
+        public string NombreArchivo { get; set; } = string.Empty;
+
+        public string Estado { get; set; } = "Pendiente";
+
+        public bool EsImagen { get; set; } = true;
+
+        public string Icono { get; set; } = "bi-file-earmark";
+
+        public string UrlPreview { get; set; } = string.Empty;
+
+    }
+
+
+
+    public class SolicitudItemDtoExtendido
+
+    {
+
+        public int Id { get; set; }
+
+        public string NumeroExpediente { get; set; } = string.Empty;
+
+        public string NumeroPasaporte { get; set; } = string.Empty;
+
+        public string NombreCompleto { get; set; } = string.Empty;
+
+        public string Email { get; set; } = string.Empty;
+
+        public string TipoTramite { get; set; } = string.Empty;
+
+        public string Estado { get; set; } = string.Empty;
+
+    }
+
+
+
+    public class SolicitudDtoModel
+
+    {
+
+        public int Id { get; set; }
+
+        public string Codigo { get; set; } = string.Empty;
+
+        public string NumeroExpediente { get; set; } = string.Empty;
+
+        public string Titulo { get; set; } = string.Empty;
+
+        public string Solicitante { get; set; } = string.Empty;
+
+        public string NumeroPasaporte { get; set; } = string.Empty;
+
+        public string Nacionalidad { get; set; } = string.Empty;
+
+        public string PaisOrigen { get; set; } = string.Empty;
+
+        public string Correo { get; set; } = string.Empty;
+
+        public string Email { get; set; } = string.Empty;
+
+        public object Estado { get; set; } = 1;
+
+        public DateTime FechaCreacion { get; set; }
+
+    }
+
+
+
+    public class DocumentoApiModel
+
+    {
+
+        public int Id { get; set; }
+
+        public string Nombre { get; set; } = string.Empty;
+
+        public string Icono { get; set; } = string.Empty;
+
+        public string Estado { get; set; } = string.Empty;
+
+        public string UrlDescarga { get; set; } = string.Empty;
+
+    }
+
+} 

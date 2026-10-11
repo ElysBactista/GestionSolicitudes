@@ -1,0 +1,103 @@
+@using System
+@using Microsoft.AspNetCore.Components
+
+<div class="d-flex flex-wrap align-items-end gap-2">
+    <div>
+        <label class="small fw-semibold text-muted d-block mb-1">Estado</label>
+        <select class="form-select form-select-sm rounded-pill" @bind="filtroActual.FiltroEstado">
+            <option value="">Todos</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="En Revisión">En Revisión</option>
+            <option value="Aprobado">Aprobado</option>
+            <option value="Rechazado">Rechazado</option>
+            <option value="Sin Documentación">Sin Documentación</option>
+        </select>
+    </div>
+
+    <div>
+        <label class="small fw-semibold text-muted d-block mb-1">Tipo de trámite</label>
+        <select class="form-select form-select-sm rounded-pill" @bind="filtroActual.FiltroTipoTramite">
+            <option value="">Todos</option>
+            <option value="Estudiante">Estudiante</option>
+            <option value="Trabajo">Trabajo</option>
+            <option value="Familia">Familia</option>
+            <option value="Menor">Menor</option>
+        </select>
+    </div>
+
+    <div>
+        <label class="small fw-semibold text-muted d-block mb-1">Desde</label>
+        <input type="date" class="form-control form-control-sm rounded-pill" @bind="filtroActual.FechaInicio" />
+    </div>
+
+    <div>
+        <label class="small fw-semibold text-muted d-block mb-1">Hasta</label>
+        <input type="date" class="form-control form-control-sm rounded-pill" @bind="filtroActual.FechaFin" />
+    </div>
+
+    <button class="btn btn-sm btn-primary rounded-pill px-3" @onclick="AplicarFiltros">
+        Aplicar
+    </button>
+
+    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" @onclick="LimpiarFiltros">
+        Limpiar
+    </button>
+</div>
+
+@code {
+    public class FiltroDataModel
+    {
+        public bool FiltroFechaAplicado { get; set; } = false;
+        public DateTime FechaInicio { get; set; } = DateTime.Today;
+        public DateTime FechaFin { get; set; } = DateTime.Today;
+        public string FiltroEstado { get; set; } = string.Empty;
+        public string FiltroTipoTramite { get; set; } = string.Empty;
+    }
+
+    [Parameter]
+    public bool FiltroFechaAplicado { get; set; }
+
+    [Parameter]
+    public DateTime FechaInicio { get; set; } = DateTime.Today;
+
+    [Parameter]
+    public DateTime FechaFin { get; set; } = DateTime.Today;
+
+    [Parameter]
+    public string FiltroEstado { get; set; } = string.Empty;
+
+    [Parameter]
+    public string FiltroTipoTramite { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<FiltroDataModel> OnAplicarFiltros { get; set; }
+
+    [Parameter]
+    public EventCallback OnLimpiar { get; set; }
+
+    private FiltroDataModel filtroActual = new();
+
+    protected override void OnParametersSet()
+    {
+        filtroActual = new FiltroDataModel
+        {
+            FiltroFechaAplicado = FiltroFechaAplicado,
+            FechaInicio = FechaInicio,
+            FechaFin = FechaFin,
+            FiltroEstado = FiltroEstado,
+            FiltroTipoTramite = FiltroTipoTramite
+        };
+    }
+
+    private async Task AplicarFiltros()
+    {
+        filtroActual.FiltroFechaAplicado = true;
+        await OnAplicarFiltros.InvokeAsync(filtroActual);
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        filtroActual = new FiltroDataModel();
+        await OnLimpiar.InvokeAsync();
+    }
+}

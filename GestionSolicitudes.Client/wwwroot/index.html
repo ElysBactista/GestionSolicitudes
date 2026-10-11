@@ -24,19 +24,320 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div id="app">
-        <svg class="loading-progress">
-            <circle r="40%" cx="50%" cy="50%" />
-            <circle r="40%" cx="50%" cy="50%" />
-        </svg>
-        <div class="loading-progress-text"></div>
+    <!-- Pantalla de carga: está FUERA de #app para que Blazor no la borre
+         y podamos hacer la transición de salida cuando la plataforma esté lista -->
+    <div class="loader-container" id="loader-screen">
+        <!-- Curva blanca de fondo similar al Login -->
+        <div class="curved-bg-loader" aria-hidden="true"></div>
+
+        <div class="loader-content">
+            <!-- Avión que entra volando desde fuera de la pantalla hacia el centro -->
+            <div class="plane-zone" id="plane-zone">
+                <!-- Estela: sigue el mismo recorrido curvo del avión -->
+                <svg class="plane-trail-svg" aria-hidden="true"><path id="plane-trail-path" d=""></path></svg>
+                <div class="plane-flight-container" id="plane-flight">
+                    <svg class="flight-icon" id="plane-icon" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M6.428 1.151C6.708.591 7.213 0 8 0s1.292.592 1.572 1.151C9.861 1.73 10 2.431 10 3v3.691l5.17 2.585a1.5 1.5 0 0 1 .83 1.342V12a.5.5 0 0 1-.582.493l-5.507-.918-.375 2.253 1.318 1.318A.5.5 0 0 1 10.5 16h-5a.5.5 0 0 1-.354-.854l1.319-1.318-.376-2.253-5.507.918A.5.5 0 0 1 0 12v-1.382a1.5 1.5 0 0 1 .83-1.342L6 6.691V3c0-.568.14-1.271.428-1.849" /></svg>
+                </div>
+            </div>
+
+            <!-- Círculo de carga clásico de Blazor personalizado -->
+            <div class="spinner-loader-box">
+                <div class="spinner-border text-warning" style="width: 3.2rem; height: 3.2rem; border-width: 0.35rem;" role="status"></div>
+            </div>
+
+            <h4 class="loader-title">Dirección General de Migración</h4>
+            <p class="loader-subtitle">Portal de Servicios Migratorios</p>
+
+            <div class="loader-status">Cargando y actualizando plataforma oficial...</div>
+        </div>
     </div>
+
+    <div id="app"></div>
 
     <div id="blazor-error-ui">
         Ha ocurrido un error inesperado.
         <a href="" class="reload">Recargar</a>
         <a class="dismiss">🗙</a>
     </div>
+
+    <style>
+        .loader-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+            background-color: #003876;
+            font-family: 'Poppins', sans-serif;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 99999;
+            overflow: hidden;
+        }
+
+        /* Curva blanca flotante decorativa idéntica al login */
+        .curved-bg-loader {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            clip-path: ellipse(110% 90% at 85% 100%);
+            opacity: 0.04;
+            pointer-events: none;
+        }
+
+        .loader-content {
+            text-align: center;
+            max-width: 420px;
+            padding: 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* ========== ENTRADA DEL AVIÓN ========== */
+        /* El movimiento lo calcula el script (recorrido curvo largo desde arriba-izquierda, fuera de pantalla,
+           hasta el círculo de carga). Aquí solo van las cajas y estilos. */
+        .plane-zone {
+            position: relative;
+            width: 1em;
+            height: 1em;
+            font-size: 2.8rem;
+            margin: 0 auto 0.5rem;
+            color: #f59e0b;
+        }
+
+        .plane-flight-container {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            will-change: transform;
+        }
+
+        .flight-icon {
+            display: block;
+            width: 1em;
+            height: 1em;
+        }
+
+        /* Estela del recorrido */
+        .plane-trail-svg {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 1px;
+            height: 1px;
+            overflow: visible;
+            pointer-events: none;
+            transition: opacity 1s ease;
+        }
+
+            .plane-trail-svg path {
+                fill: none;
+                stroke: rgba(245, 158, 11, 0.55);
+                stroke-width: 3;
+                stroke-linecap: round;
+            }
+
+        .plane-zone.trail-done .plane-trail-svg {
+            opacity: 0;
+        }
+
+        .spinner-loader-box {
+            margin-bottom: 1.25rem;
+        }
+
+        .loader-title {
+            font-weight: 700;
+            color: #ffffff;
+            font-size: 1.35rem;
+            margin-bottom: 0.25rem;
+            letter-spacing: 0.5px;
+        }
+
+        .loader-subtitle {
+            color: rgba(255, 255, 255, 0.75);
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .loader-status {
+            display: block;
+            margin-top: 0.75rem;
+            font-size: 0.82rem;
+            color: #fef08a;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            animation: pulseText 1.5s infinite ease-in-out;
+        }
+
+        @keyframes pulseText {
+            0% {
+                opacity: 0.6;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.6;
+            }
+        }
+
+        /* ========== TRANSICIÓN DE SALIDA ========== */
+        /* 1) El avión despega hacia arriba-derecha  2) el texto sube y se desvanece
+           3) la pantalla azul se cierra como un círculo y deja ver la plataforma */
+        .loader-exit .plane-flight-container {
+            animation: planeExit 0.8s cubic-bezier(0.5, 0, 0.9, 0.4) forwards;
+        }
+
+        .loader-exit .spinner-loader-box,
+        .loader-exit .loader-title,
+        .loader-exit .loader-subtitle,
+        .loader-exit .loader-status {
+            animation: contentOut 0.5s ease forwards;
+        }
+
+        .loader-exit {
+            pointer-events: none;
+            animation: loaderClose 0.9s cubic-bezier(0.7, 0, 0.3, 1) 0.55s forwards;
+        }
+
+        @keyframes planeExit {
+            0% {
+                transform: translate(0, 0);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(70vw, -55vh);
+                opacity: 0;
+            }
+        }
+
+        @keyframes contentOut {
+            to {
+                opacity: 0;
+                transform: translateY(-14px);
+            }
+        }
+
+        @keyframes loaderClose {
+            0% {
+                clip-path: circle(150% at 50% 45%);
+                opacity: 1;
+            }
+
+            100% {
+                clip-path: circle(0% at 50% 45%);
+                opacity: 0;
+            }
+        }
+
+        /* La plataforma aparece suavemente al terminar la carga */
+        #app.app-reveal {
+            animation: appReveal 0.9s ease 0.3s both;
+        }
+
+        @keyframes appReveal {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Accesibilidad: si el usuario prefiere menos movimiento, solo se desvanece */
+        @media (prefers-reduced-motion: reduce) {
+            .plane-trail-svg {
+                display: none;
+            }
+
+            .loader-exit .plane-flight-container {
+                animation: none;
+                opacity: 0;
+            }
+
+            .loader-exit {
+                animation: loaderFadeOnly 0.4s ease forwards;
+            }
+
+            @keyframes loaderFadeOnly {
+                to {
+                    opacity: 0;
+                }
+            }
+        }
+    </style>
+
+    <!-- Recorrido del avión: curva larga desde arriba-izquierda (fuera de pantalla) hasta el círculo de carga -->
+    <script>
+        (function () {
+            var zone = document.getElementById('plane-zone');
+            var plane = document.getElementById('plane-flight');
+            var icon = document.getElementById('plane-icon');
+            var trail = document.getElementById('plane-trail-path');
+            if (!zone || !plane || !icon || !trail) return;
+
+            var DURACION = 5500; // ms que dura el vuelo de entrada
+            var reducir = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            // Punto de aterrizaje = (0,0). Todo el recorrido se calcula relativo a ese punto.
+            var r = zone.getBoundingClientRect();
+            var ax = r.left + r.width / 2;
+            var ay = r.top + r.height / 2;
+
+            var sx = -(ax + 140), sy = -ay * 0.62;      // inicio: fuera de pantalla, arriba a la izquierda
+            var Ax = -0.30 * ax, Ay = -0.78 * ay;       // punto alto de la curva
+            var k = 0.15;
+            var d = 'M' + sx + ',' + sy +
+                ' C' + (sx + 0.40 * (Ax - sx)) + ',' + (sy - 0.15 * ay) + ' ' + (Ax - 0.35 * ax) + ',' + (Ay - 0.35 * ax * k) + ' ' + Ax + ',' + Ay +
+                ' C' + (Ax + 0.35 * ax) + ',' + (Ay + 0.35 * ax * k) + ' ' + (-0.06 * ax) + ',' + (-0.30 * ay) + ' 0,0';
+            trail.setAttribute('d', d);
+
+            var L = trail.getTotalLength();
+            trail.style.strokeDasharray = L;
+            trail.style.strokeDashoffset = L;
+
+            function colocar(largo) {
+                var p = trail.getPointAtLength(largo);
+                var q = trail.getPointAtLength(Math.min(largo + 6, L));
+                var ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
+                plane.style.transform = 'translate(' + p.x + 'px,' + p.y + 'px)';
+                icon.style.transform = 'rotate(' + (ang + 90) + 'deg)';
+            }
+
+            function aterrizar() {
+                plane.style.opacity = 1;
+                plane.style.transform = 'translate(0px,0px)';
+                icon.style.transition = 'transform 0.9s ease';
+                icon.style.transform = 'rotate(50deg)'; // queda apuntando arriba-derecha, listo para despegar
+                zone.classList.add('trail-done');
+            }
+
+            if (reducir) { aterrizar(); return; }
+
+            colocar(0);
+            var t0 = null;
+            function paso(ts) {
+                if (t0 === null) t0 = ts;
+                var t = Math.min((ts - t0) / DURACION, 1);
+                var e = 1 - Math.pow(1 - t, 2.2);       // rápido al inicio, suave al aterrizar
+                var largo = L * e;
+                colocar(largo);
+                trail.style.strokeDashoffset = L - largo;
+                plane.style.opacity = Math.min(1, t / 0.05);
+                if (t < 1) { requestAnimationFrame(paso); } else { aterrizar(); }
+            }
+            requestAnimationFrame(paso);
+        })();
+    </script>
 
     <!-- 1. SweetAlert2 -->
     <script src="_content/CurrieTechnologies.Razor.SweetAlert2/sweetAlert2.min.js"></script>
@@ -57,6 +358,45 @@
                 }
             });
         };
+    </script>
+
+    <!-- 5. Transición de salida de la pantalla de carga -->
+    <script>
+        (function () {
+            // Tiempo mínimo que se ve la pantalla de carga (ms), para que el avión termine de entrar.
+            var TIEMPO_MINIMO = 6500;
+
+            var app = document.getElementById('app');
+            var loader = document.getElementById('loader-screen');
+            var inicio = Date.now();
+            var terminado = false;
+            var observer;
+
+            function terminar() {
+                if (terminado) return;
+                terminado = true;
+                if (observer) observer.disconnect();
+
+                var espera = Math.max(0, TIEMPO_MINIMO - (Date.now() - inicio));
+                setTimeout(function () {
+                    loader.classList.add('loader-exit');
+                    app.classList.add('app-reveal');
+                    setTimeout(function () {
+                        loader.remove();
+                        app.classList.remove('app-reveal');
+                    }, 1700);
+                }, espera);
+            }
+
+            // Blazor agrega contenido dentro de #app cuando la plataforma ya está lista
+            function revisar() {
+                if (app.childElementCount > 0) terminar();
+            }
+
+            observer = new MutationObserver(revisar);
+            observer.observe(app, { childList: true });
+            revisar();
+        })();
     </script>
 </body>
 </html>

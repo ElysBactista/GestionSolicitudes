@@ -4,19 +4,31 @@
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthStateProvider
+@inject GestionSolicitudes.Client.Services.IdiomaService Idioma
+@implements IDisposable
 
-<PageTitle>Registro de Nuevo Usuario - Dirección General de Migración</PageTitle>
+<PageTitle>@(Idioma.EsEspanol ? "Registro de Nuevo Usuario - Dirección General de Migración" : "New User Registration - General Directorate of Migration")</PageTitle>
 
 <div class="divPrincipalRegistro">
+
+    <!-- Selector discreto de idioma superior -->
+    <div class="position-absolute top-0 end-0 p-3" style="z-index: 25;">
+        <select class="form-select form-select-sm border-0 bg-white shadow-sm fw-semibold text-secondary rounded-pill px-3 py-1 cursor-pointer"
+                style="font-size: 0.85rem; height: 36px; min-width: 115px;"
+                value="@Idioma.IdiomaActual"
+                @onchange="CambiarIdioma">
+            <option value="ES">Español</option>
+            <option value="EN">English</option>
+        </select>
+    </div>
 
     <!-- Fondo de Onda en 'S' con Azul Institucional DGM -->
     <div class="wave-background-container" aria-hidden="true">
         <svg class="wave-svg" viewBox="0 0 1440 900" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-            <!-- Curva en 'S': Inicia a media altura a la izquierda (Y: 280), cruza el centro y sube al tope derecho (Y: 0) -->
             <path d="M 0,280 C 300,350 650,330 950,180 C 1150,80 1300,20 1440,0 L 1440,900 L 0,900 Z" fill="#003876" />
         </svg>
 
-        <!-- Escudo / Logo institucional fantasma posicionado en el área azul -->
         <div class="image__registro__logo">
             <svg class="registro__main__image" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1238 759.96">
                 <text transform="matrix(1.1561 0 0 1 283.3885 434.893)" fill="#fff" font-family="Gotham-Light" font-size="64.999px">
@@ -91,27 +103,35 @@
                         </div>
 
                         <div class="pe-md-1">
-                            <h6 class="fw-bold text-white mb-2" style="font-size: 0.95rem;">Portal de Servicios Digitales</h6>
+                            <h6 class="fw-bold text-white mb-2" style="font-size: 0.95rem;">
+                                @(Idioma.EsEspanol ? "Portal de Servicios Digitales" : "Digital Services Portal")
+                            </h6>
                             <p class="text-white-50 lh-base mb-4" style="font-size: 0.78rem;">
-                                Plataforma oficial para la emisión, renovación y control de trámites migratorios con atención ciudadana en línea.
+                                @(Idioma.EsEspanol
+                                                                ? "Plataforma oficial para la emisión, renovación y control de trámites migratorios con atención ciudadana en línea."
+                                                                : "Official platform for issuance, renewal, and oversight of immigration files with online citizen service.")
                             </p>
 
                             <div class="d-flex flex-column gap-3">
                                 <div>
                                     <strong class="d-block text-white mb-1" style="font-size: 0.80rem;">
-                                        <i class="bi bi-shield-check text-warning me-1"></i> Seguridad y Cifrado
+                                        <i class="bi bi-shield-check text-warning me-1"></i> @(Idioma.EsEspanol ? "Seguridad y Cifrado" : "Security & Encryption")
                                     </strong>
                                     <span class="text-white-50" style="font-size: 0.72rem; line-height: 1.35; display: block;">
-                                        Tus datos personales y documentación confidencial están protegidos con altos estándares de seguridad institucional.
+                                        @(Idioma.EsEspanol
+                                                                                ? "Tus datos personales y documentación confidencial están protegidos con altos estándares de seguridad institucional."
+                                                                                : "Your personal data and sensitive documents are protected under institutional security standards.")
                                     </span>
                                 </div>
 
                                 <div>
                                     <strong class="d-block text-white mb-1" style="font-size: 0.80rem;">
-                                        <i class="bi bi-clock-history text-warning me-1"></i> Disponibilidad 24/7
+                                        <i class="bi bi-clock-history text-warning me-1"></i> @(Idioma.EsEspanol ? "Disponibilidad 24/7" : "24/7 Availability")
                                     </strong>
                                     <span class="text-white-50" style="font-size: 0.72rem; line-height: 1.35; display: block;">
-                                        Envía solicitudes y verifica el estado de tus expedientes en tiempo real sin límites de horario.
+                                        @(Idioma.EsEspanol
+                                                                                ? "Envía solicitudes y verifica el estado de tus expedientes en tiempo real sin límites de horario."
+                                                                                : "Submit applications and verify your file status in real time around the clock.")
                                     </span>
                                 </div>
                             </div>
@@ -121,7 +141,9 @@
                     <div class="d-flex align-items-center gap-2 border-top border-white border-opacity-25" style="margin-top: 50px !important; padding-top: 12px !important;">
                         <i class="bi bi-telephone-fill text-warning flex-shrink-0" style="font-size: 0.70rem;"></i>
                         <div class="lh-1">
-                            <strong class="text-white d-block mb-1" style="font-size: 0.65rem; letter-spacing: 0.2px;">Contacto para asistencia</strong>
+                            <strong class="text-white d-block mb-1" style="font-size: 0.65rem; letter-spacing: 0.2px;">
+                                @(Idioma.EsEspanol ? "Contacto para asistencia" : "Support Contact")
+                            </strong>
                             <span class="text-white-50 d-block" style="font-size: 0.60rem; line-height: 1.25;">
                                 Tel: (809) 508-2555<br />
                                 info@migracion.gob.do
@@ -136,10 +158,13 @@
                         <img src="logoinstitucional.png" alt="Logo Institucional" style="max-height: 52px; object-fit: contain;" />
                     </div>
 
-                    <!-- 1. TÍTULO PRINCIPAL EN AZUL INSTITUCIONAL -->
                     <div class="mb-4">
-                        <h4 class="fw-bold mb-1" style="color: #003876;">Registro de Nuevo Usuario</h4>
-                        <p class="small mb-0 text-texto-negro">Complete la información requerida para habilitar su acceso a la plataforma.</p>
+                        <h4 class="fw-bold mb-1" style="color: #003876;">
+                            @(Idioma.EsEspanol ? "Registro de Nuevo Usuario" : "New User Registration")
+                        </h4>
+                        <p class="small mb-0 text-texto-negro">
+                            @(Idioma.EsEspanol ? "Complete la información requerida para habilitar su acceso a la plataforma." : "Fill in the required information to activate your account.")
+                        </p>
                     </div>
 
                     @if (!string.IsNullOrEmpty(mensajeError))
@@ -161,46 +186,47 @@
                     <EditForm Model="modelo" OnValidSubmit="ProcesarRegistro">
                         <DataAnnotationsValidator />
 
-                        <!-- 2. DATOS PERSONALES EN NEGRO Y NEGRITA -->
+                        <!-- Título limpio sin icono -->
                         <div class="d-flex align-items-center gap-2 mb-3">
-                            <i class="bi bi-person-vcard text-dark"></i>
-                            <span class="fw-bold text-dark text-uppercase small" style="letter-spacing: 0.5px; font-size: 0.8rem;">DATOS PERSONALES</span>
+                            <span class="fw-bold text-dark text-uppercase small" style="letter-spacing: 0.5px; font-size: 0.8rem;">
+                                @(Idioma.EsEspanol ? "DATOS PERSONALES" : "PERSONAL INFORMATION")
+                            </span>
                         </div>
 
                         <div class="row g-3 mb-3">
-                            <!-- NOMBRE COMPLETO EN NEGRO REGULAR -->
                             <div class="col-12">
-                                <label class="form-label text-texto-negro small mb-1">NOMBRE COMPLETO *</label>
+                                <label class="form-label text-texto-negro small mb-1">
+                                    @(Idioma.EsEspanol ? "Nombre Completo *" : "Full Name *")
+                                </label>
                                 <input type="text"
                                        class="form-control"
-                                       placeholder="Ej. Juana Pérez González"
-                                       @bind-value="modelo.NombreCompleto"
+                                       placeholder="@(Idioma.EsEspanol ? "Ej. Juana Pérez González" : "e.g., Juana Perez Gonzalez")"
+                                       value="@modelo.NombreCompleto"
+                                       @oninput="OnNombreInput"
                                        required />
                             </div>
 
-                            <!-- DOCUMENTO / PASAPORTE EN NEGRO Y NEGRITA -->
                             <div class="col-md-6">
-                                <label class="form-label text-dark fw-bold small mb-1">DOCUMENTO / PASAPORTE *</label>
+                                <label class="form-label text-dark fw-bold small mb-1"></label>
                                 <div class="input-group">
                                     <select class="form-select border-secondary-subtle text-texto-negro"
-                                            style="max-width: 115px; font-size: 0.85rem;"
+                                            style="max-width: 125px; font-size: 0.85rem;"
                                             @bind="tipoDocumentoSeleccionado">
-                                        <option value="Cedula">Cédula</option>
-                                        <option value="Pasaporte">Pasaporte</option>
+                                        <option value="Cedula">@(Idioma.EsEspanol ? "Cédula" : "ID Card")</option>
+                                        <option value="Pasaporte">@(Idioma.EsEspanol ? "Pasaporte" : "Passport")</option>
                                     </select>
                                     <input type="text"
                                            class="form-control"
                                            placeholder="@(tipoDocumentoSeleccionado == "Cedula" ? "Ej. 402-0000000-0" : "Ej. P0948214")"
                                            value="@modelo.NumeroPasaporte"
                                            @oninput="OnDocumentoInput"
-                                           maxlength="@(tipoDocumentoSeleccionado == "Cedula" ? 13 : 20)"
+                                           maxlength="@(tipoDocumentoSeleccionado == "Cedula" ? 13 : 9)"
                                            required />
                                 </div>
                             </div>
 
-                            <!-- TELÉFONO EN NEGRO REGULAR -->
                             <div class="col-md-6">
-                                <label class="form-label text-texto-negro small mb-1">TELÉFONO *</label>
+                                <label class="form-label text-texto-negro small mb-1"> </label>
                                 <div class="input-group position-relative">
                                     <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2 bg-light px-2"
                                             type="button"
@@ -237,64 +263,86 @@
                                            placeholder="@(codigoPais.Contains("+1") ? "(809) 000-0000" : "07000 000000")"
                                            value="@telefonoFormateado"
                                            @oninput="OnTelefonoInput"
+                                           maxlength="@MaxLongitudTelefono"
                                            required />
                                 </div>
                             </div>
                         </div>
 
-                        <!-- 3. CREDENCIALES DE ACCESO EN NEGRO Y NEGRITA -->
+                        <!-- Título limpio sin icono -->
                         <div class="d-flex align-items-center gap-2 mb-3 mt-4">
-                            <i class="bi bi-key text-dark"></i>
-                            <span class="fw-bold text-dark text-uppercase small" style="letter-spacing: 0.5px; font-size: 0.8rem;">CREDENCIALES DE ACCESO</span>
+                            <span class="fw-bold text-dark text-uppercase small" style="letter-spacing: 0.5px; font-size: 0.8rem;">
+                                @(Idioma.EsEspanol ? "CREDENCIALES DE ACCESO" : "ACCESS CREDENTIALS")
+                            </span>
                         </div>
 
                         <div class="row g-3 mb-3">
-                            <!-- CORREO ELECTRÓNICO EN NEGRO REGULAR -->
                             <div class="col-12">
-                                <label class="form-label text-texto-negro small mb-1">CORREO ELECTRÓNICO (USUARIO) *</label>
+                                <label class="form-label text-texto-negro small mb-1">
+                                    @(Idioma.EsEspanol ? "Correo electrónico (Usuario) *" : "Email Address (Username) *")
+                                </label>
                                 <input type="email"
                                        class="form-control"
-                                       placeholder="@@admin.do.gob"
+                                       placeholder="correo@ejemplo.com"
                                        @bind-value="modelo.Email"
                                        required />
                             </div>
-
-                            <!-- CONTRASEÑA EN NEGRO REGULAR -->
                             <div class="col-md-6">
-                                <label class="form-label text-texto-negro small mb-1">CONTRASEÑA *</label>
-                                <input type="password"
-                                       class="form-control"
-                                       placeholder="••••••"
-                                       @bind-value="modelo.Password"
-                                       required />
+                                <label class="form-label text-texto-negro small mb-1">
+                                    @(Idioma.EsEspanol ? "Contraseña *" : "Password *")
+                                </label>
+                                <div class="password-wrapper-custom">
+                                    <input type="@(mostrarPassword ? "text" : "password")"
+                                           class="form-control border-0 bg-transparent flex-grow-1"
+                                           placeholder="••••••"
+                                           @bind-value="modelo.Password"
+                                           required />
+                                    <button class="btn-toggle-eye"
+                                            type="button"
+                                            @onclick="() => mostrarPassword = !mostrarPassword"
+                                            tabindex="-1"
+                                            title="@(mostrarPassword ? (Idioma.EsEspanol ? "Ocultar" : "Hide") : (Idioma.EsEspanol ? "Mostrar" : "Show"))">
+                                        <i class="bi @(mostrarPassword ? "bi-eye-fill" : "bi-eye-slash-fill")"></i>
+                                    </button>
+                                </div>
                             </div>
 
-                            <!-- CONFIRMAR CONTRASEÑA EN NEGRO REGULAR -->
                             <div class="col-md-6">
-                                <label class="form-label text-texto-negro small mb-1">CONFIRMAR CONTRASEÑA *</label>
-                                <input type="password"
-                                       class="form-control"
-                                       placeholder="Repita su contraseña"
-                                       @bind-value="confirmarPassword"
-                                       required />
+                                <label class="form-label text-texto-negro small mb-1">
+                                    @(Idioma.EsEspanol ? "Confirmar Contraseña *" : "Confirm Password *")
+                                </label>
+                                <div class="password-wrapper-custom">
+                                    <input type="@(mostrarConfirmarPassword ? "text" : "password")"
+                                           class="form-control border-0 bg-transparent flex-grow-1"
+                                           placeholder="@(Idioma.EsEspanol ? "Repita su contraseña" : "Repeat password")"
+                                           @bind-value="confirmarPassword"
+                                           required />
+                                    <button class="btn-toggle-eye"
+                                            type="button"
+                                            @onclick="() => mostrarConfirmarPassword = !mostrarConfirmarPassword"
+                                            tabindex="-1"
+                                            title="@(mostrarConfirmarPassword ? (Idioma.EsEspanol ? "Ocultar" : "Hide") : (Idioma.EsEspanol ? "Mostrar" : "Show"))">
+                                        <i class="bi @(mostrarConfirmarPassword ? "bi-eye-fill" : "bi-eye-slash-fill")"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Botones de Acción -->
                         <div class="d-flex justify-content-end align-items-center gap-3 pt-4 mt-4">
                             <button type="button" class="btn btn-outline-secondary px-4 py-2 rounded-3 text-texto-negro" @onclick="VolverAlLogin" style="border-radius: 8px;">
-                                <i class="bi bi-x-circle me-1"></i> Cancelar
+                                <i class="bi bi-x-circle me-1"></i> @(Idioma.EsEspanol ? "Cancelar" : "Cancel")
                             </button>
+                            <!-- Botón con solo texto Registrarse -->
                             <button type="submit" class="btn text-white px-4 py-2 rounded-3 fw-semibold shadow-sm" style="background-color: #003876; border-radius: 8px;" disabled="@cargando">
                                 @if (cargando)
                                 {
                                     <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                    <span>Creando cuenta...</span>
+                                    <span>@(Idioma.EsEspanol ? "Registrando usuario..." : "Registering user...")</span>
                                 }
                                 else
                                 {
                                     <i class="bi bi-person-check-fill me-1"></i>
-                                    <span>Crear Cuenta</span>
+                                    <span>@(Idioma.EsEspanol ? "Registrarse" : "Register")</span>
                                 }
                             </button>
                         </div>
@@ -304,7 +352,7 @@
         </div>
     </div>
 
-    <!-- Footer Institucional de Extremo a Extremo -->
+    <!-- Footer Institucional -->
     <div class="w-100 mt-auto" style="position: relative; z-index: 20;">
         <GestionSolicitudes.Client.Layout.FooterInstitucional />
     </div>
@@ -325,13 +373,12 @@
         min-height: 100vh;
         width: 100%;
         overflow-x: hidden;
-        background-color: #ffffff; /* Fondo blanco superior */
+        background-color: #ffffff;
         font-family: 'Poppins', sans-serif;
         display: flex;
         flex-direction: column;
     }
 
-    /* Contenedor del fondo curvo en 'S' continua */
     .wave-background-container {
         position: absolute;
         top: 0;
@@ -410,6 +457,52 @@
             border-color: #003876;
             box-shadow: 0 0 0 0.2rem rgba(0, 56, 118, 0.15);
         }
+
+    .password-wrapper-custom {
+        display: flex;
+        align-items: center;
+        border: 1px solid #CBD5E1;
+        border-radius: 8px;
+        background-color: #ffffff;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        padding-right: 0.4rem;
+    }
+
+        .password-wrapper-custom:focus-within {
+            border-color: #003876 !important;
+            box-shadow: 0 0 0 0.2rem rgba(0, 56, 118, 0.15);
+        }
+
+        .password-wrapper-custom .form-control:focus {
+            box-shadow: none !important;
+            border-color: transparent !important;
+        }
+
+    .btn-toggle-eye {
+        border: none;
+        background: transparent;
+        padding: 0.35rem 0.6rem;
+        border-radius: 6px;
+        color: #003876;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.15s ease, transform 0.15s ease;
+    }
+
+        .btn-toggle-eye:hover {
+            background-color: rgba(0, 56, 118, 0.08);
+            transform: scale(1.08);
+        }
+
+        .btn-toggle-eye i {
+            font-size: 1.1rem;
+        }
+
+    .cursor-pointer {
+        cursor: pointer;
+    }
 </style>
 
 @code {
@@ -419,36 +512,51 @@
     private bool menuPaisesAbierto = false;
     private string telefonoFormateado = string.Empty;
     private string confirmarPassword = string.Empty;
+    private bool mostrarPassword = false;
+    private bool mostrarConfirmarPassword = false;
     private string mensajeError = string.Empty;
     private string mensajeExito = string.Empty;
     private bool cargando = false;
+
+    private int MaxLongitudTelefono => codigoPais.Contains("+1") ? 14 : 12;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Idioma.OnIdiomaCambiado += RefrescarPorIdioma;
+        await Idioma.InicializarAsync();
+    }
+
+    private void RefrescarPorIdioma()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CambiarIdioma(ChangeEventArgs e)
+    {
+        var nuevo = e.Value?.ToString() ?? "ES";
+        await Idioma.CambiarIdiomaAsync(nuevo);
+    }
 
     private void VolverAlLogin()
     {
         Navigation.NavigateTo("/login");
     }
 
-    private string ObtenerBandera(string codigo)
+    private string ObtenerBandera(string codigo) => codigo switch
     {
-        return codigo switch
-        {
-            "+1-DO" => "https://flagcdn.com/w40/do.png",
-            "+1-US" => "https://flagcdn.com/w40/us.png",
-            "+44-GB" => "https://flagcdn.com/w40/gb.png",
-            _ => "https://flagcdn.com/w40/do.png"
-        };
-    }
+        "+1-DO" => "https://flagcdn.com/w40/do.png",
+        "+1-US" => "https://flagcdn.com/w40/us.png",
+        "+44-GB" => "https://flagcdn.com/w40/gb.png",
+        _ => "https://flagcdn.com/w40/do.png"
+    };
 
-    private string ObtenerPrefijoTexto(string codigo)
+    private string ObtenerPrefijoTexto(string codigo) => codigo switch
     {
-        return codigo switch
-        {
-            "+1-DO" => "+1",
-            "+1-US" => "+1",
-            "+44-GB" => "+44",
-            _ => "+1"
-        };
-    }
+        "+1-DO" => "+1",
+        "+1-US" => "+1",
+        "+44-GB" => "+44",
+        _ => "+1"
+    };
 
     private void SeleccionarPais(string codigo)
     {
@@ -456,6 +564,12 @@
         menuPaisesAbierto = false;
         telefonoFormateado = string.Empty;
         modelo.Telefono = string.Empty;
+    }
+
+    private void OnNombreInput(ChangeEventArgs e)
+    {
+        var raw = e.Value?.ToString() ?? string.Empty;
+        modelo.NombreCompleto = new string(raw.Where(c => char.IsLetter(c) || char.IsWhiteSpace(c) || c == '\'' || c == '-').ToArray());
     }
 
     private void OnDocumentoInput(ChangeEventArgs e)
@@ -475,12 +589,12 @@
             }
             else
             {
-                modelo.NumeroPasaporte = $"{digitos.Substring(0, 3)}-{digitos.Substring(3, 7)}-{digitos.Substring(10)}";
+                modelo.NumeroPasaporte = $"{digitos.Substring(0, 3)}-{digitos.Substring(3, 7)}-{digitos.Substring(10, 1)}";
             }
         }
         else
         {
-            modelo.NumeroPasaporte = new string(raw.Where(char.IsLetterOrDigit).Take(12).ToArray()).ToUpper();
+            modelo.NumeroPasaporte = new string(raw.Where(char.IsLetterOrDigit).Take(9).ToArray()).ToUpper();
         }
     }
 
@@ -492,12 +606,23 @@
         if (codigoPais.Contains("+1"))
         {
             var clean = new string(digitos.Take(10).ToArray());
-            if (clean.Length <= 3)
+            if (clean.Length == 0)
+            {
+                telefonoFormateado = string.Empty;
+            }
+            else if (clean.Length <= 3)
+            {
                 telefonoFormateado = clean;
+            }
             else if (clean.Length <= 6)
+            {
                 telefonoFormateado = $"({clean.Substring(0, 3)}) {clean.Substring(3)}";
+            }
             else
-                telefonoFormateado = $"({clean.Substring(0, 3)}) {clean.Substring(3, 3)}-{clean.Substring(6)}";
+            {
+                int digitosFinales = Math.Min(4, clean.Length - 6);
+                telefonoFormateado = $"({clean.Substring(0, 3)}) {clean.Substring(3, 3)}-{clean.Substring(6, digitosFinales)}";
+            }
         }
         else
         {
@@ -519,13 +644,13 @@
 
         if (modelo.Password != confirmarPassword)
         {
-            mensajeError = "Las contraseñas no coinciden.";
+            mensajeError = Idioma.EsEspanol ? "Las contraseñas no coinciden." : "Passwords do not match.";
             return;
         }
 
         if (modelo.Password.Length < 6)
         {
-            mensajeError = "La contraseña debe tener al menos 6 caracteres.";
+            mensajeError = Idioma.EsEspanol ? "La contraseña debe tener al menos 6 caracteres." : "Password must be at least 6 characters.";
             return;
         }
 
@@ -533,59 +658,42 @@
 
         try
         {
-            var esAdmin = modelo.Email.Trim().EndsWith("@admin.do.gob", StringComparison.OrdinalIgnoreCase);
-            var rolAsignado = esAdmin ? "Administrador" : "Residente";
-
             var payload = new
             {
                 Email = modelo.Email.Trim(),
-                Password = modelo.Password,
-                Rol = rolAsignado
+                Password = modelo.Password
             };
 
             var response = await Http.PostAsJsonAsync("api/auth/registro", payload);
 
             if (response.IsSuccessStatusCode)
             {
-                var respuesta = await response.Content.ReadFromJsonAsync<RespuestaApiDto>();
-
-                await JS.InvokeVoidAsync("localStorage.setItem", "nombreUsuario", modelo.NombreCompleto);
-                await JS.InvokeVoidAsync("localStorage.setItem", "correoUsuario", modelo.Email);
-                await JS.InvokeVoidAsync("localStorage.setItem", "rolUsuario", rolAsignado);
-                if (!string.IsNullOrEmpty(respuesta?.Token))
-                {
-                    await JS.InvokeVoidAsync("localStorage.setItem", "authToken", respuesta.Token);
-                }
-
-                if (esAdmin)
-                {
-                    mensajeExito = "¡Cuenta de Administrador creada! Ingresando a la plataforma...";
-                    StateHasChanged();
-                    await Task.Delay(1000);
-                    Navigation.NavigateTo("/dashboard");
-                }
-                else
-                {
-                    mensajeExito = "¡Cuenta creada exitosamente! Accediendo al portal de trámites...";
-                    StateHasChanged();
-                    await Task.Delay(1000);
-                    Navigation.NavigateTo("/portal-residente");
-                }
+                mensajeExito = Idioma.EsEspanol
+                    ? "¡Cuenta creada exitosamente! Redirigiendo al inicio de sesión..."
+                    : "Account created successfully! Redirecting to sign in...";
+                StateHasChanged();
+                await Task.Delay(600);
+                Navigation.NavigateTo("/login");
             }
             else
             {
                 var errorObj = await response.Content.ReadFromJsonAsync<RespuestaApiDto>();
-                mensajeError = errorObj?.Mensaje ?? "No se pudo completar el registro.";
+                mensajeError = errorObj?.Mensaje ?? (Idioma.EsEspanol ? "No se pudo completar el registro." : "Could not complete registration.");
             }
         }
         catch (Exception ex)
         {
-            mensajeError = $"Error de comunicación con el servidor: {ex.Message}";
+            mensajeError = (Idioma.EsEspanol ? "Error de comunicación con el servidor: " : "Server communication error: ") + ex.Message;
         }
         finally
         {
             cargando = false;
         }
+    }
+
+    public void Dispose()
+    {
+        Idioma.OnIdiomaCambiado -= RefrescarPorIdioma;
     }
 
     public class RegistroUsuarioModelo

@@ -90,9 +90,8 @@ public class AuthController(
             });
         }
 
-        // Determinar rol: si termina en @admin.do.gob se asigna Administrador
-        var esAdmin = dto.Email.Trim().EndsWith("@admin.do.gob", StringComparison.OrdinalIgnoreCase);
-        var rolAsignado = esAdmin ? "Administrador" : "Residente";
+        // El registro público SIEMPRE asigna el rol Residente (Decisión de diseño K2)
+        const string rolAsignado = "Residente";
 
         if (!await _roleManager.RoleExistsAsync(rolAsignado))
         {
@@ -109,13 +108,16 @@ public class AuthController(
             Rol = rolAsignado,
             NombreCompleto = nuevoUsuario.Email ?? string.Empty,
             Correo = nuevoUsuario.Email ?? string.Empty,
-            Mensaje = esAdmin ? "Cuenta creada exitosamente como Administrador." : "Cuenta creada exitosamente como Residente."
+            Mensaje = "Cuenta de residente creada exitosamente."
         });
     }
 
     private string GenerarTokenJwt(IdentityUser usuario, string rol)
     {
         var jwtKey = _configuration["Jwt:Key"] ?? "ClaveSuperSecretaYLargaParaFirmarLosTokensJWT2026!";
+        var jwtIssuer = _configuration["Jwt:Issuer"] ?? "GestionSolicitudesApi";
+        var jwtAudience = _configuration["Jwt:Audience"] ?? jwtIssuer;
+
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -124,12 +126,13 @@ public class AuthController(
             new(ClaimTypes.NameIdentifier, usuario.Id),
             new(ClaimTypes.Email, usuario.Email ?? string.Empty),
             new(ClaimTypes.Name, usuario.UserName ?? string.Empty),
-            new(ClaimTypes.Role, rol)
+            new(ClaimTypes.Role, rol),
+            new("role", rol) // Claim redundante para garantizar compatibilidad con Blazor (K8)
         };
 
         var token = new JwtSecurityToken(
-            issuer: _configuration["Jwt:Issuer"],
-            audience: _configuration["Jwt:Audience"],
+            issuer: jwtIssuer,
+            audience: jwtAudience,
             claims: claims,
             expires: DateTime.UtcNow.AddHours(8),
             signingCredentials: creds

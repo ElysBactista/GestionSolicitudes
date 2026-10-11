@@ -1,262 +1,1056 @@
-﻿@page "/solicitudes"
+﻿ @page "/solicitudes"
+
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Administrador")]
+
 @layout MainLayout
+
 @inject NavigationManager Navigation
-@inject IJSRuntime JS
-@inject GestionSolicitudes.Client.Services.ExpedienteStateService StateService
+
+@inject HttpClient Http
+
+@inject GestionSolicitudes.Client.Services.IdiomaService Idioma
+
+@using System.Net.Http.Json
+
 @using GestionSolicitudes.Client.DTOs
-<PageTitle>Gestión de Solicitudes | DGM</PageTitle>
 
-<div class="container-fluid px-3 px-md-4 py-3">
+@using GestionSolicitudes.Client.Layout
 
-    <!-- ========================================================================= -->
-    <!-- 1. CABECERA Y BARRA DE BÚSQUEDA                                           -->
-    <!-- ========================================================================= -->
-    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
-        <div>
-            <h3 class="fw-bold mb-1" style="color: #003876;">
-                <i class="bi bi-folder2-open me-2"></i> Gestión de Solicitudes
-            </h3>
-            <p class="text-muted small mb-0">Administración, seguimiento y resolución de expedientes migratorios</p>
-        </div>
+@implements IDisposable
 
-        <div class="d-flex align-items-center gap-3">
-            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 fw-semibold d-flex align-items-center gap-1 bg-white shadow-xs" @onclick="ActualizarBandeja">
-                <i class="bi bi-arrow-clockwise"></i> Actualizar Bandeja
-            </button>
-            <span class="badge bg-light text-dark border px-3 py-2 rounded-pill fw-semibold">
-                Total de expedientes: @TotalExpedientes
-            </span>
-        </div>
+
+
+<PageTitle>@(Idioma.EsEspanol ? "Gestión de Solicitudes | DGM" : "Applications Management | DGM")</PageTitle>
+
+
+
+<div class="container-fluid px-3 px-md-4 py-4">
+
+
+
+    <!-- CABECERA INSTITUCIONAL LIMPIA -->
+
+    <div class="mb-4 pt-2">
+
+        <h2 class="fw-bold mb-1" style="color: #003876; font-size: 1.85rem;">
+
+            @(Idioma.EsEspanol ? "Gestión de Solicitudes" : "Applications Management")
+
+        </h2>
+
+        <p class="text-muted small mb-0 fs-6">
+
+            @(Idioma.EsEspanol
+
+                        ? "Administración, seguimiento y resolución de expedientes migratorios radicados."
+
+                        : "Administration, tracking, and resolution of submitted immigration files.")
+
+        </p>
+
     </div>
 
-    <!-- BARRA DE BÚSQUEDA RÁPIDA -->
-    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white mb-4">
-        <div class="input-group">
-            <span class="input-group-text bg-light border-0 ps-3 rounded-start-pill text-muted">
-                <i class="bi bi-search"></i>
-            </span>
-            <input type="text" class="form-control border-0 bg-light py-2 shadow-none"
-                   placeholder="Buscar por radicado, título o solicitante..."
-                   @bind="terminoBusqueda" @bind:event="oninput" />
-            @if (!string.IsNullOrWhiteSpace(terminoBusqueda))
-            {
-                <button class="btn btn-light border-0 text-muted px-3" @onclick="() => terminoBusqueda = string.Empty">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            }
+
+
+    <!-- BARRA: BUSCADOR A LA IZQUIERDA Y FILTRO A LA DERECHA -->
+
+    <div class="card border-0 shadow-sm rounded-4 bg-white p-3 mb-4">
+
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 w-100">
+
+
+
+            <!-- 1. Buscador en la esquina izquierda -->
+
+            <div class="input-group search-bar-compact">
+
+                <span class="input-group-text bg-light border-end-0 text-muted">
+
+                    <i class="bi bi-search"></i>
+
+                </span>
+
+                <input type="text"
+
+                       class="form-control border-start-0 bg-light"
+
+                       placeholder="@(Idioma.EsEspanol ? "Buscar por radicado, solicitante, pasaporte..." : "Search by file no., applicant, passport...")"
+
+                       value="@terminoBusqueda"
+
+                       @oninput="OnBusquedaInput" />
+
+                @if (!string.IsNullOrWhiteSpace(terminoBusqueda))
+
+                {
+
+                    <button class="btn btn-light border border-start-0 text-muted" type="button" @onclick="LimpiarBusqueda">
+
+                        <i class="bi bi-x-circle-fill"></i>
+
+                    </button>
+
+                }
+
+            </div>
+
+
+
+            <!-- 2. Grupo de filtro en la esquina derecha -->
+
+            <div class="d-flex align-items-center ms-md-auto">
+
+                <FiltroAvanzadoPanel FiltroFechaAplicado="filtroFechaAplicado"
+
+                                     FechaInicio="fechaInicio"
+
+                                     FechaFin="fechaFin"
+
+                                     FiltroEstado="filtroEstado"
+
+                                     FiltroTipoTramite="filtroTipoTramite"
+
+                                     OnAplicarFiltros="ManejarAplicarFiltros"
+
+                                     OnLimpiar="ManejarLimpiarFiltros" />
+
+            </div>
+
+
+
         </div>
+
     </div>
 
-    <!-- ========================================================================= -->
-    <!-- 2. TABLA DE GESTIÓN DE EXPEDIENTES                                        -->
-    <!-- ========================================================================= -->
-    <div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden mb-3">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead style="background-color: #003876; color: #ffffff;">
-                    <tr class="small text-uppercase tracking-wider">
-                        <th class="py-3 px-3">Radicado</th>
-                        <th class="py-3">Título / Asunto</th>
-                        <th class="py-3">Solicitante</th>
-                        <th class="py-3">Fecha Registro</th>
-                        <th class="py-3 text-center">Estado</th>
-                        <th class="py-3 text-end px-3">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (ExpedientesPaginados.Count == 0)
-                    {
-                        <tr>
-                            <td colspan="6" class="text-center py-5 text-muted">
-                                <i class="bi bi-inbox fs-2 d-block mb-2 text-secondary"></i>
-                                <span>No se encontraron expedientes registrados con los criterios de búsqueda.</span>
-                            </td>
+
+
+    <!-- TABLA DE SOLICITUDES -->
+
+    <div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden mb-4">
+
+        @if (cargando)
+
+        {
+
+            <div class="text-center py-5">
+
+                <div class="spinner-border text-primary" role="status">
+
+                    <span class="visually-hidden">@(Idioma.EsEspanol ? "Cargando solicitudes..." : "Loading applications...")</span>
+
+                </div>
+
+                <p class="text-muted small mt-2">
+
+                    @(Idioma.EsEspanol ? "Consultando expedientes en la base de datos..." : "Querying database records...")
+
+                </p>
+
+            </div>
+
+        }
+
+        else
+
+        {
+
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle mb-0">
+
+                    <thead style="background-color: #003876; color: #ffffff;">
+
+                        <tr class="small text-uppercase tracking-wider">
+
+                            <th class="py-3 px-3">@(Idioma.EsEspanol ? "Radicado" : "File No.")</th>
+
+                            <th class="py-3">@(Idioma.EsEspanol ? "Asunto" : "Subject")</th>
+
+                            <th class="py-3">@(Idioma.EsEspanol ? "Solicitante" : "Applicant")</th>
+
+                            <th class="py-3">@(Idioma.EsEspanol ? "Fecha Registro" : "Date Registered")</th>
+
+                            <th class="py-3 text-center">@(Idioma.EsEspanol ? "Estado" : "Status")</th>
+
+                            <th class="py-3 text-end px-3">@(Idioma.EsEspanol ? "Acciones" : "Actions")</th>
+
                         </tr>
-                    }
-                    else
-                    {
-                        @foreach (var item in ExpedientesPaginados)
+
+                    </thead>
+
+                    <tbody>
+
+                        @if (SolicitudesFiltradas.Count == 0)
+
                         {
+
                             <tr>
-                                <td class="px-3 fw-bold text-primary">@item.Radicado</td>
-                                <td>
-                                    <strong class="d-block text-dark small">@item.Categoria</strong>
-                                    <span class="text-muted" style="font-size: 0.75rem;">Pasaporte: @item.Pasaporte</span>
+
+                                <td colspan="6" class="text-center py-5 text-muted">
+
+                                    <i class="bi bi-inbox fs-2 d-block mb-2 text-secondary"></i>
+
+                                    <span>@(Idioma.EsEspanol ? "No hay solicitudes registradas con los criterios seleccionados." : "No applications found matching the selected criteria.")</span>
+
                                 </td>
-                                <td>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <div class="avatar-circle">@GetIniciales(item.Titular)</div>
-                                        <span class="fw-semibold text-dark small">@GetNombreTitular(item.Titular)</span>
-                                    </div>
-                                </td>
-                                <td class="small text-muted">
-                                    <i class="bi bi-calendar3 me-1"></i> @item.FechaRegistro
-                                </td>
-                                <td class="text-center">
-                                    <span class="badge @ObtenerBadgeEstado(item.Estado) px-3 py-1 rounded-pill" style="font-size: 0.75rem;">
-                                        @item.Estado
-                                    </span>
-                                </td>
-                                <td class="text-end px-3">
-                                    <!-- Botón Directo a Revisión para auditar datos y documentos reales -->
-                                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1 shadow-xs"
-                                            @onclick="() => MandarARevision(item.Id)" title="Auditar expediente y ver documentos">
-                                        <i class="bi bi-eye"></i>
-                                        <span>Revisar</span>
-                                    </button>
-                                </td>
+
                             </tr>
+
                         }
-                    }
-                </tbody>
-            </table>
-        </div>
+
+                        else
+
+                        {
+
+                            @foreach (var item in SolicitudesPaginadas)
+
+                            {
+
+                                var (textoBoton, iconoBoton, claseBoton) = ObtenerConfigBotonAccion(item.Estado);
+
+                                <tr>
+
+                                    <td class="px-3 fw-bold text-primary">@item.NumeroExpediente</td>
+
+                                    <td>
+
+                                        <strong class="d-block text-dark small">@FormatearTipoTramite(item.TipoTramite)</strong>
+
+                                        <span class="text-muted" style="font-size: 0.75rem;">
+
+                                            @(Idioma.EsEspanol ? "Pasaporte:" : "Passport:") @item.NumeroPasaporte
+
+                                        </span>
+
+                                    </td>
+
+                                    <td>
+
+                                        <div class="d-flex align-items-center gap-2">
+
+                                            <div class="avatar-circle">
+
+                                                @(item.NombreCompleto.Length >= 2 ? item.NombreCompleto.Substring(0, 2).ToUpper() : "US")
+
+                                            </div>
+
+                                            <div>
+
+                                                <span class="fw-semibold text-dark small d-block">@item.NombreCompleto</span>
+
+                                                <small class="text-muted" style="font-size: 0.70rem;">@item.Email</small>
+
+                                            </div>
+
+                                        </div>
+
+                                    </td>
+
+                                    <td class="small text-muted">
+
+                                        <i class="bi bi-calendar3 me-1"></i> @item.FechaCreacion.ToString("dd/MM/yyyy HH:mm")
+
+                                    </td>
+
+                                    <td class="text-center">
+
+                                        <span class="badge @ObtenerBadgeEstado(item.Estado) px-3 py-1 rounded-pill" style="font-size: 0.75rem;">
+
+                                            @FormatearEstado(item.Estado)
+
+                                        </span>
+
+                                    </td>
+
+                                    <td class="text-end px-3">
+
+                                        <button class="btn btn-sm btn-tabla-accion @claseBoton d-inline-flex align-items-center justify-content-center gap-1"
+
+                                                @onclick="() => MandarARevision(item.Id)">
+
+                                            <i class="bi @iconoBoton"></i>
+
+                                            <span>@textoBoton</span>
+
+                                        </button>
+
+                                    </td>
+
+                                </tr>
+
+                            }
+
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        }
+
     </div>
 
-    <!-- ========================================================================= -->
-    <!-- 3. PAGINACIÓN MINIMALISTA Y CONTADOR INFERIOR                             -->
-    <!-- ========================================================================= -->
-    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2 px-1">
-        <span class="text-muted small">
-            Mostrando @ExpedientesPaginados.Count de @TotalExpedientes solicitudes registradas
-        </span>
+
+
+    <!-- PIE DE LISTA: MOSTRAR [10] | CANTIDAD TOTAL | PAGINACIÓN -->
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 px-1">
+
+
+
+        <!-- 1. Selector Mostrar (10, 25, 50, Todas) -->
 
         <div class="d-flex align-items-center gap-2">
-            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 fw-semibold shadow-xs"
-                    @onclick="PaginaAnterior" disabled="@(!TieneAnterior())"
-                    style="@(!TieneAnterior() ? "background-color: #f1f5f9; color: #94a3b8; border-color: #cbd5e1;" : "")">
-                <i class="bi bi-chevron-left me-1"></i> Anterior
-            </button>
 
-            <span class="small fw-bold text-dark px-2">
-                Página @paginaActual de @Math.Max(1, TotalPaginas)
+            <span class="small text-muted fw-semibold">@(Idioma.EsEspanol ? "Mostrar:" : "Show:")</span>
+
+            <select class="form-select form-select-sm rounded-pill" style="width: auto; font-size: 0.85rem;" @onchange="CambiarElementosPorPagina" value="@elementosPorPaginaOpcion">
+
+                <option value="10">10</option>
+
+                <option value="25">25</option>
+
+                <option value="50">50</option>
+
+                <option value="todas">@(Idioma.EsEspanol ? "Todas" : "All")</option>
+
+            </select>
+
+        </div>
+
+
+
+        <!-- 2. Badge de cantidad total de solicitudes -->
+
+        <div>
+
+            <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill fw-semibold shadow-xs">
+
+                @SolicitudesFiltradas.Count @(Idioma.EsEspanol ? "solicitudes" : "applications")
+
             </span>
 
-            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 fw-semibold shadow-xs"
-                    @onclick="PaginaSiguiente" disabled="@(!TieneSiguiente())"
-                    style="@(!TieneSiguiente() ? "background-color: #f1f5f9; color: #94a3b8; border-color: #cbd5e1;" : "")">
-                Siguiente <i class="bi bi-chevron-right ms-1"></i>
-            </button>
         </div>
+
+
+
+        <!-- 3. Controles de navegación de página -->
+
+        <div class="d-flex align-items-center gap-2">
+
+            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 fw-semibold shadow-xs"
+
+                    @onclick="PaginaAnterior" disabled="@(!TieneAnterior())"
+
+                    style="@(!TieneAnterior() ? "background-color: #f1f5f9; color: #94a3b8; border-color: #cbd5e1;" : "")">
+
+                <i class="bi bi-chevron-left me-1"></i> @(Idioma.EsEspanol ? "Anterior" : "Previous")
+
+            </button>
+
+
+
+            <span class="small fw-bold text-dark px-2">
+
+                @paginaActual / @Math.Max(1, TotalPaginas)
+
+            </span>
+
+
+
+            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 fw-semibold shadow-xs"
+
+                    @onclick="PaginaSiguiente" disabled="@(!TieneSiguiente())"
+
+                    style="@(!TieneSiguiente() ? "background-color: #f1f5f9; color: #94a3b8; border-color: #cbd5e1;" : "")">
+
+                @(Idioma.EsEspanol ? "Siguiente" : "Next") <i class="bi bi-chevron-right ms-1"></i>
+
+            </button>
+
+        </div>
+
+
+
     </div>
+
+
 
 </div>
 
+
+
 <style>
-    .avatar-circle {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background-color: #e2e8f0;
-        color: #003876;
-        font-weight: bold;
-        font-size: 0.75rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+
+    .search-bar-compact {
+
+        max-width: 440px;
+
     }
+
+
+
+    @@media (max-width: 767.98px) {
+
+        .search-bar-compact {
+
+            max-width: 100%;
+
+        }
+
+    }
+
+
+
+    .avatar-circle {
+
+        width: 32px;
+
+        height: 32px;
+
+        border-radius: 50%;
+
+        background-color: #e2e8f0;
+
+        color: #003876;
+
+        font-weight: bold;
+
+        font-size: 0.75rem;
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: center;
+
+    }
+
+
+
+    .btn-tabla-accion {
+
+        height: 34px;
+
+        border-radius: 8px !important;
+
+        font-size: 0.82rem;
+
+        font-weight: 600;
+
+        padding: 0 0.85rem;
+
+        transition: all 0.15s ease-in-out;
+
+        white-space: nowrap;
+
+    }
+
+
+
+        .btn-tabla-accion:focus-visible {
+
+            outline: none;
+
+            box-shadow: 0 0 0 0.2rem rgba(0, 56, 118, 0.25) !important;
+
+        }
+
+
+
+    .btn-accion-solido {
+
+        background-color: #003876;
+
+        border: 1px solid #003876;
+
+        color: #ffffff;
+
+    }
+
+
+
+        .btn-accion-solido:hover {
+
+            background-color: #002652;
+
+            border-color: #002652;
+
+            color: #ffffff;
+
+            box-shadow: 0 2px 6px rgba(0, 56, 118, 0.2);
+
+        }
+
+
+
+    .btn-accion-outline {
+
+        background-color: #ffffff;
+
+        border: 1px solid #cbd5e1;
+
+        color: #334155;
+
+    }
+
+
+
+        .btn-accion-outline:hover {
+
+            background-color: #f8fafc;
+
+            border-color: #003876;
+
+            color: #003876;
+
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+
+        }
+
+
+
+    .badge-trans-success {
+
+        background-color: #dcfce7 !important;
+
+        color: #15803d !important;
+
+        border: 1px solid #bbf7d0 !important;
+
+    }
+
+
+
+    .badge-trans-primary {
+
+        background-color: #e0f2fe !important;
+
+        color: #0369a1 !important;
+
+        border: 1px solid #bae6fd !important;
+
+    }
+
+
+
+    .badge-trans-warning {
+
+        background-color: #fef3c7 !important;
+
+        color: #b45309 !important;
+
+        border: 1px solid #fde68a !important;
+
+    }
+
+
+
+    .badge-trans-danger {
+
+        background-color: #fee2e2 !important;
+
+        color: #b91c1c !important;
+
+        border: 1px solid #fecaca !important;
+
+    }
+
+
+
+    .badge-trans-secondary {
+
+        background-color: #f1f5f9 !important;
+
+        color: #475569 !important;
+
+        border: 1px solid #cbd5e1 !important;
+
+    }
+
 </style>
 
+
+
 @code {
+
+    private bool cargando = true;
+
+    private List<SolicitudItemModel> listaSolicitudes = new();
+
     private string terminoBusqueda = string.Empty;
+
+
+
+    private bool filtroFechaAplicado = false;
+
+    private DateTime fechaInicio = DateTime.Today.AddMonths(-1);
+
+    private DateTime fechaFin = DateTime.Today;
+
+    private string filtroEstado = string.Empty;
+
+    private string filtroTipoTramite = string.Empty;
+
+
+
     private int paginaActual = 1;
-    private const int elementosPorPagina = 20;
 
-    // MÉTODO: OnInitializedAsync (Carga y sincroniza el estado global)
+    private string elementosPorPaginaOpcion = "10";
+
+    private int elementosPorPagina => elementosPorPaginaOpcion == "todas" ? int.MaxValue : int.Parse(elementosPorPaginaOpcion);
+
+
+
     protected override async Task OnInitializedAsync()
+
     {
-        await StateService.InicializarAsync();
+
+        Idioma.OnIdiomaCambiado += RefrescarPorIdioma;
+
+        await CargarSolicitudesApi();
+
     }
 
-    // PROPIEDAD: Lista filtrada por la barra de búsqueda en tiempo real
-    private List<GestionSolicitudes.Client.DTOs.ExpedienteDto> ExpedientesFiltrados
+
+
+    private void RefrescarPorIdioma()
+
     {
-        get
+
+        InvokeAsync(StateHasChanged);
+
+    }
+
+
+
+    private async Task CargarSolicitudesApi()
+
+    {
+
+        cargando = true;
+
+        try
+
         {
-            var lista = StateService.ListaExpedientes ?? new();
+
+            var queryParams = new List<string>();
+
+
+
+            if (filtroFechaAplicado)
+
+            {
+
+                queryParams.Add($"fechaInicio={fechaInicio:yyyy-MM-dd}");
+
+                queryParams.Add($"fechaFin={fechaFin:yyyy-MM-dd}");
+
+            }
+
+
+
+            if (!string.IsNullOrWhiteSpace(filtroEstado))
+
+            {
+
+                queryParams.Add($"estado={Uri.EscapeDataString(filtroEstado)}");
+
+            }
+
+
+
+            if (!string.IsNullOrWhiteSpace(filtroTipoTramite))
+
+            {
+
+                queryParams.Add($"tipoTramite={Uri.EscapeDataString(filtroTipoTramite)}");
+
+            }
+
+
+
+            string url = "api/solicitud/filtradas";
+
+            if (queryParams.Any())
+
+            {
+
+                url += "?" + string.Join("&", queryParams);
+
+            }
+
+
+
+            var respuesta = await Http.GetFromJsonAsync<List<SolicitudItemModel>>(url);
+
+            listaSolicitudes = respuesta ?? new List<SolicitudItemModel>();
+
+        }
+
+        catch
+
+        {
+
+            listaSolicitudes = new List<SolicitudItemModel>();
+
+        }
+
+        finally
+
+        {
+
+            cargando = false;
+
+        }
+
+    }
+
+
+
+    private void OnBusquedaInput(ChangeEventArgs e)
+
+    {
+
+        terminoBusqueda = e.Value?.ToString() ?? string.Empty;
+
+        paginaActual = 1;
+
+    }
+
+
+
+    private void LimpiarBusqueda()
+
+    {
+
+        terminoBusqueda = string.Empty;
+
+        paginaActual = 1;
+
+    }
+
+
+
+    private void CambiarElementosPorPagina(ChangeEventArgs e)
+
+    {
+
+        elementosPorPaginaOpcion = e.Value?.ToString() ?? "10";
+
+        paginaActual = 1;
+
+    }
+
+
+
+    private List<SolicitudItemModel> SolicitudesFiltradas
+
+    {
+
+        get
+
+        {
+
             if (string.IsNullOrWhiteSpace(terminoBusqueda))
+
             {
-                return lista;
+
+                return listaSolicitudes;
+
             }
-            return lista.Where(e =>
-                (!string.IsNullOrEmpty(e.Radicado) && e.Radicado.Contains(terminoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrEmpty(e.Titular) && e.Titular.Contains(terminoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrEmpty(e.Categoria) && e.Categoria.Contains(terminoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrEmpty(e.Pasaporte) && e.Pasaporte.Contains(terminoBusqueda, StringComparison.OrdinalIgnoreCase))
+
+
+
+            var term = terminoBusqueda.Trim().ToLower();
+
+            return listaSolicitudes.Where(s =>
+
+                (s.NumeroExpediente != null && s.NumeroExpediente.ToLower().Contains(term)) ||
+
+                (s.NombreCompleto != null && s.NombreCompleto.ToLower().Contains(term)) ||
+
+                (s.NumeroPasaporte != null && s.NumeroPasaporte.ToLower().Contains(term)) ||
+
+                (s.Email != null && s.Email.ToLower().Contains(term)) ||
+
+                (s.TipoTramite != null && s.TipoTramite.ToLower().Contains(term))
+
             ).ToList();
+
         }
+
     }
 
-    private int TotalExpedientes => ExpedientesFiltrados.Count;
 
-    private int TotalPaginas => (int)Math.Ceiling((double)TotalExpedientes / elementosPorPagina);
 
-    // PROPIEDAD: Aplica el límite de 20 elementos por página con paginación
-    private List<GestionSolicitudes.Client.DTOs.ExpedienteDto> ExpedientesPaginados
+    private int TotalPaginas
+
     {
+
         get
+
         {
-            if (paginaActual > TotalPaginas && TotalPaginas > 0)
-            {
-                paginaActual = TotalPaginas;
-            }
-            return ExpedientesFiltrados
-                .Skip((paginaActual - 1) * elementosPorPagina)
-                .Take(elementosPorPagina)
-                .ToList();
+
+            if (elementosPorPaginaOpcion == "todas" || SolicitudesFiltradas.Count == 0) return 1;
+
+            return (int)Math.Ceiling((double)SolicitudesFiltradas.Count / elementosPorPagina);
+
         }
+
     }
+
+
+
+    private List<SolicitudItemModel> SolicitudesPaginadas
+
+    {
+
+        get
+
+        {
+
+            if (elementosPorPaginaOpcion == "todas")
+
+            {
+
+                return SolicitudesFiltradas;
+
+            }
+
+
+
+            if (paginaActual > TotalPaginas && TotalPaginas > 0)
+
+            {
+
+                paginaActual = TotalPaginas;
+
+            }
+
+            return SolicitudesFiltradas
+
+                .Skip((paginaActual - 1) * elementosPorPagina)
+
+                .Take(elementosPorPagina)
+
+                .ToList();
+
+        }
+
+    }
+
+
 
     private bool TieneAnterior() => paginaActual > 1;
+
     private bool TieneSiguiente() => paginaActual < TotalPaginas;
 
-    private void PaginaAnterior()
-    {
-        if (TieneAnterior()) paginaActual--;
-    }
 
-    private void PaginaSiguiente()
-    {
-        if (TieneSiguiente()) paginaActual++;
-    }
 
-    private async Task ActualizarBandeja()
+    private void PaginaAnterior() { if (TieneAnterior()) paginaActual--; }
+
+    private void PaginaSiguiente() { if (TieneSiguiente()) paginaActual++; }
+
+
+
+    private async Task ManejarAplicarFiltros(FiltroAvanzadoPanel.FiltroDataModel modelo)
+
     {
-        await StateService.InicializarAsync();
-        terminoBusqueda = string.Empty;
+
+        filtroFechaAplicado = modelo.FiltroFechaAplicado;
+
+        fechaInicio = modelo.FechaInicio;
+
+        fechaFin = modelo.FechaFin;
+
+        filtroEstado = modelo.FiltroEstado;
+
+        filtroTipoTramite = modelo.FiltroTipoTramite;
+
         paginaActual = 1;
+
+        await CargarSolicitudesApi();
+
     }
+
+
+
+    private async Task ManejarLimpiarFiltros()
+
+    {
+
+        filtroFechaAplicado = false;
+
+        filtroEstado = string.Empty;
+
+        filtroTipoTramite = string.Empty;
+
+        fechaInicio = DateTime.Today.AddMonths(-1);
+
+        fechaFin = DateTime.Today;
+
+        terminoBusqueda = string.Empty;
+
+        paginaActual = 1;
+
+        await CargarSolicitudesApi();
+
+    }
+
+
 
     private void MandarARevision(int id)
+
     {
+
         Navigation.NavigateTo($"/revision/{id}");
+
     }
 
-    private static string GetIniciales(string? titular)
+
+
+    private (string Texto, string Icono, string ClaseCss) ObtenerConfigBotonAccion(string estado)
+
     {
-        if (string.IsNullOrWhiteSpace(titular))
-            return "US";
 
-        var nombre = titular.Trim();
+        bool esEs = Idioma.EsEspanol;
 
-        return nombre.Length >= 2
-            ? nombre.Substring(0, 2).ToUpperInvariant()
-            : nombre.ToUpperInvariant();
+        return estado switch
+
+        {
+
+            "1" or "Pendiente" => (esEs ? "Revisar" : "Review", "bi-eye", "btn-accion-solido"),
+
+            "2" or "EnProceso" or "En Proceso" => (esEs ? "Continuar" : "Continue", "bi-play-fill", "btn-accion-solido"),
+
+            "6" or "RequiereCorreccion" => (esEs ? "Ver" : "View", "bi-eye", "btn-accion-outline"),
+
+            "3" or "Aprobada" or "Aprobado" => (esEs ? "Ver detalle" : "View details", "bi-eye", "btn-accion-outline"),
+
+            "4" or "Rechazada" or "Rechazado" => (esEs ? "Ver detalle" : "View details", "bi-eye", "btn-accion-outline"),
+
+            "5" or "Cancelada" or "Cancelado" => (esEs ? "Ver detalle" : "View details", "bi-eye", "btn-accion-outline"),
+
+            _ => (esEs ? "Ver" : "View", "bi-eye", "btn-accion-outline")
+
+        };
+
     }
 
-    private static string GetNombreTitular(string? titular)
+
+
+    private string FormatearEstado(string estado)
+
     {
-        return string.IsNullOrWhiteSpace(titular) ? "Solicitante" : titular;
+
+        bool esEs = Idioma.EsEspanol;
+
+        return estado switch
+
+        {
+
+            "1" or "Pendiente" => esEs ? "Pendiente" : "Pending",
+
+            "2" or "EnProceso" or "En Proceso" => esEs ? "En Proceso" : "In Process",
+
+            "3" or "Aprobada" or "Aprobado" => esEs ? "Aprobada" : "Approved",
+
+            "4" or "Rechazada" or "Rechazado" => esEs ? "Rechazada" : "Rejected",
+
+            "5" or "Cancelada" or "Cancelado" => esEs ? "Cancelada" : "Cancelled",
+
+            "6" or "RequiereCorreccion" => esEs ? "Requiere Corrección" : "Requires Correction",
+
+            _ => estado
+
+        };
+
     }
+
+
+
+    private string FormatearTipoTramite(string tipo)
+
+    {
+
+        if (string.IsNullOrWhiteSpace(tipo)) return string.Empty;
+
+        if (Idioma.EsEspanol) return tipo;
+
+
+
+        return tipo
+
+            .Replace("Residencia Temporal", "Temporary Residence")
+
+            .Replace("Residencia Permanente", "Permanent Residence")
+
+            .Replace("(Trabajo)", "(Work)")
+
+            .Replace("(Estudiante)", "(Student)")
+
+            .Replace("(Familiar)", "(Family)")
+
+            .Replace("(Inversionista)", "(Investor)");
+
+    }
+
+
 
     private string ObtenerBadgeEstado(string estado) => estado switch
+
     {
-        "Aprobado" => "bg-success text-white",
-        "En Revisión" => "bg-primary text-white",
-        "Pendiente" => "bg-warning text-dark",
-        "Subsanación Requerida" => "bg-warning text-dark",
-        "Rechazado" => "bg-danger text-white",
-        "Sin Documentación" => "bg-dark text-white",
-        _ => "bg-secondary text-white"
+
+        "3" or "Aprobada" or "Aprobado" => "badge-trans-success",
+
+        "2" or "EnProceso" or "En Proceso" => "badge-trans-primary",
+
+        "1" or "Pendiente" => "badge-trans-warning",
+
+        "6" or "RequiereCorreccion" or "Subsanación Requerida" or "Requiere Subsanación" => "badge-trans-warning",
+
+        "4" or "Rechazada" or "Rechazado" => "badge-trans-danger",
+
+        "5" or "Cancelada" or "Cancelado" => "badge-trans-secondary",
+
+        _ => "badge-trans-secondary"
+
     };
+
+
+
+    public void Dispose()
+
+    {
+
+        Idioma.OnIdiomaCambiado -= RefrescarPorIdioma;
+
+    }
+
+
+
+    public class SolicitudItemModel
+
+    {
+
+        public int Id { get; set; }
+
+        public string NumeroExpediente { get; set; } = string.Empty;
+
+        public string NombreCompleto { get; set; } = string.Empty;
+
+        public string NumeroPasaporte { get; set; } = string.Empty;
+
+        public string Email { get; set; } = string.Empty;
+
+        public string TipoTramite { get; set; } = string.Empty;
+
+        public string Estado { get; set; } = string.Empty;
+
+        public DateTime FechaCreacion { get; set; }
+
+    }
 }

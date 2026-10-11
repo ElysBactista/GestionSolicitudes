@@ -1,30 +1,19 @@
-﻿using System.Collections.Generic;
-using System;
-using System.Threading.Tasks;
+﻿using System.Net.Http.Json;
 using System.Text.Json;
-using GestionSolicitudes.Client.DTOs;
 using Microsoft.JSInterop;
+using GestionSolicitudes.Client.DTOs;
 
 namespace GestionSolicitudes.Client.Services
 {
-    // =========================================================================
-    // SERVICIO: ExpedienteStateService
-    // Descripción: Gestiona el estado global de la aplicación y la persistencia.
-    // =========================================================================
     public class ExpedienteStateService
     {
+        private readonly HttpClient _http;
         private readonly IJSRuntime _js;
 
-        // MÉTODO: Constructor del servicio con inyección de JavaScript Runtime
-        public ExpedienteStateService(IJSRuntime js)
-        {
-            _js = js;
-        }
+        public List<ExpedienteDto> ListaExpedientes { get; set; } = new();
 
-        // --- PROPIEDADES DE ESTADO TEMPORAL ---
         public bool SolicitudIniciada { get; set; } = false;
-        public int Id { get; set; } = 1;
-        public string Radicado { get; set; } = "#EXP-2026-0001";
+        public string Radicado { get; set; } = string.Empty;
         public string Titular { get; set; } = string.Empty;
         public string Categoria { get; set; } = string.Empty;
         public string Pasaporte { get; set; } = string.Empty;
@@ -32,7 +21,6 @@ namespace GestionSolicitudes.Client.Services
         public string Nacionalidad { get; set; } = string.Empty;
         public string EstadoGeneral { get; set; } = "Pendiente";
 
-        // --- PROPIEDADES DE DOCUMENTOS EN MEMORIA ---
         public string DocPasaporteNombre { get; set; } = string.Empty;
         public string DocPasaporteData { get; set; } = string.Empty;
         public string DocFotoNombre { get; set; } = string.Empty;
@@ -42,132 +30,168 @@ namespace GestionSolicitudes.Client.Services
         public string DocSoporteNombre { get; set; } = string.Empty;
         public string DocSoporteData { get; set; } = string.Empty;
 
-        public List<DocumentoItemMemoria> Documentos { get; set; } = new();
+        public List<DocumentoMemoriaDto> Documentos { get; set; } = new();
 
-        // Campo privado que respalda la lista de expedientes
-        private List<ExpedienteDto> _listaExpedientes = new();
-
-        // PROPIEDAD: ListaExpedientes (Incluye semilla inicial por defecto)
-        public List<ExpedienteDto> ListaExpedientes
+        public ExpedienteStateService(HttpClient http, IJSRuntime js)
         {
-            get
-            {
-                if (_listaExpedientes.Count == 0)
-                {
-                    _listaExpedientes = new List<ExpedienteDto>
-                    {
-                        new ExpedienteDto
-                        {
-                            Id = 1, Radicado = "#001", Titular = "Pedro Pérez", Categoria = "Residencia (Estudiante)",
-                            Pasaporte = "P688769", Nacionalidad = "COL", Correo = "pedro@gmail.com", FechaRegistro = "17/09/2026", Estado = "Rechazado",
-                            DocPasaporteNombre = "pasaporte_pedro.pdf", DocPasaporteData = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-                            DocFotoNombre = "foto_pedro.jpg", DocFotoData = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=800&auto=format&fit=crop"
-                        },
-                        new ExpedienteDto
-                        {
-                            Id = 2, Radicado = "#002", Titular = "Pedro Martínez González", Categoria = "Residencia Temporal de Estudiante (RE-1)",
-                            Pasaporte = "P1184920", Nacionalidad = "CAN", Correo = "pedro.martinez@can.com", FechaRegistro = "16/09/2026", Estado = "En Revisión",
-                            DocPasaporteNombre = "pasaporte_martinez.pdf", DocPasaporteData = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-                            DocFotoNombre = "foto_martinez.jpg", DocFotoData = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop"
-                        },
-                        new ExpedienteDto
-                        {
-                            Id = 3, Radicado = "#003", Titular = "Leonel Piedra", Categoria = "Residencia por Vínculo Familiar",
-                            Pasaporte = "A4491023", Nacionalidad = "ESP", Correo = "leonel.piedra@gmail.com", FechaRegistro = "15/09/2026", Estado = "Aprobado",
-                            DocPasaporteNombre = "pasaporte_leonel.pdf", DocPasaporteData = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-                            DocFotoNombre = "foto_leonel.jpg", DocFotoData = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=800&auto=format&fit=crop"
-                        },
-                        new ExpedienteDto
-                        {
-                            Id = 4, Radicado = "#004", Titular = "Sofía Valdés", Categoria = "Residencia Inversionista / Rentista",
-                            Pasaporte = "R9938211", Nacionalidad = "MEX", Correo = "sofia@valdes.com", FechaRegistro = "14/09/2026", Estado = "Sin Documentación"
-                        },
-                        new ExpedienteDto
-                        {
-                            Id = 5, Radicado = "#005", Titular = "Carlos Mendoza", Categoria = "Residencia Temporal de Trabajo (RT-3)",
-                            Pasaporte = "T8839201", Nacionalidad = "ARG", Correo = "carlos@mendoza.com", FechaRegistro = "13/09/2026", Estado = "Pendiente",
-                            DocPasaporteNombre = "pasaporte_carlos.pdf", DocPasaporteData = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-                            DocFotoNombre = "foto_carlos.jpg", DocFotoData = "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=800&auto=format&fit=crop"
-                        }
-                    };
-                }
-                return _listaExpedientes;
-            }
-            set => _listaExpedientes = value;
+            _http = http;
+            _js = js;
         }
 
-        // MÉTODO: InicializarAsync (Carga datos persistidos desde localStorage)
         public async Task InicializarAsync()
         {
             try
             {
-                var json = await _js.InvokeAsync<string>("localStorage.getItem", "dgm_lista_expedientes");
-                if (!string.IsNullOrEmpty(json))
+                // Solicitamos a la API garantizando un tamaño de página suficiente
+                var response = await _http.GetAsync("api/solicitud?tamanoPagina=50");
+                if (response.IsSuccessStatusCode)
                 {
-                    var listaGuardada = JsonSerializer.Deserialize<List<ExpedienteDto>>(json);
-                    if (listaGuardada != null && listaGuardada.Count > 0)
+                    var json = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(json);
+
+                    // Solución K1: Obtener el array desde la propiedad "datos", o la raíz si fuera array
+                    JsonElement arrayElement;
+                    if (doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("datos", out var datosProp))
                     {
-                        _listaExpedientes = listaGuardada;
+                        arrayElement = datosProp;
                     }
+                    else if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                    {
+                        arrayElement = doc.RootElement;
+                    }
+                    else
+                    {
+                        ListaExpedientes = new List<ExpedienteDto>();
+                        return;
+                    }
+
+                    var lista = new List<ExpedienteDto>();
+
+                    foreach (var elem in arrayElement.EnumerateArray())
+                    {
+                        int id = elem.TryGetProperty("id", out var pId) ? pId.GetInt32() : 0;
+                        string titulo = elem.TryGetProperty("titulo", out var pTit) ? pTit.GetString() ?? "" : "";
+                        string solicitante = elem.TryGetProperty("solicitante", out var pSol) ? pSol.GetString() ?? "" : "";
+                        string descripcion = elem.TryGetProperty("descripcion", out var pDesc) ? pDesc.GetString() ?? "" : "";
+
+                        // Parse flexible de fecha
+                        string fecha = DateTime.Now.ToString("dd/MM/yyyy");
+                        if (elem.TryGetProperty("fechaCreacion", out var pFecha))
+                        {
+                            if (pFecha.TryGetDateTime(out var dt))
+                                fecha = dt.ToString("dd/MM/yyyy");
+                            else
+                                fecha = pFecha.GetString() ?? fecha;
+                        }
+
+                        // Mapeo flexible del estado
+                        string estadoTexto = "Pendiente";
+                        if (elem.TryGetProperty("estado", out var pEst))
+                        {
+                            if (pEst.ValueKind == JsonValueKind.Number)
+                            {
+                                estadoTexto = pEst.GetInt32() switch
+                                {
+                                    1 => "Pendiente",
+                                    2 => "En Proceso",
+                                    3 => "Aprobado",
+                                    4 => "Rechazado",
+                                    5 => "Cancelado",
+                                    _ => "Pendiente"
+                                };
+                            }
+                            else if (pEst.ValueKind == JsonValueKind.String)
+                            {
+                                estadoTexto = pEst.GetString() ?? "Pendiente";
+                            }
+                        }
+
+                        // Extracción de datos auxiliares
+                        string pasaporte = elem.TryGetProperty("pasaporte", out var pPas) ? pPas.GetString() ?? "" : "";
+                        string correo = elem.TryGetProperty("correo", out var pCor) ? pCor.GetString() ?? "" : "";
+
+                        if (string.IsNullOrWhiteSpace(pasaporte) && descripcion.Contains("Pasaporte:"))
+                        {
+                            var partes = descripcion.Split('-');
+                            foreach (var part in partes)
+                            {
+                                if (part.Contains("Pasaporte:")) pasaporte = part.Replace("Pasaporte:", "").Trim();
+                                if (part.Contains("Correo:")) correo = part.Replace("Correo:", "").Trim();
+                            }
+                        }
+
+                        lista.Add(new ExpedienteDto
+                        {
+                            Id = id,
+                            Radicado = $"#{id:D3}",
+                            Titular = string.IsNullOrWhiteSpace(solicitante) ? "Sin Solicitante" : solicitante.Trim(),
+                            Categoria = string.IsNullOrWhiteSpace(titulo) ? "Residencia Temporal" : titulo.Trim(),
+                            Pasaporte = string.IsNullOrWhiteSpace(pasaporte) ? "N/A" : pasaporte,
+                            FechaRegistro = fecha,
+                            Estado = estadoTexto,
+                            Correo = correo
+                        });
+                    }
+
+                    ListaExpedientes = lista;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al consultar api/solicitud: {ex.Message}");
+            }
         }
 
-        // MÉTODO: RegistrarExpedienteAsync (Agrega y persiste de forma asíncrona)
-        public async Task RegistrarExpedienteAsync(ExpedienteDto nuevo)
+        public async Task ActualizarEstadoExpedienteAsync(int id, string nuevoEstado)
         {
-            if (_listaExpedientes == null) _listaExpedientes = new();
-            _listaExpedientes.Insert(0, nuevo);
-            await PersistirAsync();
-        }
+            int estadoEnum = nuevoEstado switch
+            {
+                "Aprobado" => 3,
+                "En Proceso" or "En Revisión" => 2,
+                "Rechazado" => 4,
+                "Cancelado" => 5,
+                _ => 1
+            };
 
-        // MÉTODO: RegistrarExpediente (Agrega y dispara persistencia en segundo plano)
-        public void RegistrarExpediente(ExpedienteDto nuevo)
-        {
-            if (_listaExpedientes == null) _listaExpedientes = new();
-            _listaExpedientes.Insert(0, nuevo);
-            _ = PersistirAsync();
-        }
-
-        // MÉTODO: PersistirAsync (Guarda la lista actual en el localStorage)
-        public async Task PersistirAsync()
-        {
             try
             {
-                var json = JsonSerializer.Serialize(_listaExpedientes);
-                await _js.InvokeVoidAsync("localStorage.setItem", "dgm_lista_expedientes", json);
+                await _http.PatchAsJsonAsync($"api/solicitud/{id}/estado", new { NuevoEstado = estadoEnum });
             }
             catch { }
+
+            var item = ListaExpedientes.FirstOrDefault(e => e.Id == id);
+            if (item != null)
+            {
+                item.Estado = nuevoEstado;
+            }
         }
 
-        // MÉTODO: RegistrarDocumento (Registra un archivo temporalmente en memoria)
-        public void RegistrarDocumento(string tipo, string nombre, string dataUrl, bool esImagen, string icono)
+        public void RegistrarDocumento(string tipo, string nombre, string dataUrl, bool esImg, string icono)
         {
             Documentos.RemoveAll(d => d.TipoDocumento == tipo);
-            Documentos.Add(new DocumentoItemMemoria
+            int nuevoId = Documentos.Count > 0 ? Documentos.Max(d => d.Id) + 1 : 1;
+
+            Documentos.Add(new DocumentoMemoriaDto
             {
-                Id = Documentos.Count + 1,
+                Id = nuevoId,
                 TipoDocumento = tipo,
                 NombreArchivo = nombre,
                 UrlPreview = dataUrl,
-                EsImagen = esImagen,
+                EsImagen = esImg,
                 Icono = icono,
                 Estado = "Pendiente"
             });
         }
     }
 
-    // CLASE AUXILIAR: DocumentoItemMemoria
-    public class DocumentoItemMemoria
+    public class DocumentoMemoriaDto
     {
         public int Id { get; set; }
         public string TipoDocumento { get; set; } = string.Empty;
         public string NombreArchivo { get; set; } = string.Empty;
         public string UrlPreview { get; set; } = string.Empty;
-        public bool EsImagen { get; set; }
-        public string Icono { get; set; } = "bi-file-earmark";
+        public bool EsImagen { get; set; } = true;
+        public string Icono { get; set; } = string.Empty;
         public string Estado { get; set; } = "Pendiente";
-        public string MotivoObservacion { get; set; } = string.Empty;
     }
 }

@@ -3,10 +3,24 @@
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthStateProvider
+@inject GestionSolicitudes.Client.Services.IdiomaService Idioma
+@implements IDisposable
 
-<PageTitle>Inicio de Sesión - Dirección General de Migración</PageTitle>
+<PageTitle>@(Idioma.EsEspanol ? "Inicio de Sesión - Dirección General de Migración" : "Sign In - General Directorate of Migration")</PageTitle>
 
 <div class="divPrincipalLogin">
+    <!-- Selector flotante discreto de idioma superior -->
+    <div class="position-absolute top-0 end-0 p-3" style="z-index: 20;">
+        <select class="form-select form-select-sm border-0 bg-white shadow-sm fw-semibold text-secondary rounded-pill px-3 py-1 cursor-pointer"
+                style="font-size: 0.85rem; height: 36px; min-width: 115px;"
+                value="@Idioma.IdiomaActual"
+                @onchange="CambiarIdioma">
+            <option value="ES">Español</option>
+            <option value="EN">English</option>
+        </select>
+    </div>
+
     <!-- Fondo Curvado con Marca de Agua -->
     <div class="curved-background" aria-hidden="true">
         <div class="image__login__logo">
@@ -85,7 +99,9 @@
                 </svg>
             </div>
 
-            <div class="user__text"><span>Inicio de sesión</span></div>
+            <div class="user__text">
+                <span>@(Idioma.EsEspanol ? "Inicio de sesión" : "User Login")</span>
+            </div>
 
             @if (!string.IsNullOrEmpty(mensajeError))
             {
@@ -105,7 +121,7 @@
                            placeholder="name@example.com"
                            @bind-value="loginModel.Email"
                            required />
-                    <label for="email">Email</label>
+                    <label for="email">@(Idioma.EsEspanol ? "Correo Electrónico" : "Email")</label>
                 </div>
 
                 <div class="position-relative mb-3">
@@ -117,7 +133,7 @@
                                placeholder="password"
                                @bind-value="loginModel.Password"
                                required />
-                        <label for="password">Password</label>
+                        <label for="password">@(Idioma.EsEspanol ? "Contraseña" : "Password")</label>
                     </div>
 
                     <button type="button"
@@ -125,7 +141,7 @@
                             style="z-index: 5;"
                             @onclick="ToggleMostrarPassword"
                             tabindex="-1"
-                            title="@(mostrarPassword ? "Ocultar contraseña" : "Ver contraseña")">
+                            title="@(mostrarPassword ? (Idioma.EsEspanol ? "Ocultar contraseña" : "Hide password") : (Idioma.EsEspanol ? "Ver contraseña" : "Show password"))">
                         <i class="bi @(mostrarPassword ? "bi-eye-slash-fill" : "bi-eye-fill") fs-5"></i>
                     </button>
                 </div>
@@ -136,19 +152,21 @@
                         @if (cargando)
                         {
                             <span class="spinner-border spinner-border-sm me-2"></span>
-                            <span>Cargando...</span>
+                            <span>@(Idioma.EsEspanol ? "Cargando..." : "Loading...")</span>
                         }
                         else
                         {
-                            <span>Iniciar sesión</span>
+                            <span>@(Idioma.EsEspanol ? "Iniciar sesión" : "Log in")</span>
                         }
                     </button>
                 </div>
 
                 <!-- Enlace de registro -->
                 <div class="text-center">
-                    <small class="text-muted">¿No tienes una cuenta?</small>
-                    <a href="/registro" class="text-primary fw-semibold ms-1 small text-decoration-none">Regístrate aquí</a>
+                    <small class="text-muted">@(Idioma.EsEspanol ? "¿No tienes una cuenta?" : "Don't have an account?")</small>
+                    <a href="/registro" class="text-primary fw-semibold ms-1 small text-decoration-none">
+                        @(Idioma.EsEspanol ? "Regístrate aquí" : "Sign up here")
+                    </a>
                 </div>
             </EditForm>
         </div>
@@ -274,6 +292,10 @@
             transform: translateY(-1px);
             box-shadow: 0 6px 16px rgba(0, 135, 255, 0.35);
         }
+
+    .cursor-pointer {
+        cursor: pointer;
+    }
 </style>
 
 @code {
@@ -282,12 +304,25 @@
     private bool cargando = false;
     private bool mostrarPassword = false;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        Idioma.OnIdiomaCambiado += RefrescarPorIdioma;
+        await Idioma.InicializarAsync();
         loginModel = new LoginDto();
         mensajeError = string.Empty;
         cargando = false;
         mostrarPassword = false;
+    }
+
+    private void RefrescarPorIdioma()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CambiarIdioma(ChangeEventArgs e)
+    {
+        var nuevo = e.Value?.ToString() ?? "ES";
+        await Idioma.CambiarIdiomaAsync(nuevo);
     }
 
     private void ToggleMostrarPassword()
@@ -318,43 +353,20 @@
                 {
                     string correoGuardar = !string.IsNullOrWhiteSpace(resultado.Correo) ? resultado.Correo : credenciales.Email;
                     string nombreGuardar = !string.IsNullOrWhiteSpace(resultado.NombreCompleto) ? resultado.NombreCompleto : correoGuardar;
+                    string rolServidor = resultado.Rol ?? "Residente";
 
-                    // Doble validación inteligente del rol: Si el correo contiene "admin", aseguramos el rol de Administrador
-                    string rolGuardar = resultado.Rol;
-                    if (correoGuardar.Contains("admin", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(rolGuardar))
+                    if (AuthStateProvider is CustomAuthenticationStateProvider customAuth)
                     {
-                        rolGuardar = "Administrador";
+                        await customAuth.MarkUserAsAuthenticated(resultado.Token);
                     }
 
-                    // Guardamos de forma síncrona en AMBOS almacenamientos (localStorage y sessionStorage)
+                    await JS.InvokeVoidAsync("localStorage.setItem", "authToken", resultado.Token);
                     await JS.InvokeVoidAsync("localStorage.setItem", "token", resultado.Token);
                     await JS.InvokeVoidAsync("localStorage.setItem", "correoUsuario", correoGuardar);
                     await JS.InvokeVoidAsync("localStorage.setItem", "nombreUsuario", nombreGuardar);
-                    await JS.InvokeVoidAsync("localStorage.setItem", "rolUsuario", rolGuardar);
+                    await JS.InvokeVoidAsync("localStorage.setItem", "rolUsuario", rolServidor);
 
-                    await JS.InvokeVoidAsync("sessionStorage.setItem", "token", resultado.Token);
-                    await JS.InvokeVoidAsync("sessionStorage.setItem", "correoUsuario", correoGuardar);
-                    await JS.InvokeVoidAsync("sessionStorage.setItem", "nombreUsuario", nombreGuardar);
-                    await JS.InvokeVoidAsync("sessionStorage.setItem", "rolUsuario", rolGuardar);
-
-                    // Actualizamos o agregamos la cuenta al historial de perfiles del navegador
-                    try
-                    {
-                        var historialStr = await JS.InvokeAsync<string>("localStorage.getItem", "historialCuentasDGM");
-                        var historial = !string.IsNullOrWhiteSpace(historialStr)
-                            ? historialStr.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
-                            : new List<string>();
-
-                        if (!historial.Contains(correoGuardar))
-                        {
-                            historial.Add(correoGuardar);
-                            await JS.InvokeVoidAsync("localStorage.setItem", "historialCuentasDGM", string.Join(",", historial));
-                        }
-                    }
-                    catch { }
-
-                    // Redirección inteligente basada en el rol asegurado
-                    if (string.Equals(rolGuardar, "Administrador", StringComparison.OrdinalIgnoreCase) || correoGuardar.Contains("admin", StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(rolServidor, "Administrador", StringComparison.OrdinalIgnoreCase))
                     {
                         Navigation.NavigateTo("/dashboard", true);
                     }
@@ -365,26 +377,33 @@
                 }
                 else
                 {
-                    mensajeError = resultado?.Mensaje ?? "Credenciales inválidas.";
+                    mensajeError = resultado?.Mensaje ?? (Idioma.EsEspanol ? "Credenciales inválidas." : "Invalid credentials.");
                 }
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                mensajeError = "Correo o contraseña incorrectos.";
+                mensajeError = Idioma.EsEspanol
+                    ? "Correo o contraseña incorrectos."
+                    : "Incorrect email or password.";
             }
             else
             {
-                mensajeError = $"Error del servidor: {(int)response.StatusCode}";
+                mensajeError = (Idioma.EsEspanol ? "Error del servidor: " : "Server error: ") + (int)response.StatusCode;
             }
         }
         catch (Exception ex)
         {
-            mensajeError = $"Error de conexión: {ex.Message}";
+            mensajeError = (Idioma.EsEspanol ? "Error de conexión: " : "Connection error: ") + ex.Message;
         }
         finally
         {
             cargando = false;
         }
+    }
+
+    public void Dispose()
+    {
+        Idioma.OnIdiomaCambiado -= RefrescarPorIdioma;
     }
 
     public class LoginDto

@@ -1,5 +1,9 @@
 ﻿@inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject HttpClient Http
+@inject GestionSolicitudes.Client.Services.IdiomaService Idioma
+@using System.Net.Http.Json
+@implements IDisposable
 
 <div class="user-panel-container position-relative">
     <div class="dropdown">
@@ -15,7 +19,7 @@
                 @GetAvatarIdentifier()
             </div>
 
-            <!-- Textos principales -->
+            <!-- Textos principales: Nombre oficial primero -->
             <div class="d-flex flex-column flex-grow-1" style="line-height: 1.15; overflow: hidden;">
                 <span class="fw-semibold text-dark text-truncate" style="font-size: 0.82rem; max-width: 145px;">
                     @GetMainLabel()
@@ -39,17 +43,21 @@
                 @if (string.IsNullOrWhiteSpace(correoActual))
                 {
                     <div class="px-3 py-2 border-bottom mb-1 bg-light rounded-top text-center">
-                        <p class="mb-0 fw-bold text-dark" style="font-size: 0.85rem;">Acceso Ciudadano</p>
-                        <small class="text-muted" style="font-size: 0.72rem;">Inicia sesión para gestionar trámites</small>
+                        <p class="mb-0 fw-bold text-dark" style="font-size: 0.85rem;">
+                            @(Idioma.EsEspanol ? "Acceso Ciudadano" : "Citizen Access")
+                        </p>
+                        <small class="text-muted" style="font-size: 0.72rem;">
+                            @(Idioma.EsEspanol ? "Inicia sesión para gestionar trámites" : "Sign in to manage applications")
+                        </small>
                     </div>
                     <button class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark small fw-semibold" @onclick="IrLogin">
                         <i class="bi bi-box-arrow-in-right text-primary"></i>
-                        <span>Iniciar Sesión</span>
+                        <span>@(Idioma.EsEspanol ? "Iniciar Sesión" : "Log In")</span>
                     </button>
                     <div class="dropdown-divider my-1"></div>
                     <button class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary small fw-semibold" @onclick="IrRegistro">
                         <i class="bi bi-person-plus-fill"></i>
-                        <span>Registrarse</span>
+                        <span>@(Idioma.EsEspanol ? "Registrarse" : "Register")</span>
                     </button>
                 }
                 else
@@ -61,22 +69,22 @@
                                 @GetAvatarIdentifier()
                             </div>
                             <div style="overflow: hidden;">
-                                <p class="mb-0 fw-bold text-dark text-truncate" style="font-size: 0.85rem;">@correoActual</p>
-                                <small class="text-muted text-truncate d-block" style="font-size: 0.72rem;">@GetSubLabel()</small>
+                                <p class="mb-0 fw-bold text-dark text-truncate" style="font-size: 0.85rem;">@(!string.IsNullOrWhiteSpace(nombreUsuario) ? nombreUsuario : correoActual)</p>
+                                <small class="text-muted text-truncate d-block" style="font-size: 0.72rem;">@correoActual</small>
                             </div>
                         </div>
                     </div>
 
                     <button class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark small fw-semibold" @onclick="AbrirSelectorPerfiles">
                         <i class="bi bi-arrow-repeat text-primary"></i>
-                        <span>Cambiar de usuario</span>
+                        <span>@(Idioma.EsEspanol ? "Cambiar de usuario" : "Switch User")</span>
                     </button>
 
                     <div class="dropdown-divider my-1"></div>
 
                     <button class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger small" @onclick="ConfirmarCerrarSesion">
                         <i class="bi bi-box-arrow-right"></i>
-                        <span>Cerrar Sesión</span>
+                        <span>@(Idioma.EsEspanol ? "Cerrar Sesión" : "Log Out")</span>
                     </button>
                 }
             </div>
@@ -88,14 +96,18 @@
 @if (mostrarModalPerfiles)
 {
     <div class="modal fade show d-block modal-backdrop-custom" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
             <div class="modal-content border-0 shadow-lg rounded-4 p-4 bg-white">
                 <div class="text-center mb-4">
                     <div class="rounded-circle bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center mb-2" style="width: 56px; height: 56px;">
                         <i class="bi bi-people-fill fs-4"></i>
                     </div>
-                    <h5 class="fw-bold text-dark mb-1">Cuentas en este navegador</h5>
-                    <p class="text-muted small mb-0">Selecciona una cuenta para continuar</p>
+                    <h5 class="fw-bold text-dark mb-1">
+                        @(Idioma.EsEspanol ? "Cuentas en este navegador" : "Accounts in this browser")
+                    </h5>
+                    <p class="text-muted small mb-0">
+                        @(Idioma.EsEspanol ? "Selecciona una cuenta para continuar" : "Select an account to proceed")
+                    </p>
                 </div>
 
                 <div class="d-flex flex-column gap-2 mb-4" style="max-height: 260px; overflow-y: auto;">
@@ -103,28 +115,32 @@
                     {
                         @foreach (var cuenta in historialCuentas)
                         {
-                            <div class="d-flex align-items-center justify-content-between p-3 rounded-3 border @(cuenta == correoActual ? "border-primary bg-primary-subtle bg-opacity-10" : "bg-light")"
+                            <div class="d-flex align-items-center justify-content-between p-3 rounded-3 border @(cuenta.Equals(correoActual, StringComparison.OrdinalIgnoreCase) ? "border-primary bg-primary-subtle bg-opacity-10" : "bg-light")"
                                  style="cursor: pointer; transition: all 0.2s ease;"
                                  @onclick="() => IniciarVerificacionPerfil(cuenta)">
 
                                 <div class="d-flex align-items-center gap-3 overflow-hidden">
                                     <div class="rounded-circle text-white d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm"
                                          style="width: 40px; height: 40px; font-weight: 600; background-color: #003876;">
-                                        @cuenta.Substring(0, 1).ToUpper()
+                                        @(cuenta.Length > 0 ? cuenta.Substring(0, 1).ToUpper() : "U")
                                     </div>
                                     <div class="overflow-hidden text-start">
                                         <span class="d-block text-truncate fw-semibold text-dark" style="font-size: 0.9rem;">@cuenta</span>
-                                        <small class="text-muted">@(cuenta == correoActual ? "Cuenta activa" : "Requiere verificación")</small>
-                                    </div>
-                                </div>
+                                        <small class="text-muted">
+                                            @(cuenta.Equals(correoActual, StringComparison.OrdinalIgnoreCase)
+                                                                            ? (Idioma.EsEspanol ? "Cuenta activa" : "Active account")
+                                                                            : (Idioma.EsEspanol ? "Requiere verificación" : "Verification required"))
+                            </small>
+                        </div>
+                    </div>
 
-                                @if (cuenta == correoActual)
+                    @if (cuenta.Equals(correoActual, StringComparison.OrdinalIgnoreCase))
                                 {
                                     <i class="bi bi-check-circle-fill text-primary fs-5"></i>
                                 }
                                 else
                                 {
-                                    <i class="bi bi-shield-lock text-muted fs-6" title="Autenticación requerida"></i>
+                                    <i class="bi bi-shield-lock text-muted fs-6" title="@(Idioma.EsEspanol ? "Autenticación requerida" : "Authentication required")"></i>
                                 }
                             </div>
                         }
@@ -134,10 +150,10 @@
                 <div class="d-flex flex-column gap-2">
                     <button class="btn btn-outline-primary py-2 rounded-pill fw-semibold d-flex align-items-center justify-content-center gap-2" @onclick="AgregarOtraCuentaModal">
                         <i class="bi bi-person-plus-fill"></i>
-                        <span>Usar otra cuenta / Registrarse</span>
+                        <span>@(Idioma.EsEspanol ? "Usar otra cuenta / Registrarse" : "Use another account / Sign Up")</span>
                     </button>
-                    <button class="btn btn-light py-2 rounded-pill text-muted fw-semibold" @onclick="() => mostrarModalPerfiles = false">
-                        Cancelar
+                    <button class="btn btn-light py-2 rounded-pill text-muted fw-semibold border" @onclick="() => mostrarModalPerfiles = false">
+                        @(Idioma.EsEspanol ? "Cancelar" : "Cancel")
                     </button>
                 </div>
             </div>
@@ -149,13 +165,18 @@
 @if (mostrarModalSeguridad)
 {
     <div class="modal fade show d-block modal-backdrop-custom" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
             <div class="modal-content border-0 shadow-lg rounded-4 p-4 bg-white text-center">
                 <div class="rounded-circle bg-warning-subtle text-warning d-inline-flex align-items-center justify-content-center mx-auto mb-3" style="width: 54px; height: 54px;">
                     <i class="bi bi-shield-lock-fill fs-4"></i>
                 </div>
-                <h5 class="fw-bold text-dark mb-1">Verificación de Seguridad</h5>
-                <p class="text-muted small mb-3">Introduce la clave o contraseña de acceso para cambiar a la cuenta:<br /><strong class="text-dark">@cuentaPendienteVerificacion</strong></p>
+                <h5 class="fw-bold text-dark mb-1">
+                    @(Idioma.EsEspanol ? "Verificación de Seguridad" : "Security Verification")
+                </h5>
+                <p class="text-muted small mb-3">
+                    @(Idioma.EsEspanol ? "Introduce la contraseña de acceso para cambiar a la cuenta:" : "Enter your account password to switch to:")<br />
+                    <strong class="text-dark text-break">@cuentaPendienteVerificacion</strong>
+                </p>
 
                 <input type="password" class="form-control text-center mb-3" @bind="passwordVerificacion" placeholder="••••••••" />
 
@@ -167,8 +188,20 @@
                 }
 
                 <div class="d-flex gap-2">
-                    <button class="btn btn-light flex-grow-1 rounded-pill fw-semibold" @onclick="() => mostrarModalSeguridad = false">Cancelar</button>
-                    <button class="btn btn-primary flex-grow-1 rounded-pill fw-bold" style="background-color: #003876;" @onclick="CompletarCambioPerfil">Verificar y Entrar</button>
+                    <button class="btn btn-light flex-grow-1 rounded-pill fw-semibold border" @onclick="() => mostrarModalSeguridad = false" disabled="@verificando">
+                        @(Idioma.EsEspanol ? "Cancelar" : "Cancel")
+                    </button>
+                    <button class="btn btn-primary flex-grow-1 rounded-pill fw-bold" style="background-color: #003876;" @onclick="CompletarCambioPerfil" disabled="@verificando">
+                        @if (verificando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            <span>@(Idioma.EsEspanol ? "Verificando..." : "Verifying...")</span>
+                        }
+                        else
+                        {
+                            <span>@(Idioma.EsEspanol ? "Verificar y Entrar" : "Verify & Sign In")</span>
+                        }
+                    </button>
                 </div>
             </div>
         </div>
@@ -195,10 +228,17 @@
     private string cuentaPendienteVerificacion = "";
     private string passwordVerificacion = "";
     private string mensajeErrorSeguridad = "";
+    private bool verificando = false;
 
     protected override async Task OnInitializedAsync()
     {
+        Idioma.OnIdiomaCambiado += RefrescarPorIdioma;
         await CargarDatosSesionAsync();
+    }
+
+    private void RefrescarPorIdioma()
+    {
+        InvokeAsync(StateHasChanged);
     }
 
     protected override async Task OnParametersSetAsync()
@@ -217,14 +257,8 @@
             if (string.IsNullOrWhiteSpace(correoActual))
             {
                 correoActual = await JS.InvokeAsync<string>("sessionStorage.getItem", "correoUsuario") ?? "";
-                nombreUsuario = await JS.InvokeAsync<string>("sessionStorage.getItem", "sessionNombreUsuario") ?? "";
+                nombreUsuario = await JS.InvokeAsync<string>("sessionStorage.getItem", "nombreUsuario") ?? "";
                 rolUsuario = await JS.InvokeAsync<string>("sessionStorage.getItem", "rolUsuario") ?? "";
-            }
-
-            if (correoActual.Contains("admin", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(rolUsuario))
-            {
-                rolUsuario = "Administrador";
-                await JS.InvokeVoidAsync("localStorage.setItem", "rolUsuario", "Administrador");
             }
 
             var historialStr = await JS.InvokeAsync<string>("localStorage.getItem", "historialCuentasDGM");
@@ -250,19 +284,28 @@
     private void ToggleDropdown() => isDropdownOpen = !isDropdownOpen;
     private void CerrarMenu() => isDropdownOpen = false;
 
-    private string GetMainLabel() => string.IsNullOrWhiteSpace(correoActual) ? "Invitado" : correoActual;
+    private string GetMainLabel()
+    {
+        if (!string.IsNullOrWhiteSpace(nombreUsuario)) return nombreUsuario;
+        return string.IsNullOrWhiteSpace(correoActual)
+            ? (Idioma.EsEspanol ? "Invitado" : "Guest")
+            : correoActual;
+    }
 
     private string GetSubLabel()
     {
-        if (string.IsNullOrWhiteSpace(correoActual)) return "Iniciar sesión";
-        if (correoActual.Contains("admin", StringComparison.OrdinalIgnoreCase) || rolUsuario.Contains("admin", StringComparison.OrdinalIgnoreCase))
-            return "Administrador";
-        return !string.IsNullOrWhiteSpace(rolUsuario) ? rolUsuario : "Residente";
+        if (string.IsNullOrWhiteSpace(correoActual))
+            return Idioma.EsEspanol ? "Iniciar sesión" : "Log in";
+
+        if (rolUsuario.Equals("Administrador", StringComparison.OrdinalIgnoreCase))
+            return Idioma.EsEspanol ? "Administrador" : "Administrator";
+
+        return Idioma.EsEspanol ? "Residente" : "Resident";
     }
 
     private string GetAvatarIdentifier()
     {
-        string referencia = !string.IsNullOrWhiteSpace(correoActual) ? correoActual : nombreUsuario;
+        string referencia = !string.IsNullOrWhiteSpace(nombreUsuario) ? nombreUsuario : correoActual;
         if (string.IsNullOrWhiteSpace(referencia)) return "G";
         return referencia.Substring(0, 1).ToUpper();
     }
@@ -274,7 +317,7 @@
 
     private void IniciarVerificacionPerfil(string cuentaElegida)
     {
-        if (cuentaElegida == correoActual)
+        if (cuentaElegida.Equals(correoActual, StringComparison.OrdinalIgnoreCase))
         {
             mostrarModalPerfiles = false;
             return;
@@ -291,30 +334,75 @@
     {
         if (string.IsNullOrWhiteSpace(passwordVerificacion))
         {
-            mensajeErrorSeguridad = "Debe introducir la contraseña de seguridad.";
+            mensajeErrorSeguridad = Idioma.EsEspanol
+                ? "Debe introducir la contraseña de seguridad."
+                : "Security password is required.";
             return;
         }
 
-        string rolAsignado = "Residente";
-        string rutaDestino = "/mis-solicitudes";
+        verificando = true;
+        mensajeErrorSeguridad = "";
 
-        if (cuentaPendienteVerificacion.Contains("admin", StringComparison.OrdinalIgnoreCase))
+        try
         {
-            rolAsignado = "Administrador";
-            rutaDestino = "/dashboard";
+            var loginDto = new { Email = cuentaPendienteVerificacion.Trim(), Password = passwordVerificacion };
+            var response = await Http.PostAsJsonAsync("api/auth/login", loginDto);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var resultado = await response.Content.ReadFromJsonAsync<RespuestaAuthDto>();
+                if (resultado != null && resultado.Exito && !string.IsNullOrWhiteSpace(resultado.Token))
+                {
+                    await JS.InvokeVoidAsync("localStorage.setItem", "authToken", resultado.Token);
+                    await JS.InvokeVoidAsync("localStorage.setItem", "correoUsuario", resultado.Correo);
+                    await JS.InvokeVoidAsync("localStorage.setItem", "nombreUsuario", resultado.NombreCompleto);
+                    await JS.InvokeVoidAsync("localStorage.setItem", "rolUsuario", resultado.Rol);
+
+                    mostrarModalSeguridad = false;
+
+                    if (resultado.Rol.Equals("Administrador", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Navigation.NavigateTo("/dashboard", forceLoad: true);
+                    }
+                    else
+                    {
+                        Navigation.NavigateTo("/mis-solicitudes", forceLoad: true);
+                    }
+                    return;
+                }
+            }
+
+            mensajeErrorSeguridad = Idioma.EsEspanol
+                ? "Credenciales incorrectas para esta cuenta."
+                : "Invalid credentials for this account.";
         }
+        catch (Exception ex)
+        {
+            mensajeErrorSeguridad = (Idioma.EsEspanol ? "Error al verificar credenciales: " : "Error verifying credentials: ") + ex.Message;
+        }
+        finally
+        {
+            verificando = false;
+        }
+    }
 
-        await JS.InvokeVoidAsync("localStorage.setItem", "correoUsuario", cuentaPendienteVerificacion);
-        await JS.InvokeVoidAsync("localStorage.setItem", "nombreUsuario", cuentaPendienteVerificacion);
-        await JS.InvokeVoidAsync("localStorage.setItem", "rolUsuario", rolAsignado);
-
-        mostrarModalSeguridad = false;
-        Navigation.NavigateTo(rutaDestino, true);
+    public class RespuestaAuthDto
+    {
+        public bool Exito { get; set; }
+        public string Token { get; set; } = string.Empty;
+        public string Rol { get; set; } = string.Empty;
+        public string NombreCompleto { get; set; } = string.Empty;
+        public string Correo { get; set; } = string.Empty;
+        public string Mensaje { get; set; } = string.Empty;
     }
 
     private async Task ConfirmarCerrarSesion()
     {
-        bool confirmado = await JS.InvokeAsync<bool>("confirm", "¿Está seguro de que desea cerrar sesión y salir al portal principal?");
+        string mensajePregunta = Idioma.EsEspanol
+            ? "¿Está seguro de que desea cerrar sesión y salir al portal principal?"
+            : "Are you sure you want to log out and return to the main portal?";
+
+        bool confirmado = await JS.InvokeAsync<bool>("confirm", mensajePregunta);
         if (confirmado)
         {
             await CerrarSesionDefinitivo();
@@ -328,6 +416,7 @@
             await JS.InvokeVoidAsync("localStorage.removeItem", "nombreUsuario");
             await JS.InvokeVoidAsync("localStorage.removeItem", "correoUsuario");
             await JS.InvokeVoidAsync("localStorage.removeItem", "rolUsuario");
+            await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
             await JS.InvokeVoidAsync("sessionStorage.clear");
         }
         catch { }
@@ -340,7 +429,11 @@
         mostrarModalSeguridad = false;
 
         StateHasChanged();
-
         Navigation.NavigateTo("/", true);
+    }
+
+    public void Dispose()
+    {
+        Idioma.OnIdiomaCambiado -= RefrescarPorIdioma;
     }
 }

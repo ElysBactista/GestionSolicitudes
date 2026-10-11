@@ -1,3 +1,5 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using GestionSolicitudes.Application.Interfaces;
 using GestionSolicitudes.Infrastructure.Persistence;
@@ -46,9 +48,13 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-// 6. Configuración de Autenticación con Token JWT
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "ClaveSuperSecretaYLargaParaFirmarLosTokensJWT2026!";
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "GestionSolicitudesApi";
+// 6. Configuración de Autenticación con Token JWT (Soporte sin 403 Forbidden)
+const string jwtKeyFija = "ClaveSuperSecretaYLargaParaFirmarLosTokensJWT2026!";
+var jwtKey = builder.Configuration["Jwt:Key"] ?? jwtKeyFija;
+
+// Limpia el mapeo arbitrario para que los claims no se muten internamente
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -56,15 +62,46 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
+        ValidateIssuer = false,
+        ValidateAudience = false,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtIssuer,
-        ValidAudience = jwtIssuer,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        ClockSkew = TimeSpan.FromMinutes(10),
+        RoleClaimType = "role",
+        NameClaimType = "name"
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = context =>
+        {
+            if (context.Principal?.Identity is ClaimsIdentity identity)
+            {
+                // Asegurar que tanto 'role' como ClaimTypes.Role existan en la identidad
+                var roles = identity.FindAll("role").Select(c => c.Value)
+                            .Concat(identity.FindAll(ClaimTypes.Role).Select(c => c.Value))
+                            .Distinct()
+                            .ToList();
+
+                foreach (var rol in roles)
+                {
+                    if (!identity.HasClaim(ClaimTypes.Role, rol))
+                    {
+                        identity.AddClaim(new Claim(ClaimTypes.Role, rol));
+                    }
+                    if (!identity.HasClaim("role", rol))
+                    {
+                        identity.AddClaim(new Claim("role", rol));
+                    }
+                }
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -79,6 +116,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Habilitar servicio de archivos estáticos para descargas y visor de recaudos (I4)
+app.UseStaticFiles();
+
 // CORS debe ir ANTES de Authentication y Authorization
 app.UseCors("AllowAll");
 
@@ -87,39 +127,19 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// --- Sembrado automático de Roles y Usuarios de Prueba al arrancar ---
-using (var scope = app.Services.CreateScope())
+// 8. Aplicar migraciones y asegurar roles al arrancar
+try
 {
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+    using var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-    // 1. Crear Roles si no existen
-    string[] roles = ["Administrador", "Residente"];
-    foreach (var rol in roles)
-    {
-        if (!await roleManager.RoleExistsAsync(rol))
-        {
-            await roleManager.CreateAsync(new IdentityRole(rol));
-        }
-    }
-
-    // 2. Crear Admin si no existe
-    var admin = await userManager.FindByEmailAsync("admin@migracion.gob.do");
-    if (admin == null)
-    {
-        admin = new IdentityUser { UserName = "admin@migracion.gob.do", Email = "admin@migracion.gob.do", EmailConfirmed = true };
-        await userManager.CreateAsync(admin, "Admin123*");
-        await userManager.AddToRoleAsync(admin, "Administrador");
-    }
-
-    // 3. Crear Residente si no existe
-    var residente = await userManager.FindByEmailAsync("residente@correo.com");
-    if (residente == null)
-    {
-        residente = new IdentityUser { UserName = "residente@correo.com", Email = "residente@correo.com", EmailConfirmed = true };
-        await userManager.CreateAsync(residente, "Residente123*");
-        await userManager.AddToRoleAsync(residente, "Residente");
-    }
+    await context.Database.MigrateAsync();
+    await DbInitializer.SeedAsync(roleManager);
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[ERROR INICIO BD]: {ex.Message}");
 }
 
 app.Run();

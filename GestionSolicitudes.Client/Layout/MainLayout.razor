@@ -1,11 +1,12 @@
 ﻿@inherits LayoutComponentBase
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject GestionSolicitudes.Client.Services.IdiomaService Idioma
 @implements IDisposable
 
 <div class="d-flex flex-column min-vh-100 w-100" style="background-color: #F8F9FA;">
 
-    <!-- 1. HEADER INSTITUCIONAL FIJO (Limpiando cualquier doble línea inferior) -->
+    <!-- 1. HEADER INSTITUCIONAL FIJO -->
     <header class="w-100 bg-white app-fixed-header">
         <HeaderInstitucional />
     </header>
@@ -13,7 +14,7 @@
     <!-- 2. CUERPO CENTRAL (Sidebar + Contenido) -->
     <div class="d-flex flex-grow-1 w-100 position-relative app-body-container">
 
-        <!-- SIDEBAR AZUL FIJO (Se extiende verticalmente sin espacios vacíos hacia el footer) -->
+        <!-- SIDEBAR AZUL FIJO -->
         <aside class="app-sidebar" style="width: @(sidebarColapsado ? "75px" : "240px"); min-width: @(sidebarColapsado ? "75px" : "240px"); background-color: #003876; flex-shrink: 0; transition: all 0.25s ease; z-index: 1020;">
             <NavMenu Colapsado="@sidebarColapsado" OnToggleSidebar="ToggleSidebar" />
         </aside>
@@ -24,7 +25,7 @@
         </main>
     </div>
 
-    <!-- 3. FOOTER INSTITUCIONAL GLOBAL (De extremo a extremo al fondo de todo) -->
+    <!-- 3. FOOTER INSTITUCIONAL GLOBAL -->
     <footer class="w-100 mt-auto" style="position: relative; z-index: 1040; background-color: #003876;">
         <FooterInstitucional />
     </footer>
@@ -40,7 +41,6 @@
         background-color: #F8F9FA;
     }
 
-    /* Header fijo superior limpio */
     .app-fixed-header {
         position: fixed;
         top: 0;
@@ -51,19 +51,16 @@
         box-shadow: none !important;
     }
 
-        /* Forzar a que el Header interno no genere líneas o sombras dobles */
         .app-fixed-header * {
             border-bottom: none !important;
             box-shadow: none !important;
         }
 
-    /* Compensar el espacio superior del contenido por el header fijo */
     .app-body-container {
         margin-top: 70px;
         min-height: calc(100vh - 70px);
     }
 
-    /* Sidebar fijo con altura total para abrazar el footer perfectamente */
     .app-sidebar {
         position: sticky;
         top: 70px;
@@ -75,9 +72,11 @@
 @code {
     private bool sidebarColapsado = false;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         Navigation.LocationChanged += OnLocationChanged;
+        Idioma.OnIdiomaCambiado += EnCambioIdioma;
+        await Idioma.InicializarAsync();
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
@@ -85,10 +84,16 @@
         StateHasChanged();
     }
 
+    private void EnCambioIdioma()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
     private void ToggleSidebar() => sidebarColapsado = !sidebarColapsado;
 
     public void Dispose()
     {
         Navigation.LocationChanged -= OnLocationChanged;
+        Idioma.OnIdiomaCambiado -= EnCambioIdioma;
     }
 }

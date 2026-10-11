@@ -5,284 +5,430 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject HttpClient Http
+@inject GestionSolicitudes.Client.Services.IdiomaService Idioma
+@implements IDisposable
 
-<PageTitle>Portal de Servicios Migratorios | DGM</PageTitle>
+<PageTitle>@(Idioma.EsEspanol ? "Portal de Servicios Migratorios | DGM" : "Immigration Services Portal | DGM")</PageTitle>
 
 <div class="portal-externo-container d-flex flex-column min-vh-100">
 
-    <!-- Header Institucional Fijo -->
-    <header class="portal-header sticky-top d-flex justify-content-between align-items-center px-4 px-md-5 bg-white shadow-sm border-bottom">
+    <!-- Barra principal (72 px): branding + idioma + usuario -->
+    <header class="portal-header d-flex justify-content-between align-items-center px-4 px-md-5">
         <div class="d-flex align-items-center gap-3">
-            <img src="logoinstitucional.png" alt="Logo Institucional" style="height: 65px; object-fit: contain;" />
-            <div class="d-flex align-items-center gap-2 dgm-cupula">
-            </div>
+            <img src="logoinstitucional.png" alt="Logo Institucional" style="height: 52px; object-fit: contain;" />
         </div>
-        <PanelUsuarioHeader />
+
+        <div class="d-flex align-items-center gap-2 gap-md-3">
+            <select class="selector-idioma form-select form-select-sm"
+                    value="@Idioma.IdiomaActual"
+                    @onchange="CambiarIdiomaSeleccionado">
+                <option value="ES">Español</option>
+                <option value="EN">English</option>
+            </select>
+
+            <PanelUsuarioHeader />
+        </div>
     </header>
 
     @if (cargando)
     {
         <div class="text-center my-5 py-5 flex-grow-1">
-            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
-            <p class="text-muted mt-3 fw-semibold">Verificando sesión activa...</p>
+            <div class="spinner-border" style="width: 3rem; height: 3rem; color: #003876;" role="status"></div>
+            <p class="texto-sec mt-3 fw-semibold">
+                @(Idioma.EsEspanol ? "Verificando sesión activa..." : "Verifying active session...")
+            </p>
         </div>
     }
     else
     {
         <div class="flex-grow-1">
-            <!-- Banner Principal Parallax con Botón Sutil de Flecha a la Derecha -->
-            <div class="hero-parallax-cielo text-white shadow-sm">
-                <div class="hero-parallax-overlay container-fluid px-4 px-md-5 py-5 my-banner-altura">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <h1 class="fw-bold text-white mb-0" style="font-size: 2.5rem;">Bienvenido al portal Residencia!!</h1>
 
-                        @if (!string.IsNullOrWhiteSpace(correoActivo))
-                        {
-                            <button class="btn p-0 d-flex align-items-center justify-content-center shadow-sm btn-retorno-plataforma"
-                                    @onclick="IrAPlataforma"
-                                    title="Ir a mi plataforma">
-                                <i class="bi bi-arrow-right"></i>
-                            </button>
-                        }
+            <!-- 1. HERO (banner con imagen de nubes y texto en blanco) -->
+            <section class="hero-dgm hero-parallax-cielo text-white shadow-sm">
+                <div class="hero-parallax-overlay container-fluid px-4 px-md-5">
+                    <div class="row align-items-center g-4 py-5">
+                        <div class="col-12 col-lg-8">
+                            <h1 class="titulo-dgm hero-titulo mb-3 text-white">
+                                @(Idioma.EsEspanol ? "Bienvenido al Portal de Residencia de la República Dominicana" : "Welcome to the Dominican Republic Residence Portal")
+                            </h1>
+                            <p class="hero-texto mb-0 text-white-50">
+                                @(Idioma.EsEspanol ? "Centralizamos tus trámites migratorios de forma segura, rápida y sin intermediarios." : "Centralizing your immigration procedures securely, quickly, and without intermediaries.")
+                            </p>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Contenido Principal: Secciones Informativas -->
             <main class="container-fluid px-4 px-md-5 py-4">
 
-                <!-- Sección 1: Información Institucional -->
-                <div class="card shadow-sm rounded-4 p-4 p-lg-5 bg-white mb-4 panel-residencia-border">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <div class="cupula-icon-box">
-                            <svg viewBox="10 20 215 195" width="46" height="46" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <style type="text/css">
-                                    .dgm-cupula {
-                                        fill: #003876
-                                    }
-                                </style>
-                                <path d="M119.6 40.8v-2h4.2v-2.7H122v1.7h-2.5v-4.4h.4v-2.6h-1.8v2.6h.4v4.5H116v-1.7h-1.7v2.7h4.2v2c-7.9.3-14 6.9-13.9 14.7h28.6c.3-7.9-5.8-14.4-13.6-14.8z" class="dgm-cupula"></path>
-                                <path d="M101 60.5h36.1c.3 0 .6-.3.6-.6v-2.2c0-.3-.2-.6-.6-.6H101c-.3 0-.6.3-.6.6v2.2c0 .4.3.6.6.6z" class="dgm-cupula"></path>
-                                <path d="M101 87.8h36.1c.3 0 .6-.3.6-.6V85c0-.3-.2-.6-.6-.6H101c-.3 0-.6.3-.6.6v2.2c0 .4.3.6.6.6z" class="dgm-cupula"></path>
-                                <path d="M107.5 62.1c-.6 0-1 .5-1.1 1v18.8c0 .6.5 1 1 1.1h4.4c.6 0 1-.5 1-1V63.2c0-.6-.5-1-1-1.1h-4.3z" class="dgm-cupula"></path>
-                                <path d="M116.8 62.1c-.6 0-1 .5-1.1 1v18.8c0 .6.5 1 1 1.1h4.4c.6 0 1-.5 1.1-1V63.2c0-.6-.5-1-1-1.1h-4.4z" class="dgm-cupula"></path>
-                                <path d="M126 62.1c-.6 0-1 .5-1.1 1v18.8c0 .6.5 1 1 1.1h4.4c.6 0 1-.5 1.1-1V63.2c0-.6-.5-1-1-1.1H126z" class="dgm-cupula"></path>
-                                <path d="M44.5 156.5c3.2-14.9 9.5-29 18.5-41.4 7.3-9.8 16.3-18.1 26.6-24.6C73.3 96.6 59 106.9 48 120.4c-13.4 17-20.9 37.9-21.2 59.5h13.9c.6-7.9 1.9-15.7 3.8-23.4z" class="dgm-cupula"></path>
-                                <path d="M175.3 115.1c9 12.4 15.3 26.5 18.5 41.4 1.9 7.7 3.2 15.5 3.7 23.4h13.9c-.3-21.6-7.8-42.6-21.2-59.5-10.9-13.5-25.3-23.8-41.6-29.9 10.4 6.5 19.4 14.9 26.7 24.6z" class="dgm-cupula"></path>
-                                <path d="M102.4 93.9c-7.9 3.9-15.3 8.9-21.7 14.9-27 25.2-30.2 59.9-30.7 71.1h24c-.7-20.7 3.5-41.3 12.2-60.1 4.3-9.2 9.8-17.9 16.2-25.9z" class="dgm-cupula"></path>
-                                <path d="M187.8 179.9c-.5-11.2-3.7-45.9-30.7-71.1-6.5-6-13.8-11-21.7-14.9 6.4 8 11.8 16.7 16.1 26 8.7 18.8 12.9 39.4 12.2 60.1l24.1-.1z" class="dgm-cupula"></path>
-                                <path d="M114.6 179.9v-86c-8.7 9.4-15.8 20.1-21 31.7-7.6 17-11.1 35.6-10.2 54.3h31.2z" class="dgm-cupula"></path>
-                                <path d="M123.6 93.9v86h31.2c.9-18.6-2.6-37.2-10.2-54.3-5.2-11.6-12.3-22.3-21-31.7z" class="dgm-cupula"></path>
-                                <path d="M197.7 186.8v-2.9c0-.6-.5-1.1-1.1-1.1h-7.9c-.6 0-1.1.5-1.1 1.1v2.9h-23.2v-2.9c0-.6-.5-1.1-1.1-1.1h-7.9c-.6 0-1.1.5-1.1 1.1v2.9h-30.4v-2.9c0-.6-.5-1.1-1.1-1.1h-7.9c-.6 0-1.1.5-1.1 1.1v2.9h-30v-2.9c0-.6-.5-1.1-1.1-1.1h-7.9c-.6 0-1.1.5-1.1 1.1v2.9H50.4v-2.9c0-.6-.5-1.1-1.1-1.1h-7.9c-.6 0-1.1.5-1.1 1.1v2.9H20.9v3.5h196v-3.5h-19.2z" class="dgm-cupula"></path>
-                                <path d="M49.2 203.1c.7 0 1.2-.5 1.2-1.2v-9.3H40.3v9.3c0 .7.5 1.2 1.2 1.2h7.7z" class="dgm-cupula"></path>
-                                <path d="M82.6 203.1c.7 0 1.2-.5 1.2-1.2v-9.3H73.7v9.3c0 .7.5 1.2 1.2 1.2h7.7z" class="dgm-cupula"></path>
-                                <path d="M122.7 203.1c.7 0 1.2-.5 1.2-1.2v-9.3h-10.1v9.3c0 .7.5 1.2 1.2 1.2h7.7z" class="dgm-cupula"></path>
-                                <path d="M163.2 203.1c.7 0 1.2-.5 1.2-1.2v-9.3h-10.2v9.3c0 .7.5 1.2 1.2 1.2h7.8z" class="dgm-cupula"></path>
-                                <path d="M196.5 203.1c.7 0 1.2-.5 1.2-1.2v-9.3h-10.1v9.3c0 .7.5 1.2 1.2 1.2h7.7z" class="dgm-cupula"></path>
-                                <path d="M215.5 206H22.2c-.7 0-1.3.6-1.3 1.3v5c0 .7.6 1.3 1.3 1.3h193.3c.7 0 1.3-.6 1.3-1.3v-5c0-.7-.6-1.3-1.3-1.3z" class="dgm-cupula"></path>
-                            </svg>
+                <!-- 2. BANNER DGM: BOTONES DE ACCIÓN A LA IZQUIERDA / INFORMACIÓN A LA DERECHA -->
+                <div class="seccion-dgm mb-4 overflow-hidden">
+                    <div class="row g-0">
+
+                        <!-- IZQUIERDA: Iniciar sesión o Registrarse (fondo azul oficial) -->
+                        <div class="col-12 col-lg-4 banner-accion d-flex flex-column justify-content-center p-4 p-lg-5">
+                            <div class="banner-accion-icono mb-3">
+                                <i class="bi bi-file-earmark-plus"></i>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(correoActivo))
+                            {
+                                <h4 class="fw-bold text-white mb-2 fuente-titulo">
+                                    @(Idioma.EsEspanol ? "Continúa con tu solicitud" : "Continue with your application")
+                                </h4>
+                                <p class="texto-claro small mb-4">
+                                    @(Idioma.EsEspanol
+                                                                ? "Ya tienes una sesión activa. Entra a tu plataforma para crear o dar seguimiento a tus solicitudes."
+                                                                : "You already have an active session. Go to your platform to create or track your applications.")
+                        </p>
+                        <button class="btn-dgm btn-dgm-claro w-100" @onclick="IrAPlataforma">
+                            @(Idioma.EsEspanol ? "Ir a mi plataforma" : "Go to my platform")
+                        </button>
+                                                }
+                            else
+                            {
+                                <h4 class="fw-bold text-white mb-2 fuente-titulo">
+                                    @(Idioma.EsEspanol ? "Crea tu solicitud de residencia hoy" : "Create your residence application today")
+                                </h4>
+                                <p class="texto-claro small mb-4">
+                                    @(Idioma.EsEspanol
+                                                                ? "Inicia sesión o regístrate para comenzar tu trámite 100% en línea, sin filas y sin intermediarios."
+                                                                : "Sign in or register to start your 100% online process, with no lines and no intermediaries.")
+                        </p>
+                        <div class="d-grid gap-2">
+                            <button class="btn-dgm btn-dgm-claro" @onclick='() => Navigation.NavigateTo("/login")'>
+                                <i class="bi bi-box-arrow-in-right me-2"></i>@(Idioma.EsEspanol ? "Iniciar Sesión" : "Sign In")
+                            </button>
+                            <button class="btn-dgm btn-dgm-claro-borde" @onclick="IrAlRegistro">
+                                <i class="bi bi-person-plus me-2"></i>@(Idioma.EsEspanol ? "Registrarse" : "Register")
+                            </button>
                         </div>
-                        <div class="d-flex flex-column justify-content-center">
-                            <h4 class="fw-bold text-dark mb-0">Dirección General de Migración | Canal Oficial</h4>
-                            <small class="text-muted">Plataforma digital para la regularización de estancias y residencias</small>
-                        </div>
+                                                }
                     </div>
 
-                    <p class="text-muted fs-6 mb-4" style="line-height: 1.7;">
-                        Este portal ciudadano centraliza todos los trámites de residencia temporal y permanente. Diseñado bajo normativas de transparencia y agilidad, permite gestionar la permanencia legal sin intermediarios.
-                    </p>
-
-                    <div class="row g-3">
-                        <div class="col-12 col-md-4">
-                            <div class="p-3 rounded-3 bg-light border-start border-4 border-primary h-100">
-                                <h6 class="fw-bold text-dark mb-1"><i class="bi bi-shield-lock text-primary me-2"></i>Seguridad Jurídica</h6>
-                                <p class="text-muted small mb-0">Trazabilidad con códigos verificables por inspectores legales.</p>
+                    <!-- DERECHA: Información institucional -->
+                    <div class="col-12 col-lg-8 p-4 p-lg-5">
+                        <div class="d-flex align-items-center gap-3 mb-3 pb-3 linea-inferior">
+                            <div class="cupula-icon-box">
+                                <svg viewBox="10 20 215 195" width="46" height="46" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <g fill="#003876">
+                                        <path d="M119.6 40.8v-2h4.2v-2.7H122v1.7h-2.5v-4.4h.4v-2.6h-1.8v2.6h.4v4.5H116v-1.7h-1.7v2.7h4.2v2c-7.9.3-14 6.9-13.9 14.7h28.6c.3-7.9-5.8-14.4-13.6-14.8z"></path>
+                                        <path d="M101 60.5h36.1c.3 0 .6-.3.6-.6v-2.2c0-.3-.2-.6-.6-.6H101c-.3 0-.6.3-.6.6v2.2c0 .4.3.6.6.6z"></path>
+                                        <path d="M101 87.8h36.1c.3 0 .6-.3.6-.6V85c0-.3-.2-.6-.6-.6H101c-.3 0-.6.3-.6.6v2.2c0 .4.3.6.6.6z"></path>
+                                        <path d="M107.5 62.1c-.6 0-1 .5-1.1 1v18.8c0 .6.5 1 1 1.1h4.4c.6 0 1-.5 1-1V63.2c0-.6-.5-1-1-1.1h-4.3z"></path>
+                                        <path d="M116.8 62.1c-.6 0-1 .5-1.1 1v18.8c0 .6.5 1 1 1.1h4.4c.6 0 1-.5 1.1-1V63.2c0-.6-.5-1-1-1.1h-4.4z"></path>
+                                        <path d="M126 62.1c-.6 0-1 .5-1.1 1v18.8c0 .6.5 1 1 1.1h4.4c.6 0 1-.5 1.1-1V63.2c0-.6-.5-1-1-1.1H126z"></path>
+                                        <path d="M44.5 156.5c3.2-14.9 9.5-29 18.5-41.4 7.3-9.8 16.3-18.1 26.6-24.6C73.3 96.6 59 106.9 48 120.4c-13.4 17-20.9 37.9-21.2 59.5h13.9c.6-7.9 1.9-15.7 3.8-23.4z"></path>
+                                        <path d="M175.3 115.1c9 12.4 15.3 26.5 18.5 41.4 1.9 7.7 3.2 15.5 3.7 23.4h13.9c-.3-21.6-7.8-42.6-21.2-59.5-10.9-13.5-25.3-23.8-41.6-29.9 10.4 6.5 19.4 14.9 26.7 24.6z"></path>
+                                        <path d="M102.4 93.9c-7.9 3.9-15.3 8.9-21.7 14.9-27 25.2-30.2 59.9-30.7 71.1h24c-.7-20.7 3.5-41.3 12.2-60.1 4.3-9.2 9.8-17.9 16.2-25.9z"></path>
+                                        <path d="M187.8 179.9c-.5-11.2-3.7-45.9-30.7-71.1-6.5-6-13.8-11-21.7-14.9 6.4 8 11.8 16.7 16.1 26 8.7 18.8 12.9 39.4 12.2 60.1l24.1-.1z"></path>
+                                        <path d="M114.6 179.9v-86c-8.7 9.4-15.8 20.1-21 31.7-7.6 17-11.1 35.6-10.2 54.3h31.2z"></path>
+                                        <path d="M123.6 93.9v86h31.2c.9-18.6-2.6-37.2-10.2-54.3-5.2-11.6-12.3-22.3-21-31.7z"></path>
+                                        <path d="M197.7 186.8v-2.9c0-.6-.5-1.1-1.1-1.1h-7.9c-.6 0-1.1.5-1.1 1.1v2.9h-23.2v-2.9c0-.6-.5-1.1-1.1-1.1h-7.9c-.6 0-1.1.5-1.1 1.1v2.9h-30.4v-2.9c0-.6-.5-1.1-1.1-1.1h-7.9c-.6 0-1.1.5-1.1 1.1v2.9h-30v-2.9c0-.6-.5-1.1-1.1-1.1h-7.9c-.6 0-1.1.5-1.1 1.1v2.9H50.4v-2.9c0-.6-.5-1.1-1.1-1.1h-7.9c-.6 0-1.1.5-1.1 1.1v2.9H20.9v3.5h196v-3.5h-19.2z"></path>
+                                    </g>
+                                </svg>
+                            </div>
+                            <div class="d-flex flex-column justify-content-center">
+                                <h4 class="titulo-dgm mb-0" style="font-size: 1.35rem;">
+                                    @(Idioma.EsEspanol ? "Dirección General de Migración | Canal Oficial" : "General Directorate of Migration | Official Channel")
+                                </h4>
+                                <small class="texto-sec">
+                                    @(Idioma.EsEspanol ? "Plataforma digital para la regularización de estancias y residencias" : "Digital platform for residence regularization")
+                                </small>
                             </div>
                         </div>
-                        <div class="col-12 col-md-4">
-                            <div class="p-3 rounded-3 bg-light border-start border-4 border-success h-100">
-                                <h6 class="fw-bold text-dark mb-1"><i class="bi bi-speedometer2 text-success me-2"></i>Respuesta Ágil</h6>
-                                <p class="text-muted small mb-0">Evaluación documental optimizada para reducir tiempos de espera.</p>
-                            </div>
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <div class="p-3 rounded-3 bg-light border-start border-4 border-info h-100">
-                                <h6 class="fw-bold text-dark mb-1"><i class="bi bi-headset text-info me-2"></i>Soporte Continuo</h6>
-                                <p class="text-muted small mb-0">Asistencia técnica y notificaciones del estatus de tu expediente.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- SECCIÓN: TIPOS DE RESIDENCIA -->
-                <div class="card shadow-sm rounded-4 p-4 p-lg-5 bg-white mb-4 border-top-accent">
-                    <h4 class="fw-bold text-dark mb-3"><i class="bi bi-bookmarks text-primary me-2"></i>Tipos de Residencia</h4>
-                    <p class="text-muted small mb-4">Selecciona el tipo de estatus migratorio que se adapta a tu caso particular:</p>
+                        <p class="texto-parrafo mb-4" style="line-height: 1.7;">
+                            @(Idioma.EsEspanol
+                                                        ? "Este portal ciudadano centraliza todos los trámites de residencia temporal y permanente, diseñado bajo normativas de transparencia y agilidad para gestionar la permanencia legal sin intermediarios."
+                                                        : "This citizen portal centralizes all temporary and permanent residence procedures, designed under transparency and agility guidelines to manage legal stay without intermediaries.")
+                        </p>
 
-                    <div class="row g-4">
-                        <div class="col-12 col-md-6 col-lg-3">
-                            <div class="p-4 rounded-4 bg-light border h-100 d-flex flex-column justify-content-between card-residencia-hover">
-                                <div>
-                                    <span class="badge mb-2" style="background-color: #e0f2fe; color: #0369a1;">Académica</span>
-                                    <h5 class="fw-bold text-dark" style="font-size: 1.1rem;">Residencia de Estudiante</h5>
-                                    <p class="text-muted small mb-3">Para cursar estudios regulares en instituciones autorizadas.</p>
+                            <div class="row g-3">
+                                <div class="col-12 col-md-4">
+                                    <div class="dato-dgm h-100" style="--acc: #003876;">
+                                        <h6 class="titulo-sub mb-1">
+                                            <i class="bi bi-shield-lock me-2"></i>@(Idioma.EsEspanol ? "Seguridad Jurídica" : "Legal Certainty")
+                                        </h6>
+                                        <p class="texto-sec small mb-0">
+                                            @(Idioma.EsEspanol ? "Trazabilidad con códigos verificables por inspectores legales." : "Traceability with codes verifiable by legal auditors.")
+                                        </p>
+                                    </div>
                                 </div>
-                                <div class="small fw-semibold text-dark"><i class="bi bi-check-circle-fill me-1 text-primary"></i> Trámite Digital</div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-md-6 col-lg-3">
-                            <div class="p-4 rounded-4 bg-light border h-100 d-flex flex-column justify-content-between card-residencia-hover">
-                                <div>
-                                    <span class="badge mb-2" style="background-color: #dcfce7; color: #15803d;">Laboral</span>
-                                    <h5 class="fw-bold text-dark" style="font-size: 1.1rem;">Residencia de Trabajo</h5>
-                                    <p class="text-muted small mb-3">Para profesionales contratados por empresas legalmente establecidas.</p>
+                                <div class="col-12 col-md-4">
+                                    <div class="dato-dgm h-100" style="--acc: #2ECC71;">
+                                        <h6 class="titulo-sub mb-1">
+                                            <i class="bi bi-speedometer2 me-2"></i>@(Idioma.EsEspanol ? "Respuesta Ágil" : "Agile Response")
+                                        </h6>
+                                        <p class="texto-sec small mb-0">
+                                            @(Idioma.EsEspanol ? "Evaluación documental optimizada para reducir tiempos de espera." : "Optimized review to minimize waiting times.")
+                                        </p>
+                                    </div>
                                 </div>
-                                <div class="small fw-semibold text-dark"><i class="bi bi-check-circle-fill me-1 text-success"></i> Contrato Vigente</div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-md-6 col-lg-3">
-                            <div class="p-4 rounded-4 bg-light border h-100 d-flex flex-column justify-content-between card-residencia-hover">
-                                <div>
-                                    <span class="badge mb-2" style="background-color: #f3e8ff; color: #7e22ce;">Familiar</span>
-                                    <h5 class="fw-bold text-dark" style="font-size: 1.1rem;">Residencia por Familia</h5>
-                                    <p class="text-muted small mb-3">Por vínculos de matrimonio o filiación directa con residentes.</p>
-                                </div>
-                                <div class="small fw-semibold text-dark"><i class="bi bi-check-circle-fill me-1" style="color: #7e22ce;"></i> Vínculo Legal</div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-md-6 col-lg-3">
-                            <div class="p-4 rounded-4 bg-light border h-100 d-flex flex-column justify-content-between card-residencia-hover">
-                                <div>
-                                    <span class="badge mb-2" style="background-color: #fef08a; color: #854d0e;">Menores</span>
-                                    <h5 class="fw-bold text-dark" style="font-size: 1.1rem;">Residencia de Menores</h5>
-                                    <p class="text-muted small mb-3">Especial para hijos menores dependientes de titulares legales.</p>
-                                </div>
-                                <div class="small fw-semibold text-dark"><i class="bi bi-check-circle-fill me-1 text-warning"></i> Protección Legal</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </main>
-
-            <!-- Barra 2: Parallax con Información Global -->
-            <div class="parallax-section my-3">
-                <div class="parallax-overlay py-5 px-4 px-md-5">
-                    <div class="container-fluid py-5 my-banner-altura">
-                        <div class="row align-items-center">
-                            <div class="col-12 col-lg-8">
-                                <span class="badge bg-warning text-dark fw-bold px-3 py-2 rounded-pill mb-2">
-                                    <i class="bi bi-globe me-1"></i> Trámite Internacional
-                                </span>
-                                <h3 class="fw-bold text-white mb-2" style="font-size: 2.3rem;">Permanencia Reglamentada Internacional</h3>
-                                <p class="text-white-50 mb-0" style="max-width: 760px; font-size: 1rem; line-height: 1.6;">
-                                    Proceso de radicación y regularización migratoria aplicable desde cualquier país de origen.
-                                </p>
-                            </div>
-                            <div class="col-12 col-lg-4 text-lg-end mt-3 mt-lg-0">
-                                <div class="d-inline-flex gap-3 text-start bg-white bg-opacity-10 p-3 rounded-3 border border-white border-opacity-25 shadow-sm">
-                                    <i class="bi bi-patch-check-fill fs-2 text-warning"></i>
-                                    <div>
-                                        <h6 class="text-white fw-bold mb-0">Validez Oficial</h6>
-                                        <small class="text-white-50">Certificación con firma digital.</small>
+                                <div class="col-12 col-md-4">
+                                    <div class="dato-dgm h-100" style="--acc: #0087FF;">
+                                        <h6 class="titulo-sub mb-1">
+                                            <i class="bi bi-headset me-2"></i>@(Idioma.EsEspanol ? "Soporte Continuo" : "Continuous Support")
+                                        </h6>
+                                        <p class="texto-sec small mb-0">
+                                            @(Idioma.EsEspanol ? "Asistencia técnica y notificaciones del estatus de tu expediente." : "Technical assistance and notifications regarding your file status.")
+                                        </p>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                    </div>
+                </div>
+
+                <!-- 3. TIPOS DE RESIDENCIA -->
+                <div class="seccion-dgm p-4 p-lg-5 mb-4">
+                    <div class="mb-4">
+                        <h4 class="titulo-dgm mb-1">
+                            @(Idioma.EsEspanol ? "Tipos de Residencia" : "Residence Types")
+                        </h4>
+                        <p class="texto-sec small mb-0">
+                            @(Idioma.EsEspanol ? "Elige la categoría que corresponde a tu situación e inicia tu solicitud." : "Choose the category that matches your situation and start your application.")
+                        </p>
+                    </div>
+
+                    <div class="row g-4">
+                    @foreach (var tipo in tiposResidencia)
+                        {
+                            <div class="col-12 col-md-6 col-xl-3">
+                                <article class="tarjeta-tipo h-100 d-flex flex-column" style="--acc: @tipo.Color;">
+                                    <div class="tarjeta-tipo-cuerpo flex-grow-1">
+                                        <div class="d-flex align-items-center justify-content-between mb-3">
+                                            <div class="tarjeta-tipo-icono">
+                                                <i class="bi @tipo.Icono"></i>
+                                            </div>
+                                            <span class="tarjeta-tipo-badge">
+                                                <span class="punto"></span>@T(tipo.CategoriaEs, tipo.CategoriaEn)
+                                            </span>
+                                        </div>
+
+                                        <h5 class="tarjeta-tipo-titulo mb-2">@T(tipo.TituloEs, tipo.TituloEn)</h5>
+                                        <p class="texto-sec small mb-3">@T(tipo.DescripcionEs, tipo.DescripcionEn)</p>
+
+                                        <ul class="tarjeta-tipo-lista list-unstyled mb-0">
+                                            @foreach (var punto in tipo.Puntos)
+                                            {
+                                                <li>
+                                                    <i class="bi bi-check-circle-fill"></i>
+                                                    <span>@T(punto.Es, punto.En)</span>
+                                                </li>
+                                            }
+                                        </ul>
+                                    </div>
+
+                                    <div class="tarjeta-tipo-tiempo">
+                                        <i class="bi bi-clock"></i>
+                                        <span>@(Idioma.EsEspanol ? "Tiempo promedio: " : "Average time: ")<strong>@(Idioma.EsEspanol ? "15 a 30 días hábiles" : "15 to 30 business days")</strong></span>
+                                    </div>
+
+                                    <div class="tarjeta-tipo-pie">
+                                        <button class="btn-dgm btn-dgm-secundario w-100" @onclick="IniciarSolicitud">
+                                            @(Idioma.EsEspanol ? "Iniciar solicitud" : "Start application")
+                                            <i class="bi bi-chevron-right ms-1"></i>
+                                        </button>
+                                    </div>
+                                </article>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- 4. BOTÓN DE "MÁS INFORMACIÓN / MENOS INFORMACIÓN" -->
+                <div class="text-center my-4">
+                    <button class="btn-dgm btn-dgm-secundario btn-dgm-lg d-inline-flex align-items-center gap-2"
+                            @onclick="ToggleInvitado">
+                        <span>
+                            @if (mostrarInvitado)
+                            {
+                                @(Idioma.EsEspanol ? "Menos información" : "Less information")
+                            }
+                            else
+                            {
+                                @(Idioma.EsEspanol ? "Más información" : "More information")
+                            }
+                        </span>
+                        <i class="bi @(mostrarInvitado ? "bi-chevron-up" : "bi-chevron-down")"></i>
+                    </button>
+                </div>
+
+                <!-- 5. INFORMACIÓN EXTRA (SE DESPLIEGA AL DARLE A "MÁS INFORMACIÓN") -->
+                @if (mostrarInvitado)
+                {
+                    <div class="animate__animated animate__fadeIn">
+
+                        <!-- Banner con imagen Parallax clara y efecto -->
+                        <div class="parallax-section my-3 overflow-hidden">
+                            <div class="parallax-overlay py-5 px-4 px-md-5">
+                                <div class="container-fluid py-4">
+                                    <div class="row align-items-center">
+                                        <div class="col-12">
+                                            <span class="badge-precaucion mb-3 d-inline-flex align-items-center gap-1">
+                                                <i class="bi bi-globe"></i> @(Idioma.EsEspanol ? "Trámite Internacional" : "International Process")
+                                            </span>
+                                            <h3 class="fw-bold text-white mb-2 fuente-titulo" style="font-size: 2.2rem;">
+                                                @(Idioma.EsEspanol ? "Permanencia Reglamentada Internacional" : "International Regulated Residency")
+                                            </h3>
+                                            <p class="texto-claro mb-0" style="max-width: 760px; font-size: 1rem; line-height: 1.6;">
+                                                @(Idioma.EsEspanol
+                                                                                        ? "Proceso de radicación y regularización migratoria aplicable desde cualquier país de origen."
+                                                                                        : "Residency application and migration regularization applicable from any country of origin.")
+                                                                                                                                                                                  </p>
+                                                                                                                                                                              </div>
+                                                                                                                                                                          </div>
+                                                                                                                                                                      </div>
+                                                                                                                                                                  </div>
+                                                                                                                                                              </div>
+
+                        <!-- Requisitos y Tiempos Estimados -->
+                        <div class="seccion-dgm p-4 p-lg-5 mb-4">
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <div class="icon-circle-lg">
+                                    <i class="bi bi-folder-fill fs-4"></i>
+                                </div>
+                                <div>
+                                    <h4 class="titulo-dgm mb-0">
+                                        @(Idioma.EsEspanol ? "Requisitos y Tiempos Estimados del Trámite" : "Requirements and Estimated Processing Times")
+                                    </h4>
+                                    <small class="texto-sec">
+                                        @(Idioma.EsEspanol ? "Guía esencial para completar tu expediente sin inconvenientes" : "Essential guide to submit your file smoothly")
+                                    </small>
+                                </div>
+                            </div>
+
+                            <h6 class="titulo-sub mt-3 mb-3">
+                                @(Idioma.EsEspanol ? "Documentación obligatoria" : "Mandatory documentation")
+                            </h6>
+                            <div class="row g-3 mb-4">
+                                <div class="col-12 col-md-4">
+                                    <div class="caja-dgm h-100">
+                                        <strong class="titulo-sub d-block mb-1">
+                                            <i class="bi bi-person-vcard me-1"></i> @(Idioma.EsEspanol ? "Cédula o Pasaporte" : "ID or Passport")
+                                        </strong>
+                                        <p class="texto-sec small mb-0">
+                                            @(Idioma.EsEspanol ? "Documento de identidad vigente (pasaporte con mínimo 6 meses de vigencia)." : "Valid identity document (passport with at least 6 months validity).")
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <div class="caja-dgm h-100">
+                                        <strong class="titulo-sub d-block mb-1">
+                                            <i class="bi bi-file-earmark-medical me-1"></i> @(Idioma.EsEspanol ? "Antecedentes Penales" : "Police Clearance")
+                                        </strong>
+                                        <p class="texto-sec small mb-0">
+                                            @(Idioma.EsEspanol ? "Récord o certificado de buena conducta legalizado o apostillado." : "Legalized or apostilled certificate of good conduct.")
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <div class="caja-dgm h-100">
+                                        <strong class="titulo-sub d-block mb-1">
+                                            <i class="bi bi-file-earmark-arrow-up me-1"></i> @(Idioma.EsEspanol ? "Formato Digital" : "Digital Format")
+                                        </strong>
+                                        <p class="texto-sec small mb-0">
+                                            @(Idioma.EsEspanol ? "Archivos claros en PDF, JPG o PNG (máximo 5 MB por documento)." : "Clear files in PDF, JPG, or PNG (maximum 5 MB per document).")
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <div class="dato-dgm h-100" style="--acc: #0087FF;">
+                                        <h6 class="titulo-sub mb-1">
+                                            <i class="bi bi-clock me-2"></i>@(Idioma.EsEspanol ? "Tiempo Estimado de Resolución" : "Estimated Processing Time")
+                                        </h6>
+                                        <p class="texto-sec small mb-0">
+                                            @(Idioma.EsEspanol ? "De 15 a 30 días hábiles tras la auditoría satisfactoria." : "15 to 30 business days after satisfactory legal review.")
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div class="dato-dgm h-100" style="--acc: #FFBA00;">
+                                        <h6 class="titulo-sub mb-1">
+                                            <i class="bi bi-cash-coin me-2"></i>@(Idioma.EsEspanol ? "Tasas e Impuestos Oficiales" : "Official Fees & Taxes")
+                                        </h6>
+                                        <p class="texto-sec small mb-0">
+                                            @(Idioma.EsEspanol ? "Aranceles oficiales calculados según la categoría migratoria legal." : "Official government fees calculated according to residency category.")
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Alerta de precaución: Visado Previo -->
+                        <div class="alerta-precaucion d-flex align-items-start gap-3 mb-4">
+                            <i class="bi bi-exclamation-triangle-fill fs-3 flex-shrink-0"></i>
+                            <div>
+                                <h6 class="titulo-sub mb-1">
+                                    @(Idioma.EsEspanol ? "Aviso Importante sobre Visado Previo" : "Important Notice on Prior Visa")
+                                </h6>
+                                <p class="texto-parrafo small mb-0">
+                                    @(Idioma.EsEspanol
+                                                                ? "Para iniciar una solicitud de residencia en este portal, es requisito indispensable contar con el Visado de Residencia (RS) emitido previamente por el consulado correspondiente."
+                                                                : "To initiate a residence application, it is required to have a Residence Visa (RS) previously issued by the competent consulate.")
+                        </p>
                     </div>
                 </div>
             </div>
+                        }
 
-            <!-- Continuación de Contenido Central: Requisitos -->
-            <main class="container-fluid px-4 px-md-5 pt-3 pb-2">
-                <div class="card border-0 shadow-sm rounded-4 p-4 p-lg-5 bg-white mb-4 border-top-warning">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <div class="icon-circle-lg bg-warning-subtle text-warning">
-                            <i class="bi bi-folder2-open fs-3"></i>
-                        </div>
-                        <div>
-                            <h4 class="fw-bold text-dark mb-0">Requisitos y Tiempos Estimados del Trámite</h4>
-                            <small class="text-muted">Guía esencial para completar tu expediente sin inconvenientes</small>
-                        </div>
-                    </div>
-
-                    <h6 class="fw-bold text-dark text-uppercase mt-3 mb-3" style="font-size: 0.82rem; letter-spacing: 0.5px; color: #003876;">
-                        <i class="bi bi-file-earmark-text me-1"></i> 1. Documentación Obligatoria
-                    </h6>
-                    <div class="row g-3 mb-4">
-                        <div class="col-12 col-md-4">
-                            <div class="p-3 border rounded-3 bg-light h-100">
-                                <strong class="text-dark d-block mb-1"><i class="bi bi-person-vcard text-success me-1"></i> Cédula o Pasaporte</strong>
-                                <p class="text-muted small mb-0">Documento de identidad vigente (pasaporte con mínimo 6 meses de vigencia).</p>
-                            </div>
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <div class="p-3 border rounded-3 bg-light h-100">
-                                <strong class="text-dark d-block mb-1"><i class="bi bi-file-earmark-medical text-success me-1"></i> Antecedentes</strong>
-                                <p class="text-muted small mb-0">Récord o certificado de buena conducta legalizado o apostillado.</p>
-                            </div>
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <div class="p-3 border rounded-3 bg-light h-100">
-                                <strong class="text-dark d-block mb-1"><i class="bi bi-file-earmark-arrow-up text-success me-1"></i> Formato Digital</strong>
-                                <p class="text-muted small mb-0">Archivos claros en PDF, JPG o PNG (máximo 10 MB por documento).</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mb-4">
-                        <div class="col-12 col-md-6">
-                            <div class="p-3 rounded-3 bg-light border-start border-4 border-info h-100">
-                                <h6 class="fw-bold text-dark mb-1"><i class="bi bi-clock text-info me-2"></i>Tiempo Estimado de Resolución</h6>
-                                <p class="text-muted small mb-0">De <strong>15 a 30 días hábiles</strong> tras la auditoría satisfactoria.</p>
-                            </div>
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <div class="p-3 rounded-3 bg-light border-start border-4 border-warning h-100">
-                                <h6 class="fw-bold text-dark mb-1"><i class="bi bi-cash-coin text-warning me-2"></i>Tasas e Impuestos Oficiales</h6>
-                                <p class="text-muted small mb-0">Aranceles oficiales calculados según la categoría migratoria legal.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Aviso de Visado Previo -->
-                <div class="alert alert-warning border-0 shadow-sm rounded-4 p-4 mb-4 d-flex align-items-center gap-3 bg-warning-subtle text-dark">
-                    <i class="bi bi-exclamation-triangle-fill fs-3 text-warning flex-shrink-0"></i>
-                    <div>
-                        <h6 class="fw-bold mb-1">Aviso Importante sobre Visado Previo</h6>
-                        <p class="small mb-0">Para iniciar una solicitud de residencia en este portal, es requisito indispensable contar con el <strong>Visado de Residencia (RS)</strong> emitido previamente por el consulado correspondiente.</p>
-                    </div>
-                </div>
-
-                <!-- Bloque Final: Redirección directa a Registro de Usuario -->
-                <div class="card border-0 shadow-sm rounded-4 p-4 p-md-4 bg-white border-top-accent mb-4">
-                    <div class="d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 text-center text-md-start">
-                        <div>
-                            <h5 class="fw-bold text-dark mb-1">¿Estás listo para iniciar tu trámite migratorio?</h5>
-                            <p class="text-muted small mb-0">Inicia sesión con tu cuenta o regístrate en segundos para dar el primer paso hacia tu residencia legal.</p>
-                        </div>
-                        <div>
-                            <button class="btn btn-primary px-4 py-3 fw-bold rounded-pill shadow-sm text-nowrap btn-action"
-                                    style="background-color: #003876;"
-                                    @onclick="IrAlRegistro">
-                                <i class="bi bi-person-plus-fill me-2"></i> Crear Cuenta / Registrarse
-                            </button>
-                        </div>
-                    </div>
-                </div>
             </main>
         </div>
-
-        <FooterInstitucional />
     }
+
+    <FooterInstitucional />
 </div>
 
 <style>
+    @@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap');
+
     .portal-externo-container {
         min-height: 100vh;
-        background-color: #f4f6f9;
+        background-color: #F8F8F8;
+        font-family: 'Roboto', sans-serif;
+        color: #000000;
+    }
+
+    .fuente-titulo {
         font-family: 'Poppins', sans-serif;
+    }
+
+    .titulo-dgm {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        color: #003876;
+    }
+
+    .titulo-sub {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #003876;
+    }
+
+        .titulo-sub i {
+            color: var(--acc, #003876);
+        }
+
+    .texto-parrafo {
+        color: #000000;
+    }
+
+    .texto-sec {
+        color: #707070;
+    }
+
+    .texto-claro {
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    .linea-inferior {
+        border-bottom: 1px solid #E6E7E8;
     }
 
     .portal-header {
@@ -290,61 +436,131 @@
         top: 0;
         z-index: 1050;
         background-color: #ffffff;
-        padding-top: 0.45rem;
-        padding-bottom: 0.45rem;
+        min-height: 72px;
+        border-bottom: 1px solid #E6E7E8;
     }
 
-    .card-residencia-hover {
-        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    .selector-idioma {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 500;
+        font-size: 0.85rem;
+        height: 36px;
+        min-width: 115px;
+        color: #003876;
+        background-color: #F8F8F8;
+        border: 1px solid #D3D3D3;
+        border-radius: 999px;
+        padding-left: 1rem;
+        cursor: pointer;
     }
 
-        .card-residencia-hover:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 10px 25px rgba(0, 56, 118, 0.12) !important;
-            border-color: #003876 !important;
+    .btn-dgm {
+        font-family: 'Roboto', sans-serif;
+        font-weight: 700;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        padding: 0.65rem 1.4rem;
+        cursor: pointer;
+        transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+    }
+
+    .btn-dgm-lg {
+        padding: 0.85rem 2.5rem;
+        font-size: 0.85rem;
+    }
+
+    .btn-dgm-primario {
+        background-color: #003876;
+        color: #ffffff;
+    }
+
+        .btn-dgm-primario:hover {
+            background-color: #1a5499;
         }
 
-    .hero-parallax-cielo {
+    .btn-dgm-secundario {
+        background-color: transparent;
+        color: #003876;
+        border-color: #003876;
+    }
+
+        .btn-dgm-secundario:hover {
+            background-color: #EFF7FF;
+            opacity: 0.75;
+        }
+
+    .btn-dgm-claro {
+        background-color: #ffffff;
+        color: #003876;
+    }
+
+        .btn-dgm-claro:hover {
+            background-color: #EFF7FF;
+        }
+
+    .btn-dgm-claro-borde {
+        background-color: transparent;
+        color: #ffffff;
+        border-color: #ffffff;
+    }
+
+        .btn-dgm-claro-borde:hover {
+            background-color: #ffffff;
+            color: #003876;
+        }
+
+    /* ===== HERO PARALLAX (Nubes de fondo corporativo) ===== */
+    .hero-dgm {
         width: 100%;
         background-image: url('https://images.unsplash.com/photo-1534088568595-a066f410bcda?q=80&w=2070&auto=format&fit=crop');
         background-attachment: fixed;
         background-position: center 7%;
         background-repeat: no-repeat;
         background-size: cover;
-    }
-
-    .my-banner-altura {
-        padding-top: 6rem !important;
-        padding-bottom: 6rem !important;
+        border-bottom: 1px solid #E6E7E8;
     }
 
     .hero-parallax-overlay {
-        background: linear-gradient(90deg, rgba(0, 40, 85, 0.78) 0%, rgba(0, 56, 118, 0.65) 55%, rgba(0, 86, 179, 0.55) 100%);
+        background: linear-gradient(90deg, rgba(0, 40, 85, 0.85) 0%, rgba(0, 56, 118, 0.7) 55%, rgba(0, 86, 179, 0.5) 100%);
+        padding-top: 5rem !important;
+        padding-bottom: 5rem !important;
     }
 
-    /* Botón sutil, pequeño y translúcido de retorno */
-    .btn-retorno-plataforma {
-        width: 34px;
-        height: 34px;
-        min-width: 34px;
-        background-color: rgba(255, 255, 255, 0.15);
-        border: 1px solid rgba(255, 255, 255, 0.35);
+    .hero-titulo {
+        font-size: clamp(1.9rem, 3.4vw, 2.7rem);
+        line-height: 1.2;
+    }
+
+    .hero-texto {
+        font-size: 1.15rem;
+        max-width: 600px;
+        line-height: 1.6;
+    }
+
+    .seccion-dgm {
+        background-color: #ffffff;
+        border: 1px solid #E6E7E8;
         border-radius: 8px;
-        color: #ffffff;
-        backdrop-filter: blur(4px);
-        font-size: 1rem;
-        transition: all 0.2s ease-in-out;
+        box-shadow: 0 2px 8px rgba(0, 56, 118, 0.06);
     }
 
-        .btn-retorno-plataforma:hover {
-            background-color: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255, 255, 255, 0.6);
-            color: #ffffff;
-            transform: translateX(2px);
-        }
+    .banner-accion {
+        background-color: #003876;
+    }
 
-    .panel-residencia-border {
-        border: 1px solid #003876 !important;
+    .banner-accion-icono {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.14);
+        color: #ffffff;
+        font-size: 1.6rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .cupula-icon-box {
@@ -355,8 +571,119 @@
         justify-content: center;
     }
 
+    .dato-dgm {
+        --acc: #003876;
+        background-color: #F8F8F8;
+        border-left: 4px solid var(--acc);
+        border-radius: 4px;
+        padding: 1rem;
+    }
+
+    .caja-dgm {
+        background-color: #F8F8F8;
+        border: 1px solid #E6E7E8;
+        border-radius: 6px;
+        padding: 1rem;
+    }
+
+    .tarjeta-tipo {
+        --acc: #003876;
+        background: #ffffff;
+        border: 1px solid #E6E7E8;
+        border-top: 4px solid var(--acc);
+        border-radius: 6px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+        .tarjeta-tipo:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 24px rgba(0, 56, 118, 0.14);
+        }
+
+    .tarjeta-tipo-cuerpo {
+        padding: 1.25rem 1.25rem 1rem 1.25rem;
+    }
+
+    .tarjeta-tipo-icono {
+        width: 46px;
+        height: 46px;
+        border-radius: 10px;
+        background: #EFF7FF;
+        color: #003876;
+        font-size: 1.35rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .tarjeta-tipo-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: #F8F8F8;
+        border: 1px solid #E6E7E8;
+        color: #003876;
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.25rem 0.7rem;
+        border-radius: 999px;
+    }
+
+        .tarjeta-tipo-badge .punto {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--acc);
+        }
+
+    .tarjeta-tipo-titulo {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 1.05rem;
+        color: #003876;
+    }
+
+    .tarjeta-tipo-lista li {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        font-size: 0.82rem;
+        color: #000000;
+        margin-bottom: 0.45rem;
+    }
+
+        .tarjeta-tipo-lista li i {
+            color: #003876;
+            margin-top: 0.15rem;
+        }
+
+    .tarjeta-tipo-tiempo {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.7rem 1.25rem;
+        border-top: 1px solid #E6E7E8;
+        font-size: 0.78rem;
+        color: #707070;
+    }
+
+        .tarjeta-tipo-tiempo i {
+            color: #003876;
+        }
+
+        .tarjeta-tipo-tiempo strong {
+            color: #003876;
+            font-weight: 700;
+        }
+
+    .tarjeta-tipo-pie {
+        padding: 0 1.25rem 1.25rem 1.25rem;
+    }
+
     .parallax-section {
         width: 100%;
+        border-radius: 8px;
         background-image: url('https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2074&auto=format&fit=crop');
         background-attachment: fixed;
         background-position: center 40%;
@@ -365,16 +692,16 @@
     }
 
     .parallax-overlay {
-        background: linear-gradient(90deg, rgba(5, 15, 30, 0.55) 0%, rgba(10, 30, 55, 0.4) 60%, rgba(15, 45, 75, 0.2) 100%);
-        backdrop-filter: blur(0.5px);
+        background: linear-gradient(90deg, rgba(0, 56, 118, 0.88) 0%, rgba(0, 56, 118, 0.6) 60%, rgba(0, 56, 118, 0.3) 100%);
     }
 
-    .border-top-accent {
-        border-top: 4px solid #003876 !important;
-    }
-
-    .border-top-warning {
-        border-top: 4px solid #f59e0b !important;
+    .badge-precaucion {
+        background-color: #FFBA00;
+        color: #000000;
+        font-weight: 700;
+        font-size: 0.8rem;
+        padding: 0.4rem 0.9rem;
+        border-radius: 999px;
     }
 
     .icon-circle-lg {
@@ -382,18 +709,23 @@
         height: 44px;
         min-width: 44px;
         border-radius: 10px;
+        background-color: #EFF7FF;
+        color: #003876;
         display: flex;
         align-items: center;
         justify-content: center;
     }
 
-    .btn-action {
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    .alerta-precaucion {
+        background-color: #ffffff;
+        border: 1px solid #FFBA00;
+        border-left: 6px solid #FFBA00;
+        border-radius: 6px;
+        padding: 1.25rem;
     }
 
-        .btn-action:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 18px rgba(0, 56, 118, 0.3) !important;
+        .alerta-precaucion > i {
+            color: #FFBA00;
         }
 </style>
 
@@ -401,9 +733,73 @@
     private bool cargando = true;
     private string correoActivo = "";
     private string rolActivo = "";
+    private bool mostrarInvitado = false;
+
+    private record Punto(string Es, string En);
+
+    private record TipoResidencia(
+        string CategoriaEs, string CategoriaEn,
+        string TituloEs, string TituloEn,
+        string DescripcionEs, string DescripcionEn,
+        string Icono, string Color,
+        List<Punto> Puntos);
+
+    private readonly List<TipoResidencia> tiposResidencia = new()
+    {
+        new TipoResidencia(
+            "Académica", "Academic",
+            "Residencia Estudiantil", "Student Residence",
+            "Para cursar estudios regulares en instituciones autorizadas.",
+            "For regular studies in accredited educational institutions.",
+            "bi-mortarboard", "#0087FF",
+            new List<Punto>
+            {
+                new("Carta de admisión de la institución", "Admission letter from the institution"),
+                new("Trámite 100% digital", "100% digital process")
+            }),
+
+        new TipoResidencia(
+            "Laboral", "Employment",
+            "Residencia de Trabajo", "Work Residence",
+            "Para profesionales contratados por empresas legalmente establecidas.",
+            "For professionals contracted by legally established companies.",
+            "bi-briefcase", "#2ECC71",
+            new List<Punto>
+            {
+                new("Contrato de trabajo vigente", "Active employment contract"),
+                new("Empresa legalmente constituida", "Legally established company")
+            }),
+
+        new TipoResidencia(
+            "Familiar", "Family",
+            "Residencia por Familia", "Family Residence",
+            "Por vínculos de matrimonio o filiación directa con residentes.",
+            "For marriage or direct kinship ties with legal residents.",
+            "bi-people", "#FFBA00",
+            new List<Punto>
+            {
+                new("Acta que acredite el vínculo legal", "Certificate proving the legal tie"),
+                new("Familiar con residencia vigente", "Relative with valid residence")
+            }),
+
+        new TipoResidencia(
+            "Inversión", "Investment",
+            "Residencia de Inversionista", "Investor Residence",
+            "Para rentistas e inversionistas certificados en el país.",
+            "For certified investors and property owners.",
+            "bi-graph-up-arrow", "#003876",
+            new List<Punto>
+            {
+                new("Certificación de inversión oficial", "Official investment certification"),
+                new("Prueba de capital o renta", "Proof of capital or income")
+            })
+    };
+
+    private string T(string es, string en) => Idioma.EsEspanol ? es : en;
 
     protected override async Task OnInitializedAsync()
     {
+        Idioma.OnIdiomaCambiado += RefrescarPorIdioma;
         cargando = true;
         try
         {
@@ -414,6 +810,21 @@
             {
                 correoActivo = await JS.InvokeAsync<string>("sessionStorage.getItem", "correoUsuario");
                 rolActivo = await JS.InvokeAsync<string>("sessionStorage.getItem", "rolUsuario");
+            }
+
+            if (!string.IsNullOrWhiteSpace(correoActivo))
+            {
+                bool esAdmin = (!string.IsNullOrWhiteSpace(rolActivo) && rolActivo.Equals("Administrador", StringComparison.OrdinalIgnoreCase));
+                if (esAdmin)
+                {
+                    Navigation.NavigateTo("/dashboard", true);
+                    return;
+                }
+                else
+                {
+                    Navigation.NavigateTo("/mis-solicitudes", true);
+                    return;
+                }
             }
         }
         catch
@@ -427,6 +838,34 @@
         }
     }
 
+    private void RefrescarPorIdioma()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CambiarIdiomaSeleccionado(ChangeEventArgs e)
+    {
+        var nuevo = e.Value?.ToString() ?? "ES";
+        await Idioma.CambiarIdiomaAsync(nuevo);
+    }
+
+    private void ToggleInvitado()
+    {
+        mostrarInvitado = !mostrarInvitado;
+    }
+
+    private void IniciarSolicitud()
+    {
+        if (string.IsNullOrWhiteSpace(correoActivo))
+        {
+            Navigation.NavigateTo("/registro");
+        }
+        else
+        {
+            IrAPlataforma();
+        }
+    }
+
     private void IrAPlataforma()
     {
         try
@@ -437,8 +876,7 @@
                 return;
             }
 
-            bool esAdmin = (!string.IsNullOrWhiteSpace(rolActivo) && rolActivo.Contains("admin", StringComparison.OrdinalIgnoreCase)) ||
-                           correoActivo.Contains("admin", StringComparison.OrdinalIgnoreCase);
+            bool esAdmin = (!string.IsNullOrWhiteSpace(rolActivo) && rolActivo.Equals("Administrador", StringComparison.OrdinalIgnoreCase));
 
             if (esAdmin)
             {
@@ -458,5 +896,10 @@
     private void IrAlRegistro()
     {
         Navigation.NavigateTo("/registro");
+    }
+
+    public void Dispose()
+    {
+        Idioma.OnIdiomaCambiado -= RefrescarPorIdioma;
     }
 }

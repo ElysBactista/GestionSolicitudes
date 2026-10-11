@@ -1,4 +1,5 @@
 ﻿@inject IJSRuntime JS
+@inject GestionSolicitudes.Client.Services.IdiomaService Idioma
 
 <div class="d-flex align-items-center gap-2 bg-white p-2 rounded-3 shadow-sm border border-light-subtle position-relative">
 
@@ -6,29 +7,30 @@
     <div class="d-none d-sm-flex align-items-center gap-2 px-2 small">
         <i class="bi bi-calendar3" style="color: #003876;"></i>
         <span class="fw-medium text-dark">
-            @(FiltroFechaAplicado ? $"{FechaInicio:dd/MM/yyyy} - {FechaFin:dd/MM/yyyy}" : "Histórico Completo")
+            @(FiltroFechaAplicado ? $"{FechaInicio:dd/MM/yyyy} - {FechaFin:dd/MM/yyyy}" : (Idioma.EsEspanol ? "Histórico Completo" : "Complete History"))
         </span>
     </div>
 
     <div class="vr d-none d-sm-block my-1"></div>
 
-    <!-- Botón Dinámico de Filtros (Se vuelve azul institucional si hay filtros activos) -->
+    <!-- Botón Dinámico de Filtros -->
     <button class="btn btn-sm @(TieneFiltrosActivos() ? "text-white shadow-sm" : "btn-light border border-secondary border-opacity-25 text-dark") fw-medium px-3 d-flex align-items-center gap-2"
             @onclick="() => mostrarPanelFiltros = !mostrarPanelFiltros"
             style="background-color: @(TieneFiltrosActivos() ? "#003876" : "#ffffff"); font-size: 0.82rem; border-radius: 6px; transition: all 0.2s ease;">
-        <i class="bi bi-sliders" style="color: @(TieneFiltrosActivos() ? "#ffffff" : "#003876");"></i> Filtros
+        <i class="bi bi-sliders" style="color: @(TieneFiltrosActivos() ? "#ffffff" : "#003876");"></i>
+        @(Idioma.EsEspanol ? "Filtros" : "Filters")
     </button>
 
     <!-- Botón Exterior Limpiar -->
     <button class="btn btn-sm text-white d-flex align-items-center justify-content-center shadow-sm"
             @onclick="LimpiarCamposInternos"
-            title="Restablecer filtros al historial completo"
+            title="@(Idioma.EsEspanol ? "Restablecer filtros al historial completo" : "Reset filters to complete history")"
             style="background-color: #003876; width: 34px; height: 31px; border-radius: 6px;">
         <i class="bi bi-arrow-counterclockwise fs-6"></i>
     </button>
 
     <!-- ========================================================= -->
-    <!-- PANEL FLOTANTE DE FILTROS                                 -->
+    <!-- PANEL FLOTANTE DE FILTROS -->
     <!-- ========================================================= -->
     @if (mostrarPanelFiltros)
     {
@@ -38,14 +40,17 @@
             <!-- Cabecera -->
             <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
                 <span class="fw-bold small text-dark">
-                    <i class="bi bi-funnel-fill me-1" style="color: #003876;"></i> Filtros del Panel
+                    <i class="bi bi-funnel-fill me-1" style="color: #003876;"></i>
+                    @(Idioma.EsEspanol ? "Filtros del Panel" : "Panel Filters")
                 </span>
                 <button type="button" class="btn-close btn-sm" @onclick="() => { mostrarPanelFiltros = false; calendarioAbierto = string.Empty; }"></button>
             </div>
 
             <!-- 1. Rango de Fechas -->
             <div class="mb-2">
-                <label class="fw-bold mb-1 d-block text-dark" style="font-size: 0.72rem;">RANGO DE FECHAS (Día/Mes/Año)</label>
+                <label class="fw-bold mb-1 d-block text-dark" style="font-size: 0.72rem;">
+                    @(Idioma.EsEspanol ? "RANGO DE FECHAS (Día/Mes/Año)" : "DATE RANGE (Day/Month/Year)")
+                </label>
                 <div class="d-flex gap-2">
                     <div class="flex-fill position-relative">
                         <input type="text" class="form-control form-control-sm border text-center fw-medium bg-light text-dark @(calendarioAbierto == "desde" ? "border-primary shadow-xs" : "")"
@@ -68,11 +73,11 @@
 
             <!-- 2. Accesos Rápidos -->
             <div class="d-flex flex-wrap gap-1 mb-2">
-                <button type="button" class="btn btn-xs btn-light border px-2 py-1 text-dark fw-medium" style="font-size: 0.7rem;" @onclick="() => SeleccionarPreset(1)">Hoy</button>
-                <button type="button" class="btn btn-xs btn-light border px-2 py-1 text-dark fw-medium" style="font-size: 0.7rem;" @onclick="() => SeleccionarPreset(2)">Ayer</button>
-                <button type="button" class="btn btn-xs btn-light border px-2 py-1 text-dark fw-medium" style="font-size: 0.7rem;" @onclick="() => SeleccionarPreset(7)">Esta Semana</button>
-                <button type="button" class="btn btn-xs btn-light border px-2 py-1 text-dark fw-medium" style="font-size: 0.7rem;" @onclick="() => SeleccionarPreset(30)">Este Mes</button>
-                <button type="button" class="btn btn-xs btn-light border px-2 py-1 text-dark fw-medium" style="font-size: 0.7rem;" @onclick="() => SeleccionarPreset(365)">Este Año</button>
+                <button type="button" class="btn btn-xs btn-light border px-2 py-1 text-dark fw-medium" style="font-size: 0.7rem;" @onclick="() => SeleccionarPreset(1)">@(Idioma.EsEspanol ? "Hoy" : "Today")</button>
+                <button type="button" class="btn btn-xs btn-light border px-2 py-1 text-dark fw-medium" style="font-size: 0.7rem;" @onclick="() => SeleccionarPreset(2)">@(Idioma.EsEspanol ? "Ayer" : "Yesterday")</button>
+                <button type="button" class="btn btn-xs btn-light border px-2 py-1 text-dark fw-medium" style="font-size: 0.7rem;" @onclick="() => SeleccionarPreset(7)">@(Idioma.EsEspanol ? "Esta Semana" : "This Week")</button>
+                <button type="button" class="btn btn-xs btn-light border px-2 py-1 text-dark fw-medium" style="font-size: 0.7rem;" @onclick="() => SeleccionarPreset(30)">@(Idioma.EsEspanol ? "Este Mes" : "This Month")</button>
+                <button type="button" class="btn btn-xs btn-light border px-2 py-1 text-dark fw-medium" style="font-size: 0.7rem;" @onclick="() => SeleccionarPreset(365)">@(Idioma.EsEspanol ? "Este Año" : "This Year")</button>
             </div>
 
             <!-- 3. Mini Calendario Interactivo -->
@@ -81,7 +86,7 @@
                 <div class="p-2 mb-2 rounded-3 bg-light border border-light-subtle">
                     <div class="d-flex justify-content-between align-items-center mb-1 px-1">
                         <span class="badge bg-primary-subtle text-primary border" style="font-size: 0.68rem;">
-                            Modificando fecha: <strong>@(calendarioAbierto == "desde" ? "Desde" : "Hasta")</strong>
+                            @(Idioma.EsEspanol ? "Modificando fecha:" : "Modifying date:") <strong>@(calendarioAbierto == "desde" ? (Idioma.EsEspanol ? "Desde" : "From") : (Idioma.EsEspanol ? "Hasta" : "To"))</strong>
                         </span>
                         <button type="button" class="btn-close btn-sm" style="font-size: 0.6rem;" @onclick='() => calendarioAbierto = string.Empty'></button>
                     </div>
@@ -140,27 +145,27 @@
 
             <hr class="my-2" />
 
-            <!-- 4. Filtros de Estado y Trámite -->
+            <!-- 4. Filtros de Estado y Trámite con valor por defecto Todos -->
             <div class="row g-2 mb-3">
                 <div class="col-6">
-                    <label class="form-label fw-bold mb-1 text-dark" style="font-size: 0.72rem;">ESTADO</label>
+                    <label class="form-label fw-bold mb-1 text-dark" style="font-size: 0.72rem;">@(Idioma.EsEspanol ? "ESTADO" : "STATUS")</label>
                     <select class="form-select form-select-sm bg-light border text-dark fw-normal" @bind="FiltroEstado" style="font-size: 0.78rem;">
-                        <option value="">Todos</option>
-                        <option value="Pendiente">Pendientes</option>
-                        <option value="En Proceso">En Proceso</option>
-                        <option value="Aprobada">Aprobadas</option>
-                        <option value="Rechazada">Rechazadas</option>
-                        <option value="Cancelada">Canceladas</option>
+                        <option value="">@(Idioma.EsEspanol ? "Todos" : "All")</option>
+                        <option value="Pendiente">@(Idioma.EsEspanol ? "Pendientes" : "Pending")</option>
+                        <option value="En Proceso">@(Idioma.EsEspanol ? "En Proceso" : "In Process")</option>
+                        <option value="Aprobado">@(Idioma.EsEspanol ? "Aprobadas" : "Approved")</option>
+                        <option value="Rechazado">@(Idioma.EsEspanol ? "Rechazadas" : "Rejected")</option>
+                        <option value="Cancelado">@(Idioma.EsEspanol ? "Canceladas" : "Cancelled")</option>
                     </select>
                 </div>
                 <div class="col-6">
-                    <label class="form-label fw-bold mb-1 text-dark" style="font-size: 0.72rem;">TRÁMITE</label>
+                    <label class="form-label fw-bold mb-1 text-dark" style="font-size: 0.72rem;">@(Idioma.EsEspanol ? "TRÁMITE" : "PROCEDURE")</label>
                     <select class="form-select form-select-sm bg-light border text-dark fw-normal" @bind="FiltroTipoTramite" style="font-size: 0.78rem;">
-                        <option value="">Todos</option>
-                        <option value="Residencia de Estudiante">Estudiante</option>
-                        <option value="Residencia de Trabajo">Trabajo</option>
-                        <option value="Residencia por Familia">Familia</option>
-                        <option value="Residencia de Menores">Menores</option>
+                        <option value="">@(Idioma.EsEspanol ? "Todos" : "All")</option>
+                        <option value="Estudiante">@(Idioma.EsEspanol ? "Estudiante" : "Student")</option>
+                        <option value="Trabajo">@(Idioma.EsEspanol ? "Trabajo" : "Work")</option>
+                        <option value="Familiar">@(Idioma.EsEspanol ? "Familiar" : "Family")</option>
+                        <option value="Inversionista">@(Idioma.EsEspanol ? "Inversionista" : "Investor")</option>
                     </select>
                 </div>
             </div>
@@ -170,12 +175,12 @@
                 <button type="button" class="btn btn-sm text-white fw-semibold px-3"
                         style="background-color: #003876; font-size: 0.78rem; border-radius: 6px;"
                         @onclick="LimpiarCamposInternos">
-                    Limpiar
+                    @(Idioma.EsEspanol ? "Limpiar" : "Clear")
                 </button>
                 <button type="button" class="btn btn-sm text-white px-4 fw-semibold shadow-sm"
                         style="background-color: #003876; font-size: 0.78rem; border-radius: 6px;"
                         @onclick="AplicarFiltrosInternos">
-                    Aplicar
+                    @(Idioma.EsEspanol ? "Aplicar" : "Apply")
                 </button>
             </div>
         </div>
@@ -207,6 +212,18 @@
         public string FiltroTipoTramite { get; set; } = string.Empty;
     }
 
+    protected override void OnInitialized()
+    {
+        Idioma.OnIdiomaCambiado += RefrescarPorIdioma;
+        if (string.IsNullOrEmpty(FiltroEstado)) FiltroEstado = string.Empty;
+        if (string.IsNullOrEmpty(FiltroTipoTramite)) FiltroTipoTramite = string.Empty;
+    }
+
+    private void RefrescarPorIdioma()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
     protected override void OnParametersSet()
     {
         if (FiltroFechaAplicado)
@@ -220,6 +237,9 @@
             txtFechaFin = DateTime.Today.ToString("dd/MM/yyyy");
         }
         mesVistaCalendario = FechaFin;
+
+        if (string.IsNullOrEmpty(FiltroEstado)) FiltroEstado = string.Empty;
+        if (string.IsNullOrEmpty(FiltroTipoTramite)) FiltroTipoTramite = string.Empty;
     }
 
     private bool TieneFiltrosActivos() =>
@@ -231,7 +251,7 @@
         else { calendarioAbierto = tipo; mesVistaCalendario = tipo == "desde" ? FechaInicio : FechaFin; }
     }
 
-    private string ObtenerNombreMes(int mes) => new DateTime(2026, mes, 1).ToString("MMMM", new System.Globalization.CultureInfo("es-ES")).ToUpper();
+    private string ObtenerNombreMes(int mes) => new DateTime(2026, mes, 1).ToString("MMMM", new System.Globalization.CultureInfo(Idioma.EsEspanol ? "es-ES" : "en-US")).ToUpper();
 
     private void ActualizarFechaEscrita(bool esInicio, string? valor)
     {
@@ -376,13 +396,6 @@
         FiltroFechaAplicado = false;
         FiltroEstado = string.Empty;
         FiltroTipoTramite = string.Empty;
-        FechaInicio = DateTime.Today;
-        FechaFin = DateTime.Today;
-        txtFechaInicio = DateTime.Today.ToString("dd/MM/yyyy");
-        txtFechaFin = DateTime.Today.ToString("dd/MM/yyyy");
-        mostrarPanelFiltros = false;
-        calendarioAbierto = string.Empty;
-
         await OnLimpiar.InvokeAsync();
     }
 }
